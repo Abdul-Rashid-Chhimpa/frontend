@@ -21,7 +21,7 @@ const fetchProducts = async () => {
     setLoading(true);
 
     const res = await axios.get(
-      "https://backend-1-065x.onrender.com/api/products"
+      "https://backend-3-axez.onrender.com/api/products"
     );
 
     if (res.data.success) {
