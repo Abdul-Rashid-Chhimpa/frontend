@@ -137,7 +137,7 @@ const { cartCount } = useContext(CartContext);
               </Link>
 
               <Link
-                to="/products"
+                to="/"
                 onClick={() =>
                   setIsOpen(false)
                 }
