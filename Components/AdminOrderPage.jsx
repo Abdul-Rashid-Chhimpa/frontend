@@ -4,12 +4,12 @@ import axios from "axios";
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
 
-  const IMAGE_BASE_URL = "http://localhost:8080/uploads/";
+  const IMAGE_BASE_URL = "https://backend-3-axez.onrender.com/uploads/";
 
   const fetchOrders = async () => {
     try {
       const res = await axios.get(
-        "http://localhost:8080/api/orders/all"
+        "https://backend-3-axez.onrender.com/api/orders/all"
       );
 
       setOrders(res.data.orders || res.data || []);
@@ -25,7 +25,7 @@ const AdminOrders = () => {
   const updateStatus = async (id, status) => {
     try {
       await axios.put(
-        `http://localhost:8080/api/orders/update-status/${id}`,
+        `https://backend-3-axez.onrender.com/api/orders/update-status/${id}`,
         { status }
       );
 
