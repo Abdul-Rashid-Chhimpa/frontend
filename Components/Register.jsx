@@ -83,7 +83,7 @@ const handleSubmit = async (e) => {
     setLoading(true);
 
     const { data } = await axios.post(
-      "http://localhost:8080/api/auth/register",
+      "https://backend-3-axez.onrender.com/api/auth/register",
       {
         name: form.name.trim(),
         mobile: form.mobile.trim(),
