@@ -19,7 +19,7 @@ const Login = () => {
       if (user.role === "admin") {
         navigate("/adminsidebar", { replace: true });
       } else {
-        navigate("/", { replace: true });
+        navigate("/login", { replace: true });
       }
     }
   }, [navigate]);
@@ -41,7 +41,7 @@ const Login = () => {
       setLoading(true);
 
       const { data } = await axios.post(
-        "http://localhost:8080/api/auth/login",
+        "https://backend-3-axez.onrender.com/api/auth/login",
         {
           email: email.trim(),
           password,
@@ -61,7 +61,7 @@ const Login = () => {
       if (data.user.role === "admin") {
         navigate("/adminsidebar", { replace: true });
       } else {
-        navigate("/", { replace: true });
+        navigate("/login", { replace: true });
       }
 
     } catch (error) {
