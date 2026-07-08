@@ -116,7 +116,7 @@ const checkoutHandler = async () => {
     };
 
     const res = await axios.post(
-      "http://localhost:8080/api/orders/create",
+      "https://backend-3-axez.onrender.com/api/orders/create",
       orderData
     );
 
