@@ -19,7 +19,7 @@ const Login = () => {
       if (user.role === "admin") {
         navigate("/adminsidebar", { replace: true });
       } else {
-        navigate("/login", { replace: true });
+        navigate("/", { replace: true });
       }
     }
   }, [navigate]);
@@ -61,7 +61,7 @@ const Login = () => {
       if (data.user.role === "admin") {
         navigate("/adminsidebar", { replace: true });
       } else {
-        navigate("/login", { replace: true });
+        navigate("/", { replace: true });
       }
 
     } catch (error) {
