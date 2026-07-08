@@ -164,7 +164,7 @@ const handleSubmit = async (e) => {
     );
 
     const res = await axios.post(
-      "http://localhost:8080/api/products/add-product",
+      "https://backend-3-axez.onrender.com/api/products/add-product",
       formData,
       {
         headers: {
