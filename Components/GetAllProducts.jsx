@@ -10,7 +10,7 @@ const [editProduct, setEditProduct] = useState(null);
 
 const [expandedDesc, setExpandedDesc] = useState({});
 
-const API = "http://localhost:8080/api/products";
+const API = "https://backend-3-axez.onrender.com/api/products";
 
 // ================= FETCH PRODUCTS =================
 
