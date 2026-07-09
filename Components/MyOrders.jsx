@@ -111,9 +111,9 @@ const cancelOrder = async (id) => {
                 </div>
 
                 <div>
-                  <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">
+                  {/* <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">
   {order.status}
-</span>
+</span> */}
                   <span
   className={`px-3 py-1 rounded-full text-sm font-semibold
 
