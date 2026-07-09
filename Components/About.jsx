@@ -17,7 +17,7 @@ const About = () => {
         <div className="flex flex-col md:flex-row items-center gap-8 p-8 md:p-12">
           <div className="w-48 h-48 overflow-hidden rounded-full border-4 border-blue-500 shadow-lg">
             <img
-              src="/pedwallogo.png"
+              src="/logo.png"
               alt="Owner"
               className="w-full h-full object-cover"
             />
