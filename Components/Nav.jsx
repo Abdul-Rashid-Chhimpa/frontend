@@ -70,6 +70,12 @@ const { cartCount } = useContext(CartContext);
             >
               Contact
             </Link>
+            <Link
+  to="/orders"
+  className="hover:text-blue-600"
+>
+  Orders
+</Link>
 
                   
 <Link
@@ -165,6 +171,12 @@ const { cartCount } = useContext(CartContext);
               >
                 Contact
               </Link>
+              <Link
+  to="/orders"
+  className="hover:text-blue-600"
+>
+   Orders
+</Link>
                     
 <Link
   to="/cart"
