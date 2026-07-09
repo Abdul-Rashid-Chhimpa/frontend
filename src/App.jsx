@@ -11,6 +11,7 @@ import Login from "../Components/Login";
 import Register from "../Components/Register";
 import ShoppingCart from "../Components/ShoppingCart";
 import AdminSidebar from "../Components/AdminSidebar";
+import MyOrders from "../Components/MyOrders";
 
 
 import CartProvider from "../Components/Context";
@@ -41,7 +42,7 @@ function App() {
           <Route path="/admin/orders" element={<AdminOrders />}/> 
           <Route path="/cart" element={<ShoppingCart />} />   
           <Route path="/adminsidebar" element={<AdminSidebar />} />
-
+           <Route path="/orders" element={<MyOrders />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
