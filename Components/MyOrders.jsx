@@ -142,16 +142,7 @@ const cancelOrder = async (id) => {
                   </p>
                 </div>
               </div>
-{order.status === "Pending" && (
-  <button
-    onClick={() =>
-      cancelOrder(order._id)
-    }
-    className="mt-3 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg transition"
-  >
-    Cancel Order
-  </button>
-)}
+
               <div className="space-y-4">
                 {order.items.map((item, index) => (
                   <div
@@ -176,6 +167,17 @@ const cancelOrder = async (id) => {
                       <p className="font-bold text-blue-600">
                         ₹{item.price}
                       </p>
+
+                      {order.status === "Pending" && (
+  <button
+    onClick={() =>
+      cancelOrder(order._id)
+    }
+    className="mt-3 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg transition"
+  >
+    Cancel Order
+  </button>
+)}
                     </div>
                   </div>
                 ))}
