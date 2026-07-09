@@ -72,12 +72,9 @@ const continueShopping = () => {
 // ===============================
 // CHECKOUT
 // ===============================
-
 const checkoutHandler = async () => {
   try {
-    const user = JSON.parse(
-      localStorage.getItem("user")
-    );
+    const user = JSON.parse(localStorage.getItem("user"));
 
     if (!user) {
       toast.error("Please Login First");
@@ -86,7 +83,7 @@ const checkoutHandler = async () => {
     }
 
     if (cart.length === 0) {
-      toast.error("Cart is Empty");
+      toast.error("Your cart is empty");
       return;
     }
 
@@ -97,44 +94,39 @@ const checkoutHandler = async () => {
       customerName: user.name,
 
       items: cart.map((item) => ({
-        id: item._id || item.id,
-        title: item.title || item.name,
-        image:
-          item.image ||
-          item.images?.[0] ||
-          "",
-        quantity: Number(item.quantity),
-        selectedQty:
-          item.selectedQty || 1,
+        id: String(item._id || item.id), // String because Mongo _id is string
+        title: item.name || item.title,
+        image: item.image || item.images?.[0] || "",
         price: Number(item.price),
+        quantity: Number(item.quantity || 1),
       })),
 
-      totalItems,
-      subTotal,
-      gst,
-      totalAmount: grandTotal,
+      totalAmount: Number(grandTotal),
     };
 
-    const res = await axios.post(
+    console.log("Sending Order:", orderData);
+
+    const { data } = await axios.post(
       "https://backend-3-axez.onrender.com/api/orders/create",
       orderData
     );
 
-    if (res.data.success) {
+    if (data.success) {
       toast.success("Order Placed Successfully");
 
       clearCart();
 
       navigate("/orders");
     } else {
-      toast.error(
-        res.data.message || "Order Failed"
-      );
+      toast.error(data.message);
     }
   } catch (err) {
-    console.log(err);
+    console.error(err);
 
-    toast.error("Order Failed");
+    toast.error(
+      err.response?.data?.message ||
+      "Unable to place order"
+    );
   } finally {
     setLoading(false);
   }
