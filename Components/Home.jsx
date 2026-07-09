@@ -52,7 +52,7 @@ const Home = () => {
               key={index}
               src={img}
               alt=""
-              className={`absolute w-36 sm:w-44 md:w-56 lg:w-64 gap-5 rounded-3xl object-cover transition-all duration-700 ease-in-out ${
+              className={`absolute w-36 sm:w-44 md:w-56 lg:w-64 rounded-2xl object-cover transition-all duration-700 ease-in-out ${
                 styles[diff] || "hidden"
               }`}
             />
