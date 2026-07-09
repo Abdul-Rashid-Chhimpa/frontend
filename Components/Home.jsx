@@ -1,43 +1,65 @@
+import { useEffect, useState } from "react";
 import ProductCard from './Card';
 import Nav from './Nav';
 import RandomImg from './RandomImg';
 
 const Home = () => {
-    
+    const images = [
+  "/01.jpeg",
+  "/02.jpeg",
+  "/03.jpg",
+  "/04.jpg",
+  "/05.jpg",
+];
+
+    const [active, setActive] = useState(2);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActive((prev) => (prev + 1) % images.length);
+    }, 2500);
+
+    return () => clearInterval(timer);
+  }, []);
     return (
         <>
         <Nav/>
         <RandomImg />
-            <div className="overflow-hidden">
-  <div className="coverflow">
-            <div className="flex items-center justify-center gap-4 py-10 overflow-hidden">
-  <img
-    src="01.jpeg"
-    className="w-20 sm:w-24 opacity-50 scale-75 transition-all duration-500"
-  />
+            <section className="w-full py-16 overflow-hidden bg-white">
+      <div className="relative flex justify-center items-center h-[340px]">
 
-  <img
-    src="02.jpeg"
-    className="w-28 sm:w-36 opacity-80 scale-90 transition-all duration-500"
-  />
+        {images.map((img, index) => {
+          let diff = index - active;
 
-  <img
-    src="03.jpg"
-    className="w-40 sm:w-52 md:w-60 scale-110 drop-shadow-2xl transition-all duration-500 z-10"
-  />
+          if (diff > 2) diff -= images.length;
+          if (diff < -2) diff += images.length;
 
-  <img
-    src="04.jpg"
-    className="w-28 sm:w-36 opacity-80 scale-90 transition-all duration-500"
-  />
+          const styles = {
+            "-2":
+              "-translate-x-72 scale-75 opacity-30 blur-[2px] z-0",
+            "-1":
+              "-translate-x-36 scale-90 opacity-70 z-10",
+            "0":
+              "translate-x-0 scale-125 z-30 shadow-2xl",
+            "1":
+              "translate-x-36 scale-90 opacity-70 z-10",
+            "2":
+              "translate-x-72 scale-75 opacity-30 blur-[2px] z-0",
+          };
 
-  <img
-    src="05.jpg"
-    className="w-20 sm:w-24 opacity-50 scale-75 transition-all duration-500"
-  />
-</div>
+          return (
+            <img
+              key={index}
+              src={img}
+              alt=""
+              className={`absolute w-36 sm:w-44 md:w-56 lg:w-64 rounded-3xl object-cover transition-all duration-700 ease-in-out ${
+                styles[diff] || "hidden"
+              }`}
+            />
+          );
+        })}
       </div>
-                </div>
+    </section>
         <ProductCard/>
         </>
     );
