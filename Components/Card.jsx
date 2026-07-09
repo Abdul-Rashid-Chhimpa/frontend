@@ -5,14 +5,23 @@ import { CartContext } from "./Context";
 
 const Card = () => {
 const { addToCart } = useContext(CartContext);
+
 const navigate = useNavigate();
 
+// ================= STATES =================
+
 const [products, setProducts] = useState([]);
+
 const [loading, setLoading] = useState(true);
 
-const [selectedCategory, setSelectedCategory] = useState([]);
-const [maxPrice, setMaxPrice] = useState(5000);
-const [visibleProducts, setVisibleProducts] = useState(8);
+const [selectedCategory, setSelectedCategory] =
+  useState([]);
+
+const [maxPrice, setMaxPrice] =
+  useState(5000);
+
+const [visibleProducts, setVisibleProducts] =
+  useState(8);
 
 // ================= FETCH PRODUCTS =================
 
@@ -20,15 +29,18 @@ const fetchProducts = async () => {
   try {
     setLoading(true);
 
-    const res = await axios.get(
+    const { data } = await axios.get(
       "https://backend-3-axez.onrender.com/api/products"
     );
 
-    if (res.data.success) {
-      setProducts(res.data.products);
+    if (data.success) {
+      setProducts(data.products || []);
+    } else {
+      setProducts([]);
     }
   } catch (error) {
     console.log(error);
+    setProducts([]);
   } finally {
     setLoading(false);
   }
@@ -38,7 +50,7 @@ useEffect(() => {
   fetchProducts();
 }, []);
 
-// ================= CATEGORY =================
+// ================= CATEGORIES =================
 
 const categories = [
   ...new Set(
@@ -48,53 +60,41 @@ const categories = [
   ),
 ];
 
+// ================= CATEGORY FILTER =================
+
 const handleCategory = (category) => {
-  if (selectedCategory.includes(category)) {
-    setSelectedCategory(
-      selectedCategory.filter(
-        (item) => item !== category
-      )
-    );
-  } else {
-    setSelectedCategory([
-      ...selectedCategory,
-      category,
-    ]);
-  }
+  setSelectedCategory((prev) =>
+    prev.includes(category)
+      ? prev.filter((item) => item !== category)
+      : [...prev, category]
+  );
 };
 
-// ================= GET LOWEST PRICE =================
+// ================= LOWEST PRICE =================
 
 const getLowestPrice = (pricing = []) => {
-  if (!pricing.length) return 0;
+  if (!pricing || pricing.length === 0) return 0;
 
   return Math.min(
-    ...pricing.map((item) =>
-      Number(item.price)
-    )
+    ...pricing.map((item) => Number(item.price || 0))
   );
 };
 
 // ================= FILTER PRODUCTS =================
 
-const filteredProducts = products.filter(
-  (product) => {
+const filteredProducts = products.filter((product) => {
+  const categoryMatch =
+    selectedCategory.length === 0 ||
+    selectedCategory.includes(product.category);
 
-    const categoryMatch =
-      selectedCategory.length === 0 ||
-      selectedCategory.includes(
-        product.category
-      );
+  const lowestPrice = getLowestPrice(
+    product.pricing
+  );
 
-    const lowestPrice =
-      getLowestPrice(product.pricing);
+  const priceMatch = lowestPrice <= maxPrice;
 
-    const priceMatch =
-      lowestPrice <= maxPrice;
-
-    return categoryMatch && priceMatch;
-  }
-);
+  return categoryMatch && priceMatch;
+});
 
 // ================= RESET SHOW MORE =================
 
@@ -106,33 +106,39 @@ useEffect(() => {
 
 if (loading) {
   return (
-    <div className="flex justify-center items-center h-[300px]">
-      <h2 className="text-2xl font-semibold">
-        Loading Products...
-      </h2>
+    <div className="flex justify-center items-center h-[60vh]">
+      <div className="text-center">
+
+        <div className="w-14 h-14 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+
+        <p className="mt-4 text-gray-600 font-medium">
+          Loading Products...
+        </p>
+
+      </div>
     </div>
   );
 }
   return (
   <>
-  <div
+ <div
   key={product._id}
-  className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition duration-300 border"
+  className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl border transition duration-300"
 >
   {/* Product Image */}
   <div className="relative">
     <img
       src={
         product.images?.[0] ||
-        "https://via.placeholder.com/400"
+        "https://via.placeholder.com/400x400?text=No+Image"
       }
       alt={product.name}
-      className="w-full h-60 object-cover"
+      className="w-full h-64 object-cover"
     />
 
     {/* Stock Badge */}
     <span
-      className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-medium text-white ${
+      className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white ${
         product.stock > 0
           ? "bg-green-600"
           : "bg-red-600"
@@ -151,7 +157,7 @@ if (loading) {
       {product.name}
     </h2>
 
-    <p className="text-sm text-gray-500 mt-1">
+    <p className="text-gray-500 text-sm mt-1">
       {product.brand}
     </p>
 
@@ -166,13 +172,13 @@ if (loading) {
         </h3>
       </div>
 
-      <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium">
+      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-medium">
         {product.category}
       </span>
     </div>
 
     {/* Buttons */}
-    <div className="mt-5 grid grid-cols-2 gap-3">
+    <div className="mt-5 flex gap-3">
 
       <button
         onClick={() =>
@@ -180,7 +186,7 @@ if (loading) {
             state: product,
           })
         }
-        className="h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
+        className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
       >
         View Details
       </button>
@@ -200,7 +206,7 @@ if (loading) {
               lowestPrice,
           })
         }
-        className="h-11 rounded-lg bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white font-semibold transition"
+        className="flex-1 h-11 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition"
       >
         Add To Cart
       </button>
