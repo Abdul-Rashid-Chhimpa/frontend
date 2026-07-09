@@ -32,6 +32,7 @@ const MyOrders = () => {
     }
   };
 
+  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[70vh] text-xl font-semibold">
@@ -39,7 +40,41 @@ const MyOrders = () => {
       </div>
     );
   }
+  
+const cancelOrder = async (id) => {
+  const confirmCancel = window.confirm(
+    "Are you sure you want to cancel this order?"
+  );
 
+  if (!confirmCancel) return;
+
+  try {
+    const { data } = await axios.put(
+      `https://backend-3-axez.onrender.com/api/orders/${id}`,
+      {
+        status: "Cancelled",
+      }
+    );
+
+    if (data.success) {
+      setOrders((prev) =>
+        prev.map((order) =>
+          order._id === id
+            ? {
+                ...order,
+                status: "Cancelled",
+              }
+            : order
+        )
+      );
+
+      alert("Order Cancelled Successfully");
+    }
+  } catch (error) {
+    console.log(error);
+    alert("Unable to cancel order");
+  }
+};
   return (
     <div className="max-w-6xl mx-auto px-5 py-10">
       <h1 className="text-3xl font-bold mb-8 text-center">
@@ -76,9 +111,24 @@ const MyOrders = () => {
                 </div>
 
                 <div>
-                  <h2 className="font-bold">
-                    Status
-                  </h2>
+                  <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">
+  {order.status}
+</span>
+                  <span
+  className={`px-3 py-1 rounded-full text-sm font-semibold
+
+  ${
+    order.status === "Pending"
+      ? "bg-yellow-100 text-yellow-700"
+      : order.status === "Delivered"
+      ? "bg-green-100 text-green-700"
+      : order.status === "Cancelled"
+      ? "bg-red-100 text-red-700"
+      : "bg-blue-100 text-blue-700"
+  }`}
+>
+  {order.status}
+</span>
 
                   <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">
                     {order.status}
@@ -95,7 +145,16 @@ const MyOrders = () => {
                   </p>
                 </div>
               </div>
-
+{order.status === "Pending" && (
+  <button
+    onClick={() =>
+      cancelOrder(order._id)
+    }
+    className="mt-3 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg transition"
+  >
+    Cancel Order
+  </button>
+)}
               <div className="space-y-4">
                 {order.items.map((item, index) => (
                   <div
