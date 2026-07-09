@@ -115,7 +115,7 @@ const cancelOrder = async (id) => {
   {order.status}
 </span> */}
                   <span
-  className={`px-3 py-1 rounded-full text-sm font-semibold
+  className={`px-3 py-1 mb-2 rounded-full text-sm font-semibold
 
   ${
     order.status === "Pending"
