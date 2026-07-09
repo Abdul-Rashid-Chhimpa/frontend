@@ -85,10 +85,10 @@ const getLowestPrice = (pricing = []) => {
 const filteredProducts = products.filter((product) => {
   const categoryMatch =
     selectedCategory.length === 0 ||
-    selectedCategory.includes(product.category);
+    selectedCategory.includes(products.category);
 
   const lowestPrice = getLowestPrice(
-    product.pricing
+    products.pricing
   );
 
   const priceMatch = lowestPrice <= maxPrice;
@@ -122,14 +122,14 @@ if (loading) {
   return (
   <>
  <div
-  key={product._id}
+  key={products._id}
   className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-xl border transition duration-300"
 >
   {/* Product Image */}
   <div className="relative">
     <img
       src={
-        product.images?.[0] ||
+        products.images?.[0] ||
         "https://via.placeholder.com/400x400?text=No+Image"
       }
       alt={product.name}
@@ -139,12 +139,12 @@ if (loading) {
     {/* Stock Badge */}
     <span
       className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white ${
-        product.stock > 0
+        products.stock > 0
           ? "bg-green-600"
           : "bg-red-600"
       }`}
     >
-      {product.stock > 0
+      {products.stock > 0
         ? "In Stock"
         : "Out of Stock"}
     </span>
@@ -154,11 +154,11 @@ if (loading) {
   <div className="p-4">
 
     <h2 className="text-lg font-bold truncate">
-      {product.name}
+      {products.name}
     </h2>
 
     <p className="text-gray-500 text-sm mt-1">
-      {product.brand}
+      {products.brand}
     </p>
 
     <div className="flex justify-between items-center mt-4">
@@ -173,7 +173,7 @@ if (loading) {
       </div>
 
       <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-medium">
-        {product.category}
+        {products.category}
       </span>
     </div>
 
@@ -182,8 +182,8 @@ if (loading) {
 
       <button
         onClick={() =>
-          navigate(`/product/${product._id}`, {
-            state: product,
+          navigate(`/product/${products._id}`, {
+            state: products,
           })
         }
         className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
@@ -192,12 +192,12 @@ if (loading) {
       </button>
 
       <button
-        disabled={product.stock === 0}
+        disabled={products.stock === 0}
         onClick={() =>
           addToCart({
-            id: product._id,
-            title: product.name,
-            image: product.images?.[0],
+            id: products._id,
+            title: products.name,
+            image: products.images?.[0],
             quantity: 1,
             selectedQty:
               defaultPrice.quantity || 1,
