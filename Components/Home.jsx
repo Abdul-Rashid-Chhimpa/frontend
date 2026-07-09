@@ -8,6 +8,8 @@ const Home = () => {
         <>
         <Nav/>
         <RandomImg />
+            <div className="overflow-hidden">
+  <div className="coverflow">
             <div className="flex items-center justify-center gap-4 py-10 overflow-hidden">
   <img
     src="01.jpeg"
@@ -34,6 +36,8 @@ const Home = () => {
     className="w-20 sm:w-24 opacity-50 scale-75 transition-all duration-500"
   />
 </div>
+      </div>
+                </div>
         <ProductCard/>
         </>
     );
