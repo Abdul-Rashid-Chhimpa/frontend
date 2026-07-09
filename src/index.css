@@ -1,11 +1,11 @@
 @import "tailwindcss";
 @keyframes marquee {
   from {
-    transform: translateX(70%);
+    transform: translateX(50%);
   }
 
   to {
-    transform: translateX(-70%);
+    transform: translateX(-50%);
   }
 }
 
