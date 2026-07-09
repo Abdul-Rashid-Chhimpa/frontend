@@ -24,10 +24,12 @@ const AdminOrders = () => {
 
   const updateStatus = async (id, status) => {
     try {
-      await axios.put(
-        `https://backend-3-axez.onrender.com/api/orders/update-status/${id}`,
-        { status }
-      );
+    await axios.put(
+  `https://backend-3-axez.onrender.com/api/orders/${id}`,
+  {
+    status,
+  }
+);
 
       fetchOrders();
     } catch (err) {
@@ -52,7 +54,21 @@ const AdminOrders = () => {
                 {order.customerName}
               </h2>
 
-              <span>{order.status}</span>
+             <span
+  className={`px-3 py-1 rounded-full text-white text-sm font-semibold
+
+  ${
+    order.status === "Pending"
+      ? "bg-yellow-500"
+      : order.status === "Shipped"
+      ? "bg-blue-600"
+      : order.status === "Delivered"
+      ? "bg-green-600"
+      : "bg-red-600"
+  }`}
+>
+  {order.status}
+</span>
             </div>
 
             <p>Total: ₹{order.totalAmount}</p>
@@ -91,34 +107,49 @@ const AdminOrders = () => {
             </div>
 
             {/* STATUS BUTTONS */}
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={() =>
-                  updateStatus(order._id, "Shipped")
-                }
-                className="bg-blue-500 text-white px-3 py-1 rounded"
-              >
-                Ship
-              </button>
+            <div className="flex flex-wrap gap-3 mt-5">
 
-              <button
-                onClick={() =>
-                  updateStatus(order._id, "Delivered")
-                }
-                className="bg-green-500 text-white px-3 py-1 rounded"
-              >
-                Deliver
-              </button>
+  <button
+    disabled={order.status === "Pending"}
+    onClick={() =>
+      updateStatus(order._id, "Pending")
+    }
+    className="px-4 py-2 rounded-lg bg-yellow-500 text-white disabled:opacity-50"
+  >
+    Pending
+  </button>
 
-              <button
-                onClick={() =>
-                  updateStatus(order._id, "Cancelled")
-                }
-                className="bg-red-500 text-white px-3 py-1 rounded"
-              >
-                Cancel
-              </button>
-            </div>
+  <button
+    disabled={order.status === "Shipped"}
+    onClick={() =>
+      updateStatus(order._id, "Shipped")
+    }
+    className="px-4 py-2 rounded-lg bg-blue-600 text-white disabled:opacity-50"
+  >
+    Shipped
+  </button>
+
+  <button
+    disabled={order.status === "Delivered"}
+    onClick={() =>
+      updateStatus(order._id, "Delivered")
+    }
+    className="px-4 py-2 rounded-lg bg-green-600 text-white disabled:opacity-50"
+  >
+    Delivered
+  </button>
+
+  <button
+    disabled={order.status === "Cancelled"}
+    onClick={() =>
+      updateStatus(order._id, "Cancelled")
+    }
+    className="px-4 py-2 rounded-lg bg-red-600 text-white disabled:opacity-50"
+  >
+    Cancel
+  </button>
+
+</div>
           </div>
         ))}
       </div>
