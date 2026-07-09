@@ -1,13 +1,29 @@
 @import "tailwindcss";
-@theme {
-  --animate-marquee: marquee 25s linear infinite;
+@keyframes coverflow {
 
-  @keyframes marquee {
-    from {
-      transform: translateX(100%);
-    }
-    to {
-      transform: translateX(-50%);
-    }
+  0%,20% {
+    transform: translateX(0);
   }
+
+  25%,45% {
+    transform: translateX(-180px);
+  }
+
+  50%,70% {
+    transform: translateX(-360px);
+  }
+
+  75%,95% {
+    transform: translateX(-540px);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.coverflow {
+  display: flex;
+  width: max-content;
+  animation: coverflow 16s steps(4) infinite;
 }
