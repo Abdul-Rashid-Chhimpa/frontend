@@ -308,14 +308,14 @@ useEffect(() => {
                   <div className="relative">
 
                     <img
-                      src={
-                        product.images?.[0] ||
-                        "https://via.placeholder.com/400"
-                      }
-                      alt={product.name}
-                      className="w-full h-64 object-cover"
-                    />
-
+  src={product.images?.[0] || "https://via.placeholder.com/400"}
+  alt={product.name}
+  className="w-full h-64 object-cover"
+  onLoad={() => console.log("Loaded")}
+  onError={(e) => {
+    console.log("Error:", e.target.src);
+  }}
+/>
                     {/* Stock Badge */}
 
                     <span
