@@ -89,37 +89,45 @@ const checkoutHandler = async () => {
 
     setLoading(true);
 
-    const orderData = {
-      userId: user._id,
-      customerName: user.name,
+const orderData = {
+  userId: user._id,
+  customerName: user.name,
 
-      items: cart.map((item) => ({
-        id: String(item._id || item.id), // String because Mongo _id is string
-        title: item.name || item.title,
-        image: item.image || item.images?.[0] || "",
-        price: Number(item.price),
-        quantity: Number(item.quantity || 1),
-      })),
+  items: cart.map((item) => ({
+    id: String(item._id || item.id),
+    title: item.name || item.title,
 
-      totalAmount: Number(grandTotal),
-    };
+    image:
+      item.image ||
+      (item.images && item.images.length > 0
+        ? item.images[0]
+        : ""),
 
+    price: Number(item.price),
+    quantity: Number(item.quantity || 1),
+  })),
+
+  totalItems,
+  subTotal,
+  gst,
+  totalAmount: Number(grandTotal),
+};
     console.log("Sending Order:", orderData);
 
-    const { data } = await axios.post(
-      "https://backend-3-axez.onrender.com/api/orders/create",
-      orderData
-    );
+   const { data } = await axios.post(
+  "https://backend-3-axez.onrender.com/api/orders/create",
+  orderData
+);
 
-    if (data.success) {
-      toast.success("Order Placed Successfully");
+if (data.success) {
+  toast.success("Order Placed Successfully");
 
-      clearCart();
+  clearCart();
 
-      navigate("/orders");
-    } else {
-      toast.error(data.message);
-    }
+  navigate("/orders");
+} else {
+  toast.error(data.message || "Order Failed");
+}
   } catch (err) {
     console.error(err);
 
