@@ -108,19 +108,25 @@ const removePriceRow = (index) => {
 // ================= DELETE IMAGE =================
 
 const deleteImage = (index) => {
+
   setEditProduct((prev) => {
+
     const updatedImages = [...prev.images];
     updatedImages.splice(index, 1);
 
-    const updatedFiles = [...prev.newImages];
-    updatedFiles.splice(index, 1);
+    const updatedNewImages =
+      (prev.newImages || []).filter(
+        (item) => item?.index !== index
+      );
 
     return {
       ...prev,
       images: updatedImages,
-      newImages: updatedFiles,
+      newImages: updatedNewImages,
     };
+
   });
+
 };
 
 // ================= ADD IMAGE =================
@@ -133,7 +139,13 @@ const addImage = (file) => {
   setEditProduct((prev) => ({
     ...prev,
     images: [...prev.images, preview],
-    newImages: [...prev.newImages, file],
+    newImages: [
+      ...(prev.newImages || []),
+      {
+        file,
+        index: -1,
+      },
+    ],
   }));
 };
 
@@ -144,17 +156,23 @@ const replaceImage = (index, file) => {
   const preview = URL.createObjectURL(file);
 
   setEditProduct((prev) => {
+
     const updatedImages = [...prev.images];
     updatedImages[index] = preview;
 
     const updatedNewImages = [...(prev.newImages || [])];
-    updatedNewImages[index] = file;
+
+    updatedNewImages[index] = {
+      file,
+      index,
+    };
 
     return {
       ...prev,
       images: updatedImages,
       newImages: updatedNewImages,
     };
+
   });
 };
 
@@ -164,6 +182,10 @@ const updateProduct = async () => {
   try {
     const formData = new FormData();
 
+    // =========================
+    // BASIC DETAILS
+    // =========================
+
     formData.append("name", editProduct.name);
     formData.append("brand", editProduct.brand);
     formData.append("category", editProduct.category);
@@ -171,18 +193,32 @@ const updateProduct = async () => {
     formData.append("stock", editProduct.stock);
     formData.append("description", editProduct.description);
 
+    // =========================
+    // PRICING
+    // =========================
+
     formData.append(
       "pricing",
       JSON.stringify(editProduct.pricing)
     );
-    if (editProduct.newImages) {
-  editProduct.newImages.forEach((file, index) => {
-    if (file) {
-      formData.append("images", file);
-      formData.append("replaceIndexes", index);
-    }
-  });
-}
+
+    // =========================
+    // NEW / REPLACED IMAGES
+    // =========================
+
+    (editProduct.newImages || []).forEach((item) => {
+      if (!item) return;
+
+      formData.append("images", item.file);
+      formData.append(
+        "replaceIndexes",
+        item.index
+      );
+    });
+
+    // =========================
+    // UPDATE API
+    // =========================
 
     const { data } = await axios.put(
       `${API}/${editProduct._id}`,
@@ -204,15 +240,23 @@ const updateProduct = async () => {
         )
       );
 
-      alert("Product Updated");
+      alert("Product Updated Successfully");
+
       setEditProduct(null);
+
+      fetchProducts(); // Latest Images Reload
+    } else {
+      alert(data.message);
     }
   } catch (error) {
     console.log(error);
-    alert("Update Failed");
+
+    alert(
+      error.response?.data?.message ||
+        "Update Failed"
+    );
   }
 };
-
 // ================= DESCRIPTION =================
 
 const toggleDescription = (id) => {
@@ -233,137 +277,129 @@ if (loading) {
 }
   return (
     <>
-     {products.length === 0 ? (
+    {products.length === 0 ? (
   <div className="text-center py-20">
-    <h2 className="text-2xl font-bold text-gray-600">
+    <h2 className="text-2xl font-bold">
       No Products Found
     </h2>
   </div>
 ) : (
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-    {products.map((product) => {
-      const expanded = expandedDesc[product._id];
+  products.map((product) => (
+    <div
+      key={product._id}
+      className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl duration-300"
+    >
+      {/* Main Image */}
 
-      return (
-        <div
-          key={product._id}
-          className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl duration-300"
-        >
-          {/* Main Image */}
+      <img
+        src={
+          product.images?.[0] ||
+          "https://via.placeholder.com/500x400"
+        }
+        alt={product.name}
+        className="w-full h-56 object-cover"
+      />
 
+      {/* Thumbnail Images */}
+
+      <div className="flex gap-2 p-3 overflow-x-auto">
+        {product.images?.length > 0 ? (
+          product.images.map((img, index) => (
+            <img
+              key={index}
+              src={img}
+              alt={`Product ${index + 1}`}
+              className="w-14 h-14 rounded-lg border object-cover"
+            />
+          ))
+        ) : (
           <img
-            src={
-              product.images?.[0] ||
-              "https://via.placeholder.com/500x400"
-            }
-            alt={product.name}
-            className="w-full h-56 object-cover"
+            src="https://via.placeholder.com/80"
+            alt="No Image"
+            className="w-14 h-14 rounded-lg border object-cover"
           />
+        )}
+      </div>
 
-          {/* Thumbnail Images */}
+      {/* Content */}
 
-          <div className="flex gap-2 p-3 overflow-x-auto">
-            {product.images?.map((img, index) => (
-              <img
-                key={index}
-                src={img}
-                alt=""
-                className="w-14 h-14 rounded-lg border object-cover"
-              />
-            ))}
+      <div className="p-4">
+
+        <h2 className="font-bold text-xl">
+          {product.name}
+        </h2>
+
+        <div className="flex flex-wrap gap-2 mt-2">
+
+          <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">
+            {product.category}
+          </span>
+
+          <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
+            Stock : {product.stock}
+          </span>
+
+        </div>
+
+        <div className="mt-3 text-sm space-y-1">
+
+          <p>
+            <span className="font-semibold">
+              Brand :
+            </span>{" "}
+            {product.brand || "-"}
+          </p>
+
+          <p>
+            <span className="font-semibold">
+              Material :
+            </span>{" "}
+            {product.material || "-"}
+          </p>
+
+        </div>
+
+        {/* Quantity Pricing */}
+
+        <div className="mt-4">
+
+          <h3 className="font-semibold mb-2">
+            Quantity Pricing
+          </h3>
+
+          <div className="border rounded-lg overflow-hidden">
+
+            <table className="w-full text-sm">
+
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="py-2">Qty</th>
+                  <th className="py-2">Price</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {product.pricing?.map((price, index) => (
+                  <tr
+                    key={index}
+                    className="border-t"
+                  >
+                    <td className="text-center py-2">
+                      {price.quantity}
+                    </td>
+
+                    <td className="text-center py-2 font-bold text-green-600">
+                      ₹{price.price}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+
+            </table>
+
           </div>
 
-          {/* Content */}
-
-          <div className="p-4">
-
-            <h2 className="font-bold text-xl">
-              {product.name}
-            </h2>
-
-            <div className="flex flex-wrap gap-2 mt-2">
-
-              <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">
-                {product.category}
-              </span>
-
-              <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
-                Stock : {product.stock}
-              </span>
-
-            </div>
-
-            <div className="mt-3 text-sm space-y-1">
-
-              <p>
-                <span className="font-semibold">
-                  Brand :
-                </span>{" "}
-                {product.brand || "-"}
-              </p>
-
-              <p>
-                <span className="font-semibold">
-                  Material :
-                </span>{" "}
-                {product.material || "-"}
-              </p>
-
-            </div>
-
-            {/* Quantity Pricing */}
-
-            <div className="mt-4">
-
-              <h3 className="font-semibold mb-2">
-                Quantity Pricing
-              </h3>
-
-              <div className="border rounded-lg overflow-hidden">
-
-                <table className="w-full text-sm">
-
-                  <thead className="bg-gray-100">
-
-                    <tr>
-                      <th className="py-2">
-                        Qty
-                      </th>
-
-                      <th className="py-2">
-                        Price
-                      </th>
-                    </tr>
-
-                  </thead>
-
-                  <tbody>
-
-                    {product.pricing?.map(
-                      (price, index) => (
-                        <tr
-                          key={index}
-                          className="border-t"
-                        >
-                          <td className="text-center py-2">
-                            {price.quantity}
-                          </td>
-
-                          <td className="text-center py-2 font-bold text-green-600">
-                            ₹{price.price}
-                          </td>
-                        </tr>
-                      )
-                    )}
-
-                  </tbody>
-
-                </table>
-
-              </div>
-
-            </div>
-
+        </div>
             {/* Description */}
 
             <div className="mt-4 text-sm text-gray-600">
@@ -442,45 +478,65 @@ if (loading) {
 
         <div className="flex flex-wrap gap-4">
 
-          {editProduct.images?.map((img,index)=>(
-            <div
-              key={index}
-              className="relative"
-            >
+         <div className="flex flex-wrap gap-4">
 
-              <img
-                src={img}
-                className="w-28 h-28 rounded-xl object-cover border"
-              />
+  {editProduct.images?.map((img, index) => (
+    <div
+      key={index}
+      className="relative"
+    >
+      <img
+        src={img}
+        alt=""
+        className="w-28 h-28 rounded-xl object-cover border"
+      />
 
-              <button
-                type="button"
-                onClick={()=>deleteImage(index)}
-                className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6"
-              >
-                ✕
-              </button>
+      <button
+        type="button"
+        onClick={() => deleteImage(index)}
+        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6"
+      >
+        ✕
+      </button>
 
-              <label className="absolute bottom-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded cursor-pointer">
+      <label className="absolute bottom-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded cursor-pointer">
 
-                Replace
+        Replace
 
-                <input
-                  hidden
-                  type="file"
-                  accept="image/*"
-                  onChange={(e)=>
-                    replaceImage(
-                      index,
-                      e.target.files[0]
-                    )
-                  }
-                />
+        <input
+          hidden
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            if (e.target.files[0]) {
+              replaceImage(index, e.target.files[0]);
+            }
+          }}
+        />
 
-              </label>
+      </label>
 
-            </div>
-          ))}
+    </div>
+  ))}
+
+  <label className="w-28 h-28 border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer">
+
+    +
+
+    <input
+      hidden
+      type="file"
+      accept="image/*"
+      onChange={(e) => {
+        if (e.target.files[0]) {
+          addImage(e.target.files[0]);
+        }
+      }}
+    />
+
+  </label>
+
+</div>
 
           <label className="w-28 h-28 border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer">
 
@@ -650,12 +706,7 @@ if (loading) {
         </button>
 
         <button
-    onClick={() =>
-  setEditProduct({
-    ...product,
-    newImages: [],
-  })
-}
+onClick={() => setEditProduct(null)}
           className="flex-1 bg-gray-500 text-white py-3 rounded-xl font-semibold"
         >
           Cancel
