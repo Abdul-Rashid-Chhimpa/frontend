@@ -3,14 +3,15 @@ import axios from "axios";
 import { Pencil, Trash2 } from "lucide-react";
 
 const GetAllProducts = () => {
- const [products, setProducts] = useState([]);
+const [products, setProducts] = useState([]);
 const [loading, setLoading] = useState(true);
 
 const [editProduct, setEditProduct] = useState(null);
 
 const [expandedDesc, setExpandedDesc] = useState({});
 
-const API = "https://backend-3-axez.onrender.com/api/products";
+const API =
+  "https://backend-3-axez.onrender.com/api/products";
 
 // ================= FETCH PRODUCTS =================
 
@@ -18,10 +19,10 @@ const fetchProducts = async () => {
   try {
     setLoading(true);
 
-    const res = await axios.get(API);
+    const { data } = await axios.get(API);
 
-    if (res.data.success) {
-      setProducts(res.data.products);
+    if (data.success) {
+      setProducts(data.products);
     }
   } catch (error) {
     console.log(error);
@@ -41,11 +42,9 @@ const deleteProduct = async (id) => {
   if (!window.confirm("Delete this product ?")) return;
 
   try {
-    const res = await axios.delete(
-      `${API}/${id}`
-    );
+    const { data } = await axios.delete(`${API}/${id}`);
 
-    if (res.data.success) {
+    if (data.success) {
       setProducts((prev) =>
         prev.filter((item) => item._id !== id)
       );
@@ -54,7 +53,6 @@ const deleteProduct = async (id) => {
     }
   } catch (error) {
     console.log(error);
-
     alert("Delete Failed");
   }
 };
@@ -62,70 +60,66 @@ const deleteProduct = async (id) => {
 // ================= INPUT CHANGE =================
 
 const handleEditChange = (e) => {
-  setEditProduct({
-    ...editProduct,
+  setEditProduct((prev) => ({
+    ...prev,
     [e.target.name]: e.target.value,
-  });
+  }));
 };
 
 // ================= PRICE CHANGE =================
 
-const handlePriceChange = (
-  index,
-  field,
-  value
-) => {
-  const updatedPricing = [
-    ...editProduct.pricing,
-  ];
+const handlePriceChange = (index, field, value) => {
+  const pricing = [...editProduct.pricing];
 
-  updatedPricing[index][field] = value;
+  pricing[index][field] = value;
 
-  setEditProduct({
-    ...editProduct,
-    pricing: updatedPricing,
-  });
+  setEditProduct((prev) => ({
+    ...prev,
+    pricing,
+  }));
 };
 
 // ================= ADD PRICE =================
 
 const addPriceRow = () => {
-  setEditProduct({
-    ...editProduct,
+  setEditProduct((prev) => ({
+    ...prev,
     pricing: [
-      ...editProduct.pricing,
+      ...prev.pricing,
       {
         quantity: "",
         price: "",
       },
     ],
-  });
+  }));
 };
 
 // ================= REMOVE PRICE =================
 
 const removePriceRow = (index) => {
-  const updated = editProduct.pricing.filter(
-    (_, i) => i !== index
-  );
-
-  setEditProduct({
-    ...editProduct,
-    pricing: updated,
-  });
+  setEditProduct((prev) => ({
+    ...prev,
+    pricing: prev.pricing.filter(
+      (_, i) => i !== index
+    ),
+  }));
 };
 
 // ================= DELETE IMAGE =================
 
 const deleteImage = (index) => {
-  const updatedImages =
-    editProduct.images.filter(
-      (_, i) => i !== index
-    );
+  setEditProduct((prev) => {
+    const updatedImages = [...prev.images];
+    updatedImages.splice(index, 1);
 
-  setEditProduct({
-    ...editProduct,
-    images: updatedImages,
+    const updatedFiles = [...prev.newImages];
+    updatedFiles.splice(index, 1);
+
+    return {
+      ...prev,
+      images: updatedImages,
+      newImages: updatedFiles,
+    };
   });
 };
 
@@ -134,34 +128,34 @@ const deleteImage = (index) => {
 const addImage = (file) => {
   if (!file) return;
 
-  const preview =
-    URL.createObjectURL(file);
+  const preview = URL.createObjectURL(file);
 
-  setEditProduct({
-    ...editProduct,
-    images: [
-      ...editProduct.images,
-      preview,
-    ],
-  });
+  setEditProduct((prev) => ({
+    ...prev,
+    images: [...prev.images, preview],
+    newImages: [...prev.newImages, file],
+  }));
 };
 
 // ================= REPLACE IMAGE =================
+
 const replaceImage = (index, file) => {
   if (!file) return;
 
   const preview = URL.createObjectURL(file);
 
-  const updatedImages = [...editProduct.images];
-  updatedImages[index] = preview;
+  setEditProduct((prev) => {
+    const updatedImages = [...prev.images];
+    updatedImages[index] = preview;
 
-  const updatedFiles = [...(editProduct.newImages || [])];
-  updatedFiles[index] = file;
+    const updatedFiles = [...prev.newImages];
+    updatedFiles[index] = file;
 
-  setEditProduct({
-    ...editProduct,
-    images: updatedImages,
-    newImages: updatedFiles,
+    return {
+      ...prev,
+      images: updatedImages,
+      newImages: updatedFiles,
+    };
   });
 };
 
@@ -183,30 +177,33 @@ const updateProduct = async () => {
       JSON.stringify(editProduct.pricing)
     );
 
-    // ⭐ Image Upload
-    if (editProduct.newImages?.length > 0) {
+    if (
+      editProduct.newImages &&
+      editProduct.newImages.length > 0
+    ) {
       editProduct.newImages.forEach((file) => {
-        if (file) {
+        if (file instanceof File) {
           formData.append("images", file);
         }
       });
     }
 
-    const res = await axios.put(
+    const { data } = await axios.put(
       `${API}/${editProduct._id}`,
       formData,
       {
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type":
+            "multipart/form-data",
         },
       }
     );
 
-    if (res.data.success) {
+    if (data.success) {
       setProducts((prev) =>
         prev.map((item) =>
           item._id === editProduct._id
-            ? res.data.product
+            ? data.product
             : item
         )
       );
@@ -214,12 +211,12 @@ const updateProduct = async () => {
       alert("Product Updated");
       setEditProduct(null);
     }
-
   } catch (error) {
     console.log(error);
     alert("Update Failed");
   }
 };
+
 // ================= DESCRIPTION =================
 
 const toggleDescription = (id) => {
@@ -233,7 +230,7 @@ const toggleDescription = (id) => {
 
 if (loading) {
   return (
-    <div className="flex justify-center items-center h-screen text-2xl font-bold">
+    <div className="text-center py-20">
       Loading Products...
     </div>
   );
@@ -657,7 +654,12 @@ if (loading) {
         </button>
 
         <button
-          onClick={()=>setEditProduct(null)}
+    onClick={() =>
+  setEditProduct({
+    ...product,
+    newImages: [],
+  })
+}
           className="flex-1 bg-gray-500 text-white py-3 rounded-xl font-semibold"
         >
           Cancel
