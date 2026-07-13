@@ -177,16 +177,14 @@ const updateProduct = async () => {
       JSON.stringify(editProduct.pricing)
     );
 
-    if (
-      editProduct.newImages &&
-      editProduct.newImages.length > 0
-    ) {
-      editProduct.newImages.forEach((file) => {
-        if (file instanceof File) {
-          formData.append("images", file);
-        }
-      });
+   if (editProduct.newImages?.length > 0) {
+  editProduct.newImages.forEach((file, index) => {
+    if (file instanceof File) {
+      formData.append("images", file);
+      formData.append("replaceIndexes", index);
     }
+  });
+}
 
     const { data } = await axios.put(
       `${API}/${editProduct._id}`,
