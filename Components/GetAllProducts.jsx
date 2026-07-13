@@ -147,20 +147,21 @@ const addImage = (file) => {
 };
 
 // ================= REPLACE IMAGE =================
-
 const replaceImage = (index, file) => {
   if (!file) return;
 
-  const preview =
-    URL.createObjectURL(file);
+  const preview = URL.createObjectURL(file);
 
-  const updated = [...editProduct.images];
+  const updatedImages = [...editProduct.images];
+  updatedImages[index] = preview;
 
-  updated[index] = preview;
+  const updatedFiles = [...(editProduct.newImages || [])];
+  updatedFiles[index] = file;
 
   setEditProduct({
     ...editProduct,
-    images: updated,
+    images: updatedImages,
+    newImages: updatedFiles,
   });
 };
 
@@ -170,48 +171,33 @@ const updateProduct = async () => {
   try {
     const formData = new FormData();
 
-    formData.append(
-      "name",
-      editProduct.name
-    );
-
-    formData.append(
-      "brand",
-      editProduct.brand
-    );
-
-    formData.append(
-      "category",
-      editProduct.category
-    );
-
-    formData.append(
-      "material",
-      editProduct.material
-    );
-
-    formData.append(
-      "stock",
-      editProduct.stock
-    );
-
-    formData.append(
-      "description",
-      editProduct.description
-    );
+    formData.append("name", editProduct.name);
+    formData.append("brand", editProduct.brand);
+    formData.append("category", editProduct.category);
+    formData.append("material", editProduct.material);
+    formData.append("stock", editProduct.stock);
+    formData.append("description", editProduct.description);
 
     formData.append(
       "pricing",
       JSON.stringify(editProduct.pricing)
     );
 
+    // ⭐ Image Upload
+    if (editProduct.newImages?.length > 0) {
+      editProduct.newImages.forEach((file) => {
+        if (file) {
+          formData.append("images", file);
+        }
+      });
+    }
+
     const res = await axios.put(
       `${API}/${editProduct._id}`,
       formData,
       {
         headers: {
-          "Content-Type":
-            "multipart/form-data",
+          "Content-Type": "multipart/form-data",
         },
       }
     );
@@ -226,16 +212,14 @@ const updateProduct = async () => {
       );
 
       alert("Product Updated");
-
       setEditProduct(null);
     }
+
   } catch (error) {
     console.log(error);
-
     alert("Update Failed");
   }
 };
-
 // ================= DESCRIPTION =================
 
 const toggleDescription = (id) => {
