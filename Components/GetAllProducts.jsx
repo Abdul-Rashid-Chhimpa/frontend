@@ -138,7 +138,6 @@ const addImage = (file) => {
 };
 
 // ================= REPLACE IMAGE =================
-
 const replaceImage = (index, file) => {
   if (!file) return;
 
@@ -148,13 +147,13 @@ const replaceImage = (index, file) => {
     const updatedImages = [...prev.images];
     updatedImages[index] = preview;
 
-    const updatedFiles = [...prev.newImages];
-    updatedFiles[index] = file;
+    const updatedNewImages = [...(prev.newImages || [])];
+    updatedNewImages[index] = file;
 
     return {
       ...prev,
       images: updatedImages,
-      newImages: updatedFiles,
+      newImages: updatedNewImages,
     };
   });
 };
@@ -176,10 +175,9 @@ const updateProduct = async () => {
       "pricing",
       JSON.stringify(editProduct.pricing)
     );
-
-   if (editProduct.newImages?.length > 0) {
+    if (editProduct.newImages) {
   editProduct.newImages.forEach((file, index) => {
-    if (file instanceof File) {
+    if (file) {
       formData.append("images", file);
       formData.append("replaceIndexes", index);
     }
