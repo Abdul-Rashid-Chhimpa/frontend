@@ -148,18 +148,10 @@ const cancelOrder = async (id) => {
                     key={index}
                     className="flex gap-4 items-center border rounded-xl p-3"
                   >
-                    <img
-  src={
-    item.image ||
-    "https://dummyimage.com/80x80/e5e7eb/6b7280&text=No+Image"
-  }
-  alt={item.title}
+                   <img
+  src={item.image}
+  alt="https://via.placeholder.com/80"
   className="w-20 h-20 rounded-lg object-cover"
-  onError={(e) => {
-    e.currentTarget.onerror = null;
-    e.currentTarget.src =
-      "https://dummyimage.com/80x80/e5e7eb/6b7280&text=No+Image";
-  }}
 />
 
                     <div className="flex-1">
