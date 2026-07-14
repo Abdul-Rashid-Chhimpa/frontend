@@ -108,27 +108,22 @@ const removePriceRow = (index) => {
 // ================= DELETE IMAGE =================
 
 const deleteImage = (index) => {
-
   setEditProduct((prev) => {
-
     const updatedImages = [...prev.images];
+
     updatedImages.splice(index, 1);
 
-    const updatedNewImages =
-      (prev.newImages || []).filter(
-        (item) => item?.index !== index
-      );
+    const updatedNewImages = (prev.newImages || []).filter(
+      (img) => img.index !== index
+    );
 
     return {
       ...prev,
       images: updatedImages,
       newImages: updatedNewImages,
     };
-
   });
-
 };
-
 // ================= ADD IMAGE =================
 
 const addImage = (file) => {
@@ -138,53 +133,65 @@ const addImage = (file) => {
 
   setEditProduct((prev) => ({
     ...prev,
+
+    // Preview
     images: [...prev.images, preview],
+
+    // Upload Queue
     newImages: [
       ...(prev.newImages || []),
       {
         file,
-        index: -1,
+        index: -1, // -1 means NEW IMAGE
       },
     ],
   }));
 };
 
 // ================= REPLACE IMAGE =================
+
 const replaceImage = (index, file) => {
   if (!file) return;
 
   const preview = URL.createObjectURL(file);
 
   setEditProduct((prev) => {
-
     const updatedImages = [...prev.images];
     updatedImages[index] = preview;
 
-    const updatedNewImages = [...(prev.newImages || [])];
+    let updatedNewImages = [...(prev.newImages || [])];
 
-    updatedNewImages[index] = {
-      file,
-      index,
-    };
+    // Agar same index pe pehle replacement hai to replace karo
+    const existingIndex = updatedNewImages.findIndex(
+      (img) => img.index === index
+    );
+
+    if (existingIndex !== -1) {
+      updatedNewImages[existingIndex] = {
+        file,
+        index,
+      };
+    } else {
+      updatedNewImages.push({
+        file,
+        index,
+      });
+    }
 
     return {
       ...prev,
       images: updatedImages,
       newImages: updatedNewImages,
     };
-
   });
 };
-
 // ================= UPDATE PRODUCT =================
 
 const updateProduct = async () => {
   try {
     const formData = new FormData();
 
-    // =========================
-    // BASIC DETAILS
-    // =========================
+    // ================= BASIC INFO =================
 
     formData.append("name", editProduct.name);
     formData.append("brand", editProduct.brand);
@@ -193,32 +200,40 @@ const updateProduct = async () => {
     formData.append("stock", editProduct.stock);
     formData.append("description", editProduct.description);
 
-    // =========================
-    // PRICING
-    // =========================
+    // ================= PRICING =================
 
     formData.append(
       "pricing",
       JSON.stringify(editProduct.pricing)
     );
 
-    // =========================
-    // NEW / REPLACED IMAGES
-    // =========================
+    // ================= EXISTING IMAGES =================
+    // Preview URLs backend ko mat bhejo
+    // Sirf original Cloudinary URLs bhejo
 
-    (editProduct.newImages || []).forEach((item) => {
-      if (!item) return;
-
-      formData.append("images", item.file);
-      formData.append(
-        "replaceIndexes",
-        item.index
+    const existingImages =
+      editProduct.images.filter(
+        (img) => img.startsWith("http")
       );
-    });
 
-    // =========================
-    // UPDATE API
-    // =========================
+    formData.append(
+      "images",
+      JSON.stringify(existingImages)
+    );
+
+    // ================= NEW / REPLACED IMAGES =================
+
+    (editProduct.newImages || []).forEach(
+      ({ file, index }) => {
+        formData.append("images", file);
+        formData.append(
+          "replaceIndexes",
+          index
+        );
+      }
+    );
+
+    // ================= API =================
 
     const { data } = await axios.put(
       `${API}/${editProduct._id}`,
@@ -232,19 +247,11 @@ const updateProduct = async () => {
     );
 
     if (data.success) {
-      setProducts((prev) =>
-        prev.map((item) =>
-          item._id === editProduct._id
-            ? data.product
-            : item
-        )
-      );
-
       alert("Product Updated Successfully");
 
       setEditProduct(null);
 
-      fetchProducts(); // Latest Images Reload
+      fetchProducts();
     } else {
       alert(data.message);
     }
@@ -257,7 +264,7 @@ const updateProduct = async () => {
     );
   }
 };
-// ================= DESCRIPTION =================
+//=============== DESCRIPTION =================
 
 const toggleDescription = (id) => {
   setExpandedDesc((prev) => ({
@@ -429,7 +436,12 @@ if (loading) {
 
               <button
                 onClick={() =>
-                  setEditProduct(product)
+                 onClick={() =>
+  setEditProduct({
+    ...product,
+    newImages: [],
+  })
+}
                 }
                 className="flex-1 bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center gap-2"
               >
@@ -458,107 +470,88 @@ if (loading) {
 )}
 
       {/* ================= EDIT MODAL ================= */}
+{/* Images */}
 
-      {editProduct && (
-  <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-5">
+<div className="mb-8">
 
-    <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl max-h-[95vh] overflow-y-auto p-6">
+  <h3 className="font-semibold text-lg mb-3">
+    Product Images
+  </h3>
 
-      <h2 className="text-3xl font-bold mb-6">
-        Edit Product
-      </h2>
+  <div className="flex flex-wrap gap-4">
 
-      {/* Images */}
+    {editProduct.images?.map((img, index) => (
 
-      <div className="mb-8">
-
-        <h3 className="font-semibold text-lg mb-3">
-          Product Images
-        </h3>
-
-        <div className="flex flex-wrap gap-4">
-
-         <div className="flex flex-wrap gap-4">
-
-  {editProduct.images?.map((img, index) => (
-    <div
-      key={index}
-      className="relative"
-    >
-      <img
-        src={img}
-        alt=""
-        className="w-28 h-28 rounded-xl object-cover border"
-      />
-
-      <button
-        type="button"
-        onClick={() => deleteImage(index)}
-        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6"
+      <div
+        key={index}
+        className="relative"
       >
-        ✕
-      </button>
 
-      <label className="absolute bottom-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded cursor-pointer">
-
-        Replace
-
-        <input
-          hidden
-          type="file"
-          accept="image/*"
-          onChange={(e) => {
-            if (e.target.files[0]) {
-              replaceImage(index, e.target.files[0]);
-            }
-          }}
+        <img
+          src={img}
+          alt={`product-${index}`}
+          className="w-28 h-28 rounded-xl object-cover border"
         />
 
-      </label>
+        {/* Delete */}
 
-    </div>
-  ))}
+        <button
+          type="button"
+          onClick={() => deleteImage(index)}
+          className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center"
+        >
+          ✕
+        </button>
 
-  <label className="w-28 h-28 border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer">
+        {/* Replace */}
 
-    +
+        <label className="absolute bottom-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded cursor-pointer">
 
-    <input
-      hidden
-      type="file"
-      accept="image/*"
-      onChange={(e) => {
-        if (e.target.files[0]) {
-          addImage(e.target.files[0]);
-        }
-      }}
-    />
+          Replace
 
-  </label>
+          <input
+            hidden
+            type="file"
+            accept="image/*"
+            onChange={(e) => {
+              const file = e.target.files[0];
 
-</div>
-
-          <label className="w-28 h-28 border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer">
-
-            +
-
-            <input
-              hidden
-              type="file"
-              accept="image/*"
-              onChange={(e)=>
-                addImage(
-                  e.target.files[0]
-                )
+              if (file) {
+                replaceImage(index, file);
               }
-            />
+            }}
+          />
 
-          </label>
-
-        </div>
+        </label>
 
       </div>
 
+    ))}
+
+    {/* Add New Image */}
+
+    <label className="w-28 h-28 border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer hover:bg-gray-100 text-3xl">
+
+      +
+
+      <input
+        hidden
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          const file = e.target.files[0];
+
+          if (file) {
+            addImage(file);
+          }
+        }}
+      />
+
+    </label>
+
+  </div>
+
+</div>
       {/* Basic Info */}
 
       <div className="grid md:grid-cols-2 gap-4">
@@ -696,23 +689,25 @@ if (loading) {
 
       {/* Footer */}
 
-      <div className="flex gap-4 mt-8">
+<div className="flex gap-4 mt-8">
 
-        <button
-          onClick={updateProduct}
-          className="flex-1 bg-green-600 text-white py-3 rounded-xl font-semibold"
-        >
-          Save Changes
-        </button>
+  <button
+    onClick={updateProduct}
+    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold"
+  >
+    Save Changes
+  </button>
 
-        <button
-onClick={() => setEditProduct(null)}
-          className="flex-1 bg-gray-500 text-white py-3 rounded-xl font-semibold"
-        >
-          Cancel
-        </button>
+  <button
+    onClick={() => {
+      setEditProduct(null);
+    }}
+    className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-xl font-semibold"
+  >
+    Cancel
+  </button>
 
-      </div>
+</div>
 
     </div>
 
