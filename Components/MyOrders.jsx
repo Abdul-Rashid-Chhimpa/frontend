@@ -32,7 +32,6 @@ const MyOrders = () => {
     }
   };
 
-  
   if (loading) {
     return (
       <div className="flex justify-center items-center h-[70vh] text-xl font-semibold">
@@ -40,41 +39,7 @@ const MyOrders = () => {
       </div>
     );
   }
-  
-const cancelOrder = async (id) => {
-  const confirmCancel = window.confirm(
-    "Are you sure you want to cancel this order?"
-  );
 
-  if (!confirmCancel) return;
-
-  try {
-    const { data } = await axios.put(
-      `https://backend-3-axez.onrender.com/api/orders/${id}`,
-      {
-        status: "Cancelled",
-      }
-    );
-
-    if (data.success) {
-      setOrders((prev) =>
-        prev.map((order) =>
-          order._id === id
-            ? {
-                ...order,
-                status: "Cancelled",
-              }
-            : order
-        )
-      );
-
-      alert("Order Cancelled Successfully");
-    }
-  } catch (error) {
-    console.log(error);
-    alert("Unable to cancel order");
-  }
-};
   return (
     <div className="max-w-6xl mx-auto px-5 py-10">
       <h1 className="text-3xl font-bold mb-8 text-center">
@@ -111,24 +76,13 @@ const cancelOrder = async (id) => {
                 </div>
 
                 <div>
-                  {/* <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">
-  {order.status}
-</span> */}
-           <span
-  className={`px-3 py-1 rounded-full text-white text-sm font-semibold
+                  <h2 className="font-bold">
+                    Status
+                  </h2>
 
-  ${
-    order.status === "Pending"
-      ? "bg-yellow-500"
-      : order.status === "Shipped"
-      ? "bg-blue-600"
-      : order.status === "Delivered"
-      ? "bg-green-600"
-      : "bg-red-600"
-  }`}
->
-  {order.status}
-</span>
+                  <span className="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full text-sm">
+                    {order.status}
+                  </span>
                 </div>
 
                 <div>
@@ -148,11 +102,11 @@ const cancelOrder = async (id) => {
                     key={index}
                     className="flex gap-4 items-center border rounded-xl p-3"
                   >
-                   <img
-  src={item.image || "https://via.placeholder.com/400"}
-  alt={item.title}
-  className="w-20 h-20 rounded-lg object-cover"
-/>
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="w-20 h-20 rounded-lg object-cover"
+                    />
 
                     <div className="flex-1">
                       <h3 className="font-semibold">
@@ -166,17 +120,6 @@ const cancelOrder = async (id) => {
                       <p className="font-bold text-blue-600">
                         ₹{item.price}
                       </p>
-
-                      {order.status === "Pending" && (
-  <button
-    onClick={() =>
-      cancelOrder(order._id)
-    }
-    className="mt-3 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg transition"
-  >
-    Cancel Order
-  </button>
-)}
                     </div>
                   </div>
                 ))}
