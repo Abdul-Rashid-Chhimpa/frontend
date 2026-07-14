@@ -190,263 +190,265 @@ const GetAllProducts = () => {
   // DELETE IMAGE
   // ===============================
 
-  const deleteImage = (index) => {
+ // ================= DELETE IMAGE =================
 
-    setEditProduct((prev) => {
+const deleteImage = (index) => {
 
-      const updatedImages = [...prev.images];
+  setEditProduct((prev) => {
 
-      updatedImages.splice(index, 1);
+    const updatedImages = [...prev.images];
 
-      const updatedNewImages =
-        (prev.newImages || []).filter(
-          (item) => item?.index !== index
-        );
+    updatedImages.splice(index, 1);
 
-      return {
+    const updatedNewImages =
+      (prev.newImages || []).filter(
+        (img) => img.index !== index
+      );
 
-        ...prev,
-
-        images: updatedImages,
-
-        newImages: updatedNewImages,
-
-      };
-
-    });
-
-  };
-
-  // ===============================
-  // ADD NEW IMAGE
-  // ===============================
-
-  const addImage = (file) => {
-
-    if (!file) return;
-
-    const preview = URL.createObjectURL(file);
-
-    setEditProduct((prev) => ({
+    return {
 
       ...prev,
 
-      images: [
-        ...prev.images,
-        preview,
-      ],
+      images: updatedImages,
 
-      newImages: [
+      newImages: updatedNewImages,
 
-        ...(prev.newImages || []),
+    };
 
-        {
-          file,
-          index: -1, // New Image
-        },
+  });
 
-      ],
+};
 
-    }));
+// ================= ADD IMAGE =================
 
-  };
+const addImage = (file) => {
 
-  // ===============================
-  // REPLACE IMAGE
-  // ===============================
+  if (!file) return;
 
-  const replaceImage = (index, file) => {
+  const preview = URL.createObjectURL(file);
 
-    if (!file) return;
+  setEditProduct((prev) => ({
 
-    const preview = URL.createObjectURL(file);
+    ...prev,
 
-    setEditProduct((prev) => {
+    images: [
 
-      const updatedImages = [...prev.images];
+      ...prev.images,
 
-      updatedImages[index] = preview;
+      preview,
 
-      let updatedNewImages = [
-        ...(prev.newImages || []),
-      ];
+    ],
 
-      const existing =
-        updatedNewImages.findIndex(
-          (img) => img.index === index
-        );
+    newImages: [
 
-      if (existing !== -1) {
+      ...(prev.newImages || []),
 
-        updatedNewImages[existing] = {
+      {
 
-          file,
+        file,
 
-          index,
+        index: -1,
 
-        };
+      },
 
-      } else {
+    ],
 
-        updatedNewImages.push({
+  }));
 
-          file,
+};
 
-          index,
+// ================= REPLACE IMAGE =================
 
-        });
+const replaceImage = (index, file) => {
 
-      }
+  if (!file) return;
 
-      return {
+  const preview = URL.createObjectURL(file);
 
-        ...prev,
+  setEditProduct((prev) => {
 
-        images: updatedImages,
+    const updatedImages = [...prev.images];
 
-        newImages: updatedNewImages,
+    updatedImages[index] = preview;
+
+    let updatedNewImages = [
+
+      ...(prev.newImages || []),
+
+    ];
+
+    const existingIndex =
+      updatedNewImages.findIndex(
+        (img) => img.index === index
+      );
+
+    if (existingIndex !== -1) {
+
+      updatedNewImages[existingIndex] = {
+
+        file,
+
+        index,
 
       };
 
-    });
+    } else {
 
-  };
+      updatedNewImages.push({
 
+        file,
+
+        index,
+
+      });
+
+    }
+
+    return {
+
+      ...prev,
+
+      images: updatedImages,
+
+      newImages: updatedNewImages,
+
+    };
+
+  });
+
+};
   // ===============================
   // UPDATE PRODUCT
   // ===============================
 
-  const updateProduct = async () => {
+ // ================= UPDATE PRODUCT =================
 
-    try {
+const updateProduct = async () => {
 
-      const formData = new FormData();
+  try {
 
-      // Basic Details
+    const formData = new FormData();
 
-      formData.append(
-        "name",
-        editProduct.name
+    // ==========================
+    // BASIC DETAILS
+    // ==========================
+
+    formData.append("name", editProduct.name);
+
+    formData.append("brand", editProduct.brand);
+
+    formData.append("category", editProduct.category);
+
+    formData.append("material", editProduct.material);
+
+    formData.append("stock", editProduct.stock);
+
+    formData.append(
+      "description",
+      editProduct.description
+    );
+
+    // ==========================
+    // PRICING
+    // ==========================
+
+    formData.append(
+      "pricing",
+      JSON.stringify(editProduct.pricing)
+    );
+
+    // ==========================
+    // EXISTING IMAGES
+    // ==========================
+
+    const existingImages =
+      editProduct.images.filter(
+        (img) =>
+          typeof img === "string" &&
+          img.startsWith("http")
       );
 
-      formData.append(
-        "brand",
-        editProduct.brand
-      );
+    formData.append(
+      "existingImages",
+      JSON.stringify(existingImages)
+    );
 
-      formData.append(
-        "category",
-        editProduct.category
-      );
+    // ==========================
+    // NEW / REPLACED IMAGES
+    // ==========================
 
-      formData.append(
-        "material",
-        editProduct.material
-      );
+    (editProduct.newImages || []).forEach(
+      (item) => {
 
-      formData.append(
-        "stock",
-        editProduct.stock
-      );
+        if (!item) return;
 
-      formData.append(
-        "description",
-        editProduct.description
-      );
-
-      // Pricing
-
-      formData.append(
-        "pricing",
-        JSON.stringify(
-          editProduct.pricing
-        )
-      );
-
-      // Existing Images
-
-      const existingImages =
-        editProduct.images.filter(
-          (img) =>
-            img.startsWith("http")
+        formData.append(
+          "images",
+          item.file
         );
 
-      formData.append(
-        "existingImages",
-        JSON.stringify(existingImages)
-      );
-
-      // Upload Queue
-
-      (editProduct.newImages || []).forEach(
-        (item) => {
-
-          if (!item) return;
-
-          formData.append(
-            "images",
-            item.file
-          );
-
-          formData.append(
-            "replaceIndexes",
-            item.index
-          );
-
-        }
-      );
-
-      const { data } =
-        await axios.put(
-
-          `${API}/${editProduct._id}`,
-
-          formData,
-
-          {
-
-            headers: {
-
-              "Content-Type":
-                "multipart/form-data",
-
-            },
-
-          }
-
+        formData.append(
+          "replaceIndexes",
+          item.index
         );
 
-      if (data.success) {
+      }
+    );
 
-        alert(
-          "Product Updated Successfully"
-        );
+    // ==========================
+    // UPDATE API
+    // ==========================
 
-        setEditProduct(null);
+    const { data } = await axios.put(
 
-        fetchProducts();
+      `${API}/${editProduct._id}`,
 
-      } else {
+      formData,
 
-        alert(data.message);
+      {
+
+        headers: {
+
+          "Content-Type":
+            "multipart/form-data",
+
+        },
 
       }
 
-    } catch (error) {
+    );
 
-      console.log(error);
+    if (data.success) {
 
       alert(
-
-        error.response?.data?.message ||
-
-          "Update Failed"
-
+        "Product Updated Successfully"
       );
+
+      setEditProduct(null);
+
+      fetchProducts();
+
+    } else {
+
+      alert(data.message);
 
     }
 
-  };
+  } catch (error) {
+
+    console.log(error);
+
+    alert(
+
+      error.response?.data?.message ||
+
+      "Update Failed"
+
+    );
+
+  }
+
+};
 
   // ===============================
   // LOADING
