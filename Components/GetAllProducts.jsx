@@ -221,6 +221,44 @@ const deleteImage = (index) => {
 
 // ================= ADD IMAGE =================
 
+// ================= DELETE IMAGE =================
+
+const deleteImage = (index) => {
+
+  setEditProduct((prev) => {
+
+    const updatedImages = [...prev.images];
+
+    updatedImages.splice(index, 1);
+
+    const updatedNewImages = (prev.newImages || [])
+      .filter((item) => item && item.index !== index)
+      .map((item) => {
+
+        if (item.index > index) {
+          return {
+            ...item,
+            index: item.index - 1,
+          };
+        }
+
+        return item;
+
+      });
+
+    return {
+      ...prev,
+      images: updatedImages,
+      newImages: updatedNewImages,
+    };
+
+  });
+
+};
+
+
+// ================= ADD IMAGE =================
+
 const addImage = (file) => {
 
   if (!file) return;
@@ -231,24 +269,15 @@ const addImage = (file) => {
 
     ...prev,
 
-    images: [
-
-      ...prev.images,
-
-      preview,
-
-    ],
+    images: [...prev.images, preview],
 
     newImages: [
 
       ...(prev.newImages || []),
 
       {
-
         file,
-
-        index: -1,
-
+        index: prev.images.length,
       },
 
     ],
@@ -256,6 +285,7 @@ const addImage = (file) => {
   }));
 
 };
+
 
 // ================= REPLACE IMAGE =================
 
@@ -273,13 +303,13 @@ const replaceImage = (index, file) => {
 
     let updatedNewImages = [...(prev.newImages || [])];
 
-    const found = updatedNewImages.findIndex(
+    const existing = updatedNewImages.findIndex(
       (img) => img.index === index
     );
 
-    if (found !== -1) {
+    if (existing !== -1) {
 
-      updatedNewImages[found] = {
+      updatedNewImages[existing] = {
         file,
         index,
       };
@@ -306,11 +336,9 @@ const replaceImage = (index, file) => {
   });
 
 };
-  // ===============================
-  // UPDATE PRODUCT
-  // ===============================
 
- // ================= UPDATE PRODUCT =================
+
+// ================= UPDATE PRODUCT =================
 
 const updateProduct = async () => {
 
@@ -318,89 +346,42 @@ const updateProduct = async () => {
 
     const formData = new FormData();
 
-    // ==========================
-    // BASIC DETAILS
-    // ==========================
-
     formData.append("name", editProduct.name);
-
     formData.append("brand", editProduct.brand);
-
     formData.append("category", editProduct.category);
-
     formData.append("material", editProduct.material);
-
     formData.append("stock", editProduct.stock);
-
-    formData.append(
-      "description",
-      editProduct.description
-    );
-
-    // ==========================
-    // PRICING
-    // ==========================
+    formData.append("description", editProduct.description);
 
     formData.append(
       "pricing",
       JSON.stringify(editProduct.pricing)
     );
 
-    // ==========================
-    // EXISTING IMAGES
-    // ==========================
-
-formData.append(
-
-  "existingImages",
-
-  JSON.stringify(
-
-    editProduct.images.map((img, index) => {
-
-      const replaced =
-        editProduct.newImages?.find(
-          (item) => item.index === index
-        );
-
-      if (replaced) {
-
-        return "__REPLACED__";
-
-      }
-
-      return img;
-
-    })
-
-  )
-
-);
-    // ==========================
-    // NEW / REPLACED IMAGES
-    // ==========================
-
-    (editProduct.newImages || []).forEach(
-      (item) => {
-
-        if (!item) return;
-
-        formData.append(
-          "images",
-          item.file
-        );
-
-        formData.append(
-          "replaceIndexes",
-          item.index
-        );
-
-      }
+    // Sirf Cloudinary URLs bhejo
+    const existingImages = editProduct.images.filter(
+      (img) =>
+        typeof img === "string" &&
+        img.startsWith("http")
     );
 
-    // ==========================
-    // UPDATE API
-    // ==========================
+    formData.append(
+      "existingImages",
+      JSON.stringify(existingImages)
+    );
+
+    (editProduct.newImages || []).forEach((item) => {
+
+      if (!item) return;
+
+      formData.append("images", item.file);
+
+      formData.append(
+        "replaceIndexes",
+        item.index
+      );
+
+    });
 
     const { data } = await axios.put(
 
@@ -409,23 +390,16 @@ formData.append(
       formData,
 
       {
-
         headers: {
-
-          "Content-Type":
-            "multipart/form-data",
-
+          "Content-Type": "multipart/form-data",
         },
-
       }
 
     );
 
     if (data.success) {
 
-      alert(
-        "Product Updated Successfully"
-      );
+      alert("Product Updated Successfully");
 
       setEditProduct(null);
 
@@ -442,11 +416,8 @@ formData.append(
     console.log(error);
 
     alert(
-
       error.response?.data?.message ||
-
       "Update Failed"
-
     );
 
   }
