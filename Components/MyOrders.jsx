@@ -98,39 +98,31 @@ const MyOrders = () => {
 
               <div className="space-y-4">
                 {order.items.map((item, index) => (
-  <div
-    key={index}
-    className="flex gap-4 items-center border rounded-xl p-3"
-  >
-    <img
-      src={
-        item.image && item.image !== ""
-          ? item.image
-          : "/no-image.png"
-      }
-      alt={item.title}
-      className="w-20 h-20 rounded-lg object-cover border"
-      onError={(e) => {
-        e.target.onerror = null;
-        e.target.src = "/no-image.png";
-      }}
-    />
+                  <div
+                    key={index}
+                    className="flex gap-4 items-center border rounded-xl p-3"
+                  >
+                    <img
+                      src={item.image}
+                      alt=""
+                      className="w-20 h-20 rounded-lg object-cover"
+                    />
 
-    <div className="flex-1">
-      <h3 className="font-semibold">
-        {item.title}
-      </h3>
+                    <div className="flex-1">
+                      <h3 className="font-semibold">
+                        {item.title}
+                      </h3>
 
-      <p>
-        Qty : {item.quantity}
-      </p>
+                      <p>
+                        Qty : {item.quantity}
+                      </p>
 
-      <p className="font-bold text-blue-600">
-        ₹{item.price}
-      </p>
-    </div>
-  </div>
-))}
+                      <p className="font-bold text-blue-600">
+                        ₹{item.price}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               <div className="text-right mt-5 text-sm text-gray-500">
