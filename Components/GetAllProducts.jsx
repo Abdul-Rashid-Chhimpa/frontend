@@ -271,35 +271,24 @@ const replaceImage = (index, file) => {
 
     updatedImages[index] = preview;
 
-    let updatedNewImages = [
+    let updatedNewImages = [...(prev.newImages || [])];
 
-      ...(prev.newImages || []),
+    const found = updatedNewImages.findIndex(
+      (img) => img.index === index
+    );
 
-    ];
+    if (found !== -1) {
 
-    const existingIndex =
-      updatedNewImages.findIndex(
-        (img) => img.index === index
-      );
-
-    if (existingIndex !== -1) {
-
-      updatedNewImages[existingIndex] = {
-
+      updatedNewImages[found] = {
         file,
-
         index,
-
       };
 
     } else {
 
       updatedNewImages.push({
-
         file,
-
         index,
-
       });
 
     }
@@ -361,18 +350,32 @@ const updateProduct = async () => {
     // EXISTING IMAGES
     // ==========================
 
-    const existingImages =
-      editProduct.images.filter(
-        (img) =>
-          typeof img === "string" &&
-          img.startsWith("http")
-      );
+formData.append(
 
-    formData.append(
-      "existingImages",
-      JSON.stringify(existingImages)
-    );
+  "existingImages",
 
+  JSON.stringify(
+
+    editProduct.images.map((img, index) => {
+
+      const replaced =
+        editProduct.newImages?.find(
+          (item) => item.index === index
+        );
+
+      if (replaced) {
+
+        return "__REPLACED__";
+
+      }
+
+      return img;
+
+    })
+
+  )
+
+);
     // ==========================
     // NEW / REPLACED IMAGES
     // ==========================
