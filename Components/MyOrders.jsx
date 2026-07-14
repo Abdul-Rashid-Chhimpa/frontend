@@ -149,8 +149,8 @@ const cancelOrder = async (id) => {
                     className="flex gap-4 items-center border rounded-xl p-3"
                   >
                    <img
-  src={item.image}
-  alt="https://via.placeholder.com/80"
+  src={item.image || "https://via.placeholder.com/400"}
+  alt={item.title}
   className="w-20 h-20 rounded-lg object-cover"
 />
 
