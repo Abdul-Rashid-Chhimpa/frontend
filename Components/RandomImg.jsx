@@ -25,23 +25,13 @@ const RandomImg = () => {
     <div className="w-full mt-10">
 
       {/* Banner */}
-
-   <div className="w-full rounded-xl overflow-hidden bg-white flex items-center justify-center">
+<div className="w-full bg-gray-100 rounded-xl overflow-hidden flex justify-center items-center">
 
   <img
     key={current}
     src={images[current]}
     alt="Banner"
-    className="
-      w-full
-      h-auto
-      max-h-[220px]
-      sm:max-h-[320px]
-      md:max-h-[450px]
-      lg:max-h-[550px]
-      object-contain
-      animate-fade
-    "
+    className="w-full max-h-[550px] h-auto object-contain animate-fade"
   />
 
 </div>
