@@ -36,7 +36,7 @@ const Home = () => {
   >
     <span className="text-black">Welcome To </span>
 
-  <span
+<span
   className="text-3xl md:text-5xl font-extrabold"
   style={{
     background:
