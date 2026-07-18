@@ -25,6 +25,12 @@ const Home = () => {
         <>
         <Nav/>
         <RandomImg />
+
+            <div className="overflow-hidden w-full py-4 bg-green-600">
+  <h1 className="moving-text text-white text-2xl md:text-4xl font-bold whitespace-nowrap">
+    Welcome To Pedwal Life Creation
+  </h1>
+</div>
             <section className="w-full py-16 overflow-hidden bg-white">
       <div className="relative flex justify-center items-center h-[340px]">
 
