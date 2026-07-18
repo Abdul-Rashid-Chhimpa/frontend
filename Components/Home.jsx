@@ -25,9 +25,8 @@ const Home = () => {
         <>
         <Nav/>
         <RandomImg />
-
-<div className="w-full mt-20 mb-20 px-4">
-  <div className="max-w-7xl mx-auto text-center">
+<div className="w-full overflow-hidden mt-16 mb-16 py-4">
+  <div className="inline-block whitespace-nowrap animate-marquee">
 
     <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold">
 
@@ -51,8 +50,22 @@ const Home = () => {
     </h2>
 
   </div>
-</div>
 
+  <style>{`
+    @keyframes marquee {
+      0% {
+        transform: translateX(100%);
+      }
+      100% {
+        transform: translateX(-100%);
+      }
+    }
+
+    .animate-marquee {
+      animation: marquee 12s linear infinite;
+    }
+  `}</style>
+</div>
             
             <section className="w-full py-16 overflow-hidden bg-white">
       <div className="relative flex justify-center items-center h-[340px]">
