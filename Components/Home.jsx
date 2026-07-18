@@ -25,45 +25,35 @@ const Home = () => {
         <>
         <Nav/>
         <RandomImg />
-        </br>
 
-         <div className="w-full overflow-hidden py-4 flex justify-center items-center">
-  <h1
-    className="whitespace-nowrap text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold"
-    style={{
-      animation: "moveLeftRight 8s linear infinite",
-    }}
-  >
-    <span className="text-black">Welcome To </span>
+<div className="w-full mt-20 mb-20 px-4">
+  <div className="max-w-7xl mx-auto text-center">
 
-<span
-  className="text-3xl md:text-5xl font-extrabold"
-  style={{
-    background:
-      "linear-gradient(90deg, #ff6a88 0%, #ff99ac 25%, #a18cd1 75%, #6a11cb 100%)",
-    WebkitBackgroundClip: "text",
-    WebkitTextFillColor: "transparent",
-    backgroundClip: "text",
-    color: "transparent",
-  }}
->
-  Pedwal Life Creation
-</span>
-  </h1>
+    <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold">
 
-  <style>{`
-    @keyframes moveLeftRight {
-      0% {
-        transform: translateX(-100%);
-      }
+      <span className="text-gray-800">
+        Welcome To{" "}
+      </span>
 
-      100% {
-        transform: translateX(100vw);
-      }
-    }
-  `}</style>
+      <span
+        style={{
+          background:
+            "linear-gradient(90deg,#ff6a88,#ff99ac,#a18cd1,#6a11cb)",
+          WebkitBackgroundClip: "text",
+          WebkitTextFillColor: "transparent",
+          backgroundClip: "text",
+          color: "transparent",
+        }}
+      >
+        Pedwal Life Creation
+      </span>
+
+    </h2>
+
+  </div>
 </div>
-    </br>
+
+            
             <section className="w-full py-16 overflow-hidden bg-white">
       <div className="relative flex justify-center items-center h-[340px]">
 
