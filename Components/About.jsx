@@ -18,7 +18,7 @@ const About = () => {
           <div className="w-48 h-48 overflow-hidden rounded-full border-4 border-blue-500 shadow-lg">
             <img
               src="/logowithqoute.png
-              alt="Owner"
+              alt="Owner img"
               className="w-full h-full object-cover"
             />
           </div>
