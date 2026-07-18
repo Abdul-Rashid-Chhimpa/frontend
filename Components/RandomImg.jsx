@@ -8,6 +8,7 @@ const images = [
 ];
 
 const RandomImg = () => {
+  
   const [current, setCurrent] = useState(
     Math.floor(Math.random() * images.length)
   );
