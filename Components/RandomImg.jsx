@@ -25,7 +25,7 @@ const RandomImg = () => {
     <div className="w-full mt-10">
 
       {/* Banner */}
-<div className="w-full bg-gray-100 rounded-xl overflow-hidden flex justify-center items-center">
+<div className="w-full bg-gray-100 overflow-hidden flex justify-center items-center">
 
   <img
     key={current}
