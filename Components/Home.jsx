@@ -25,6 +25,7 @@ const Home = () => {
         <>
         <Nav/>
         <RandomImg />
+        </br>
 
          <div className="w-full overflow-hidden py-4 flex justify-center items-center">
   <h1
@@ -58,6 +59,7 @@ const Home = () => {
     }
   `}</style>
 </div>
+    </br>
             <section className="w-full py-16 overflow-hidden bg-white">
       <div className="relative flex justify-center items-center h-[340px]">
 
