@@ -37,8 +37,7 @@ const Home = () => {
 
     <span
       style={{
-        background:
-          "linear-gradient(90deg,#16a34a,#22c55e,#84cc16,#facc15,#22c55e,#16a34a)",
+        background: linear-gradient(#e66465, #9198e5),
         WebkitBackgroundClip: "text",
         WebkitTextFillColor: "transparent",
       }}
