@@ -186,40 +186,9 @@ const GetAllProducts = () => {
     }));
 
   };
-    // ===============================
-  // DELETE IMAGE
-  // ===============================
+    
 
- // ================= DELETE IMAGE =================
 
-const deleteImage = (index) => {
-
-  setEditProduct((prev) => {
-
-    const updatedImages = [...prev.images];
-
-    updatedImages.splice(index, 1);
-
-    const updatedNewImages =
-      (prev.newImages || []).filter(
-        (img) => img.index !== index
-      );
-
-    return {
-
-      ...prev,
-
-      images: updatedImages,
-
-      newImages: updatedNewImages,
-
-    };
-
-  });
-
-};
-
-// ================= ADD IMAGE =================
 
 // ================= DELETE IMAGE =================
 
