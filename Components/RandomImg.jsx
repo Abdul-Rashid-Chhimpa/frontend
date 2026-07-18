@@ -32,7 +32,7 @@ const RandomImg = () => {
           key={current}
           src={images[current]}
           alt="Banner"
-          className="w-full h-[220px] sm:h-[320px] md:h-[450px] lg:h-[550px] object-cover animate-fade"
+          className="w-full h-[220px] sm:h-[320px] md:h-[450px] lg:h-[550px] object-contain animate-fade"
         />
 
       </div>
