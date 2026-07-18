@@ -36,15 +36,19 @@ const Home = () => {
   >
     <span className="text-black">Welcome To </span>
 
-    <span
-      style={{
-        background: linear-gradient(#e66465, #9198e5),
-        WebkitBackgroundClip: "text",
-        WebkitTextFillColor: "transparent",
-      }}
-    >
-      Pedwal Life Creation
-    </span>
+  <span
+  className="text-3xl md:text-5xl font-extrabold"
+  style={{
+    background:
+      "linear-gradient(90deg, #ff6a88 0%, #ff99ac 25%, #a18cd1 75%, #6a11cb 100%)",
+    WebkitBackgroundClip: "text",
+    WebkitTextFillColor: "transparent",
+    backgroundClip: "text",
+    color: "transparent",
+  }}
+>
+  Pedwal Life Creation
+</span>
   </h1>
 
   <style>{`
