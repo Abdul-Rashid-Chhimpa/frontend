@@ -3,127 +3,174 @@ import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { CartContext } from "./Context";
 
+import {
+  Hammer,
+  Wrench,
+  Drill,
+  Shield,
+  Package,
+  Ruler,
+  Settings,
+  Cog,
+} from "lucide-react";
+
 const Card = () => {
+  const { addToCart } = useContext(CartContext);
+  const navigate = useNavigate();
 
-const { addToCart } = useContext(CartContext);
-const navigate = useNavigate();
+  // ===========================
+  // STATES
+  // ===========================
 
-// ===========================
-// STATES
-// ===========================
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-const [products, setProducts] = useState([]);
-const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] =
+    useState([]);
 
-const [selectedCategory, setSelectedCategory] =
-  useState([]);
+  const [maxPrice, setMaxPrice] =
+    useState(5000);
 
-const [maxPrice, setMaxPrice] =
-  useState(5000);
+  const [visibleProducts, setVisibleProducts] =
+    useState(8);
 
-const [visibleProducts, setVisibleProducts] =
-  useState(8);
+  // ===========================
+  // FETCH PRODUCTS
+  // ===========================
 
-// ===========================
-// FETCH PRODUCTS
-// ===========================
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
 
-const fetchProducts = async () => {
-  try {
-    setLoading(true);
-
-    const { data } = await axios.get(
-      "https://backend-3-axez.onrender.com/api/products"
-    );
-
-    if (data.success) {
-      setProducts(data.products || []);
-    } else {
-      setProducts([]);
-    }
-  } catch (error) {
-    console.error(error);
-    setProducts([]);
-  } finally {
-    setLoading(false);
-  }
-};
-
-useEffect(() => {
-  fetchProducts();
-}, []);
-
-// ===========================
-// ALL CATEGORIES
-// ===========================
-
-const categories = [
-  ...new Set(
-    products
-      .map((item) => item.category)
-      .filter(Boolean)
-  ),
-];
-
-// ===========================
-// CATEGORY FILTER
-// ===========================
-
-const handleCategory = (category) => {
-  setSelectedCategory((prev) =>
-    prev.includes(category)
-      ? prev.filter((item) => item !== category)
-      : [...prev, category]
-  );
-};
-
-// ===========================
-// LOWEST PRICE
-// ===========================
-
-const getLowestPrice = (pricing = []) => {
-  if (!pricing || pricing.length === 0)
-    return 0;
-
-  return Math.min(
-    ...pricing.map((item) =>
-      Number(item.price || 0)
-    )
-  );
-};
-
-// ===========================
-// FILTER PRODUCTS
-// ===========================
-
-const filteredProducts = products.filter(
-  (product) => {
-    const categoryMatch =
-      selectedCategory.length === 0 ||
-      selectedCategory.includes(
-        product.category
+      const { data } = await axios.get(
+        "https://backend-3-axez.onrender.com/api/products"
       );
 
-    const lowestPrice =
-      getLowestPrice(product.pricing);
+      if (data.success) {
+        setProducts(data.products || []);
+      } else {
+        setProducts([]);
+      }
+    } catch (error) {
+      console.log(error);
+      setProducts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const priceMatch =
-      lowestPrice <= maxPrice;
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // ===========================
+  // CATEGORIES
+  // ===========================
+
+  const categories = [
+    ...new Set(
+      products
+        .map((item) => item.category)
+        .filter(Boolean)
+    ),
+  ];
+
+  // ===========================
+  // CATEGORY ICONS
+  // ===========================
+
+  const categoryIcons = {
+    Hammer: Hammer,
+    Hammers: Hammer,
+
+    Wrench: Wrench,
+    Wrenches: Wrench,
+    Spanner: Wrench,
+    Spanners: Wrench,
+
+    Drill: Drill,
+    Drills: Drill,
+
+    Measuring: Ruler,
+    Measurement: Ruler,
+    Tape: Ruler,
+
+    Safety: Shield,
+
+    Hardware: Cog,
+    Accessories: Settings,
+
+    Others: Package,
+  };
+
+  const getCategoryIcon = (category) => {
+    if (!category) return Package;
+
+    const key = category.replace(/\s+/g, "");
 
     return (
-      categoryMatch &&
-      priceMatch
+      categoryIcons[category] ||
+      categoryIcons[key] ||
+      Package
     );
-  }
-);
+  };
 
-// ===========================
-// RESET SHOW MORE
-// ===========================
+  // ===========================
+  // CATEGORY FILTER
+  // ===========================
 
-useEffect(() => {
-  setVisibleProducts(8);
-}, [selectedCategory, maxPrice]);
+  const handleCategory = (category) => {
+    setSelectedCategory((prev) =>
+      prev.includes(category)
+        ? prev.filter(
+            (item) => item !== category
+          )
+        : [...prev, category]
+    );
+  };
+
+  // ===========================
+  // LOWEST PRICE
+  // ===========================
+
+  const getLowestPrice = (pricing = []) => {
+    if (!pricing.length) return 0;
+
+    return Math.min(
+      ...pricing.map((item) =>
+        Number(item.price || 0)
+      )
+    );
+  };
+
+  // ===========================
+  // FILTER PRODUCTS
+  // ===========================
+
+  const filteredProducts =
+    products.filter((product) => {
+
+      const categoryMatch =
+        selectedCategory.length === 0 ||
+        selectedCategory.includes(
+          product.category
+        );
+
+      const lowestPrice =
+        getLowestPrice(product.pricing);
+
+      const priceMatch =
+        lowestPrice <= maxPrice;
+
+      return (
+        categoryMatch &&
+        priceMatch
+      );
+    });
+
+  useEffect(() => {
+    setVisibleProducts(8);
+  }, [selectedCategory, maxPrice]);
 
   // ===========================
   // LOADING
@@ -131,7 +178,7 @@ useEffect(() => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-[70vh]">
+      <div className="flex justify-center items-center h-screen">
 
         <div className="text-center">
 
@@ -147,83 +194,154 @@ useEffect(() => {
     );
   }
 
+  // ===========================
+  // RETURN START
+  // ===========================
+
   return (
-    <>
-      <div className="max-w-7xl mx-auto px-4 py-8">
 
-  {/* Heading */}
+    <div className="max-w-7xl mx-auto px-4 py-8">
 
-  <div className="text-center mb-10">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
 
-    <h1 className="text-4xl font-bold">
-      Our Products
-    </h1>
+      {/* ===========================
+        FILTER SIDEBAR
+=========================== */}
 
-    <p className="text-gray-500 mt-3">
-      Browse our latest collection
-    </p>
+<div className="lg:col-span-1">
 
-  </div>
+  <div className="sticky top-24">
 
-  <div className="grid lg:grid-cols-4 gap-8">
+    <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden">
 
-    {/* ================= FILTER SIDEBAR ================= */}
+      {/* HEADER */}
 
-    <div className="lg:col-span-1">
+      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-5">
 
-      <div className="bg-white rounded-2xl shadow-lg border p-5 sticky top-24">
-
-        <h2 className="text-2xl font-bold mb-6">
-          Filters
+        <h2 className="text-2xl font-bold text-white">
+          Product Filters
         </h2>
 
-        {/* Categories */}
+        <p className="text-blue-100 text-sm mt-1">
+          Find the right hand tool easily
+        </p>
+
+      </div>
+
+      <div className="p-6">
+
+        {/* ======================
+            SHOP BY CATEGORY
+        ======================= */}
 
         <div>
 
-          <h3 className="font-semibold mb-4">
-            Categories
+          <h3 className="text-lg font-bold mb-5">
+            Shop By Category
           </h3>
 
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
 
-            {categories.map((category) => (
+            {categories.map((category) => {
 
-              <label
-                key={category}
-                className="flex items-center gap-3 cursor-pointer"
-              >
+              const Icon =
+                getCategoryIcon(category);
 
-                <input
-                  type="checkbox"
-                  checked={selectedCategory.includes(
-                    category
-                  )}
-                  onChange={() =>
+              const active =
+                selectedCategory.includes(category);
+
+              const totalProducts =
+                products.filter(
+                  (item) =>
+                    item.category === category
+                ).length;
+
+              return (
+
+                <button
+                  key={category}
+                  onClick={() =>
                     handleCategory(category)
                   }
-                  className="w-4 h-4 accent-blue-600"
-                />
+                  className={`group rounded-2xl border p-4 transition-all duration-300
 
-                <span>
-                  {category}
-                </span>
+                  ${
+                    active
+                      ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white border-transparent shadow-xl scale-105"
+                      : "bg-white hover:border-blue-500 hover:shadow-lg hover:-translate-y-1"
+                  }`}
+                >
 
-              </label>
+                  <div
+                    className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center mb-3
 
-            ))}
+                    ${
+                      active
+                        ? "bg-white/20"
+                        : "bg-blue-100 group-hover:bg-blue-200"
+                    }`}
+                  >
+
+                    <Icon
+                      size={28}
+                      className={
+                        active
+                          ? "text-white"
+                          : "text-blue-700"
+                      }
+                    />
+
+                  </div>
+
+                  <h4 className="font-semibold text-sm">
+
+                    {category}
+
+                  </h4>
+
+                  <p
+                    className={`text-xs mt-1
+
+                    ${
+                      active
+                        ? "text-blue-100"
+                        : "text-gray-500"
+                    }`}
+                  >
+
+                    {totalProducts} Products
+
+                  </p>
+
+                </button>
+
+              );
+
+            })}
 
           </div>
 
         </div>
 
-        {/* Price */}
+        {/* ======================
+            PRICE FILTER
+        ======================= */}
 
-        <div className="mt-8">
+        <div className="mt-10">
 
-          <h3 className="font-semibold mb-4">
-            Maximum Price
-          </h3>
+          <div className="flex justify-between items-center mb-4">
+
+            <h3 className="font-bold text-lg">
+              Maximum Price
+            </h3>
+
+            <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
+
+              ₹{maxPrice}
+
+            </span>
+
+          </div>
 
           <input
             type="range"
@@ -236,193 +354,274 @@ useEffect(() => {
                 Number(e.target.value)
               )
             }
-            className="w-full accent-blue-600"
+            className="w-full accent-blue-600 cursor-pointer"
           />
 
-          <div className="flex justify-between mt-2 text-sm">
+          <div className="flex justify-between mt-3 text-sm text-gray-500">
 
             <span>₹0</span>
 
-            <span className="font-semibold text-blue-600">
-              ₹{maxPrice}
-            </span>
+            <span>₹5000+</span>
 
           </div>
 
         </div>
 
-        {/* Clear */}
+        {/* ======================
+            RESULT
+        ======================= */}
+
+        <div className="mt-8 rounded-2xl bg-blue-50 border border-blue-200 p-4">
+
+          <h4 className="font-semibold text-blue-700">
+            Results
+          </h4>
+
+          <p className="text-3xl font-bold mt-2">
+
+            {filteredProducts.length}
+
+          </p>
+
+          <p className="text-gray-500 text-sm">
+
+            Products Found
+
+          </p>
+
+        </div>
+
+        {/* ======================
+            CLEAR FILTER
+        ======================= */}
 
         <button
           onClick={() => {
+
             setSelectedCategory([]);
+
             setMaxPrice(5000);
+
           }}
-          className="w-full mt-8 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold transition"
+          className="w-full mt-8 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] duration-300"
         >
-          Clear Filters
+
+          Clear All Filters
+
         </button>
 
       </div>
 
     </div>
 
-    {/* ================= PRODUCTS ================= */}
+  </div>
 
-    <div className="lg:col-span-3">
+</div>
+{/* ===========================
+        PRODUCTS SECTION
+=========================== */}
 
-      {filteredProducts.length === 0 ? (
+<div className="lg:col-span-3">
 
-        <div className="h-96 flex justify-center items-center">
+  {filteredProducts.length === 0 ? (
 
-          <h2 className="text-2xl font-bold text-gray-500">
-            No Products Found
-          </h2>
+    <div className="h-[500px] flex flex-col justify-center items-center">
 
-        </div>
+      <Package
+        size={80}
+        className="text-gray-300"
+      />
 
-      ) : (
+      <h2 className="text-3xl font-bold mt-6 text-gray-700">
+        No Products Found
+      </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+      <p className="text-gray-500 mt-2">
+        Please change your filters.
+      </p>
 
-          {filteredProducts
-            .slice(0, visibleProducts)
-            .map((product) => {
+    </div>
 
-              const lowestPrice =
-                getLowestPrice(
-                  product.pricing
-                );
+  ) : (
 
-              const defaultPrice =
-                product.pricing?.[0] || {};
+    <>
 
-              return (
-                                <div
-                  key={product._id}
-                  className="bg-white rounded-2xl overflow-hidden shadow-lg border hover:shadow-2xl transition duration-300"
-                >
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-7">
 
-                  {/* Product Image */}
+        {filteredProducts
+          .slice(0, visibleProducts)
+          .map((product) => {
 
-                  <div className="relative">
+            const lowestPrice =
+              getLowestPrice(product.pricing);
 
-                    <img
-  src={product.images?.[0] || "https://via.placeholder.com/400"}
-  alt={product.name}
-  className="w-full h-64 object-cover"
-  onLoad={() => console.log("Loaded")}
-  onError={(e) => {
-    console.log("Error:", e.target.src);
-  }}
-/>
-                    {/* Stock Badge */}
+            const defaultPrice =
+              product.pricing?.[0] || {};
 
-                    <span
-                      className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white ${
-                        product.stock > 0
-                          ? "bg-green-600"
-                          : "bg-red-600"
-                      }`}
-                    >
-                      {product.stock > 0
-                        ? "In Stock"
-                        : "Out Of Stock"}
-                    </span>
+            return (
+
+              <div
+                key={product._id}
+                className="group bg-white rounded-3xl border border-gray-200 shadow-lg hover:shadow-2xl overflow-hidden transition duration-300 hover:-translate-y-2"
+              >
+
+                {/* IMAGE */}
+
+                <div className="relative bg-gray-100 h-72 flex items-center justify-center overflow-hidden">
+
+                  <img
+                    src={
+                      product.images?.[0] ||
+                      "/no-image.png"
+                    }
+                    alt={product.name}
+                    className="w-full h-full object-contain p-6 transition duration-500 group-hover:scale-110"
+                  />
+
+                  <span className="absolute top-4 left-4 bg-blue-600 text-white text-xs px-3 py-1 rounded-full">
+
+                    {product.category}
+
+                  </span>
+
+                  <span
+                    className={`absolute top-4 right-4 text-xs px-3 py-1 rounded-full text-white
+
+                    ${
+                      product.stock > 0
+                        ? "bg-green-600"
+                        : "bg-red-600"
+                    }`}
+                  >
+
+                    {product.stock > 0
+                      ? "In Stock"
+                      : "Out of Stock"}
+
+                  </span>
+
+                </div>
+
+                {/* DETAILS */}
+
+                <div className="p-5">
+
+                  <h2 className="text-xl font-bold line-clamp-2">
+
+                    {product.name}
+
+                  </h2>
+
+                  <p className="text-gray-500 mt-2">
+
+                    Brand : {product.brand}
+
+                  </p>
+
+                  <div className="mt-5 flex justify-between items-center">
+
+                    <div>
+
+                      <p className="text-xs text-gray-400">
+                        Starting Price
+                      </p>
+
+                      <h2 className="text-3xl font-bold text-green-600">
+
+                        ₹{lowestPrice}
+
+                      </h2>
+
+                    </div>
+
+                    <div className="text-right">
+
+                      <p className="text-xs text-gray-500">
+
+                        Stock
+
+                      </p>
+
+                      <h3 className="font-bold text-blue-700">
+
+                        {product.stock}
+
+                      </h3>
+
+                    </div>
 
                   </div>
 
-                  {/* Product Details */}
+                  {/* BUTTONS */}
 
-                  <div className="p-4">
+                  <div className="grid grid-cols-2 gap-3 mt-6">
 
-                    <h2 className="text-lg font-bold truncate">
-                      {product.name}
-                    </h2>
+                    <button
+                      onClick={() =>
+                        navigate(
+                          `/product/${product._id}`,
+                          {
+                            state: product,
+                          }
+                        )
+                      }
+                      className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
+                    >
 
-                    <p className="text-gray-500 text-sm mt-1">
-                      {product.brand}
-                    </p>
+                      View Details
 
-                    <div className="flex justify-between items-center mt-4">
+                    </button>
 
-                      <div>
+                    <button
+                      disabled={
+                        product.stock === 0
+                      }
+                      onClick={() =>
+                        addToCart({
 
-                        <p className="text-xs text-gray-500">
-                          Starting From
-                        </p>
+                          id: product._id,
 
-                        <h3 className="text-2xl font-bold text-green-600">
-                          ₹{lowestPrice}
-                        </h3>
+                          title: product.name,
 
-                      </div>
+                          image:
+                            product.images?.[0],
 
-                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-medium">
-                        {product.category}
-                      </span>
+                          quantity: 1,
 
-                    </div>
+                          selectedQty:
+                            defaultPrice.quantity || 1,
 
-                    {/* Buttons */}
+                          price:
+                            defaultPrice.price ||
+                            lowestPrice,
 
-                    <div className="mt-5 flex gap-3">
+                        })
+                      }
+                      className="py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold transition"
+                    >
 
-                      <button
-                        onClick={() =>
-                          navigate(
-                            `/product/${product._id}`,
-                            {
-                              state: product,
-                            }
-                          )
-                        }
-                        className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
-                      >
-                        View Details
-                      </button>
+                      Add Cart
 
-                      <button
-                        disabled={
-                          product.stock === 0
-                        }
-                        onClick={() =>
-                          addToCart({
-                            id: product._id,
-                            title:
-                              product.name,
-                            image:
-                              product.images?.[0],
-                            quantity: 1,
-                            selectedQty:
-                              defaultPrice.quantity ||
-                              1,
-                            price:
-                              defaultPrice.price ||
-                              lowestPrice,
-                          })
-                        }
-                        className="flex-1 h-11 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition"
-                      >
-                        Add To Cart
-                      </button>
-
-                    </div>
+                    </button>
 
                   </div>
 
                 </div>
-              );
-            })}
-        </div>
-      )}
 
-      {/* Show More */}
+              </div>
+
+            );
+
+          })}
+
+      </div>
+
+      {/* LOAD MORE */}
 
       {visibleProducts <
         filteredProducts.length && (
 
-        <div className="flex justify-center mt-10">
+        <div className="flex justify-center mt-12">
 
           <button
             onClick={() =>
@@ -430,20 +629,29 @@ useEffect(() => {
                 (prev) => prev + 8
               )
             }
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition"
+            className="px-10 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold hover:scale-105 transition"
           >
-            Show More
+
+            Load More Products
+
           </button>
 
         </div>
+
       )}
 
-    </div>
-  </div>
+    </>
+
+  )}
+
 </div>
 
-    </>
+      </div>
+
+    </div>
+
   );
+
 };
 
 export default Card;
