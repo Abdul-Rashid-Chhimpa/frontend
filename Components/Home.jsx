@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ProductCard from './Card';
 import Nav from './Nav';
 import RandomImg from './RandomImg';
+import Footer from './Footer';
 
 const Home = () => {
     const images = [
@@ -103,6 +104,7 @@ const Home = () => {
       </div>
     </section>
         <ProductCard/>
+        <Footer/>
         </>
     );
 };
