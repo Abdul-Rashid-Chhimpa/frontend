@@ -512,11 +512,11 @@ const Card = () => {
 
                   </h2>
 
-                  <p className="text-gray-500 mt-2">
+                  {/* <p className="text-gray-500 mt-2">
 
                     Brand : {product.brand}
 
-                  </p>
+                  </p> */}
 
                   <div className="mt-5 flex justify-between items-center">
 
