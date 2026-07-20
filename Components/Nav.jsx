@@ -41,7 +41,7 @@ const { cartCount } = useContext(CartContext);
 
           <Link to="/">
             <img
-              src="/pedwallogo.png"
+              src="/logowithqoute.png"
               alt="Logo"
               className="h-14 object-contain"
             />
