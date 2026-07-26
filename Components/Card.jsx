@@ -372,7 +372,8 @@ const Card = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 sm:gap-6">
                   {filteredProducts.slice(0, visibleProducts).map((product) => {
                     const lowestPrice = getLowestPrice(product);
-                    const finalPrice = lowestPrice || Number(product.price) || 0;
+                    const finalPrice =
+                      lowestPrice || Number(product.price) || 0;
 
                     return (
                       <div
@@ -445,12 +446,12 @@ const Card = () => {
                             </div>
                           </div>
 
-                          {/* Buttons */}
+                          {/* Buttons - FIXED NAVIGATE */}
                           <div className="grid grid-cols-2 gap-2.5 mt-5">
                             <button
                               onClick={() =>
-                                navigate(`/api/products/${product._id}`, {
-                                  state: { product }, // important
+                                navigate(`/product/${product._id}`, {
+                                  state: { product },
                                 })
                               }
                               className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
