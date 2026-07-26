@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 
 export const CartContext = createContext();
 
- export default const CartProvider = ({ children }) => {
+const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem("cart");
@@ -30,7 +30,9 @@ export const CartContext = createContext();
   const addToCart = (product) => {
     setCart((prev) => {
       const key = getCartKey(product);
-      const existingIndex = prev.findIndex((item) => getCartKey(item) === key);
+      const existingIndex = prev.findIndex(
+        (item) => getCartKey(item) === key
+      );
 
       if (existingIndex !== -1) {
         // Already exists → quantity badhao
@@ -68,9 +70,13 @@ export const CartContext = createContext();
     setCart((prev) =>
       prev.map((item) => {
         const itemId = item._id || item.id;
-        const itemOptQty = item.selectedOption?.quantity || item.selectedQty || 1;
+        const itemOptQty =
+          item.selectedOption?.quantity || item.selectedQty || 1;
 
-        if (String(itemId) === String(id) && Number(itemOptQty) === Number(optionQty || 1)) {
+        if (
+          String(itemId) === String(id) &&
+          Number(itemOptQty) === Number(optionQty || 1)
+        ) {
           return {
             ...item,
             quantity: Number(item.quantity || 1) + 1,
@@ -87,11 +93,15 @@ export const CartContext = createContext();
       prev
         .map((item) => {
           const itemId = item._id || item.id;
-          const itemOptQty = item.selectedOption?.quantity || item.selectedQty || 1;
+          const itemOptQty =
+            item.selectedOption?.quantity || item.selectedQty || 1;
 
-          if (String(itemId) === String(id) && Number(itemOptQty) === Number(optionQty || 1)) {
+          if (
+            String(itemId) === String(id) &&
+            Number(itemOptQty) === Number(optionQty || 1)
+          ) {
             const newQty = Number(item.quantity || 1) - 1;
-            if (newQty <= 0) return null; // remove if 0
+            if (newQty <= 0) return null;
             return { ...item, quantity: newQty };
           }
           return item;
@@ -105,9 +115,9 @@ export const CartContext = createContext();
     setCart((prev) =>
       prev.filter((item) => {
         const itemId = item._id || item.id;
-        const itemOptQty = item.selectedOption?.quantity || item.selectedQty || 1;
+        const itemOptQty =
+          item.selectedOption?.quantity || item.selectedQty || 1;
 
-        // Agar optionQty diya hai to uske saath match karo
         if (optionQty !== undefined && optionQty !== null) {
           return !(
             String(itemId) === String(id) &&
@@ -115,7 +125,6 @@ export const CartContext = createContext();
           );
         }
 
-        // warna sirf id se remove
         return String(itemId) !== String(id);
       })
     );
@@ -145,4 +154,4 @@ export const CartContext = createContext();
   );
 };
 
-export default cart
+export default CartProvider;
