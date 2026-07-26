@@ -44,7 +44,7 @@ const Contact = () => {
             <div className="space-y-5">
               {/* Phone */}
               <a
-                href="tel:+919876543210"
+                href="tel:+919251113598"
                 className="flex items-start gap-4 p-3 sm:p-4 rounded-2xl hover:bg-blue-50 transition group"
               >
                 <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 group-hover:bg-blue-200 transition">
