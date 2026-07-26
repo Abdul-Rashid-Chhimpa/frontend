@@ -39,67 +39,136 @@ const [visibleProducts, setVisibleProducts] =
 // ===========================
 
 const fetchProducts = async () => {
+
+  setLoading(true);
+
   try {
-    setLoading(true);
 
     const { data } = await axios.get(
       "https://backend-3-axez.onrender.com/api/products"
     );
 
     if (data.success) {
+
       setProducts(data.products || []);
+
     } else {
+
       setProducts([]);
+
     }
+
   } catch (error) {
-    console.error(error);
+
+    console.log(error);
+
     setProducts([]);
+
   } finally {
+
     setLoading(false);
+
   }
+
 };
 
 useEffect(() => {
+
   fetchProducts();
+
 }, []);
 
 // ===========================
-// ALL CATEGORIES
+// CATEGORY LIST
+// (Product Name = Category)
 // ===========================
 
 const categories = [
   ...new Set(
     products
-      .map((item) => item.category)
+      .map((item) => item.name)
       .filter(Boolean)
   ),
 ];
+
+// ===========================
+// CATEGORY ICONS
+// ===========================
+
+const categoryIcons = {
+
+  Hammer,
+  Hammers: Hammer,
+
+  Wrench,
+  Wrenches: Wrench,
+
+  Drill,
+  Drills: Drill,
+
+  Safety: Shield,
+
+  Measuring: Ruler,
+
+  Hardware: Cog,
+
+  Accessories: Settings,
+
+};
+
+const getCategoryIcon = (category) => {
+
+  if (!category) return Package;
+
+  const key = category.trim();
+
+  return categoryIcons[key] || Package;
+
+};
 
 // ===========================
 // CATEGORY FILTER
 // ===========================
 
 const handleCategory = (category) => {
+
   setSelectedCategory((prev) =>
+
     prev.includes(category)
-      ? prev.filter((item) => item !== category)
+
+      ? prev.filter(
+          (item) => item !== category
+        )
+
       : [...prev, category]
+
   );
+
 };
 
 // ===========================
 // LOWEST PRICE
 // ===========================
 
-const getLowestPrice = (pricing = []) => {
-  if (!pricing || pricing.length === 0)
-    return 0;
+const getLowestPrice = (product) => {
 
-  return Math.min(
-    ...pricing.map((item) =>
-      Number(item.price || 0)
-    )
-  );
+  if (
+    product.pricing &&
+    product.pricing.length > 0
+  ) {
+
+    return Math.min(
+
+      ...product.pricing.map((item) =>
+        Number(item.price)
+      )
+
+    );
+
+  }
+
+  return Number(product.price || 0);
+
 };
 
 // ===========================
@@ -107,24 +176,28 @@ const getLowestPrice = (pricing = []) => {
 // ===========================
 
 const filteredProducts = products.filter(
+
   (product) => {
+
     const categoryMatch =
+
       selectedCategory.length === 0 ||
+
       selectedCategory.includes(
-        product.category
+        product.name
       );
 
-    const lowestPrice =
-      getLowestPrice(product.pricing);
-
     const priceMatch =
-      lowestPrice <= maxPrice;
+
+      getLowestPrice(product) <= maxPrice;
 
     return (
       categoryMatch &&
       priceMatch
     );
+
   }
+
 );
 
 // ===========================
@@ -132,7 +205,9 @@ const filteredProducts = products.filter(
 // ===========================
 
 useEffect(() => {
+
   setVisibleProducts(8);
+
 }, [selectedCategory, maxPrice]);
 
   // ===========================
@@ -189,43 +264,112 @@ if (loading) {
 
         {/* Categories */}
 
-        <div>
+{/* ==========================
+      SHOP BY CATEGORY
+========================== */}
 
-          <h3 className="font-semibold mb-4">
-            Categories
-          </h3>
+<div className="mb-8">
 
-          <div className="space-y-3">
+  <div className="flex items-center justify-between mb-4">
 
-            {categories.map((category) => (
+    <h3 className="text-lg font-bold text-gray-800">
+      Shop By Category
+    </h3>
 
-              <label
-                key={category}
-                className="flex items-center gap-3 cursor-pointer"
-              >
+    <span className="text-xs text-gray-500">
+      {categories.length} Items
+    </span>
 
-                <input
-                  type="checkbox"
-                  checked={selectedCategory.includes(
-                    category
-                  )}
-                  onChange={() =>
-                    handleCategory(category)
-                  }
-                  className="w-4 h-4 accent-blue-600"
-                />
+  </div>
 
-                <span>
-                  {category}
-                </span>
+  <div
+    dir="rtl"
+    className="flex gap-3 overflow-x-auto no-scrollbar scroll-smooth snap-x snap-mandatory pb-2"
+  >
 
-              </label>
+    {categories.map((category) => {
 
-            ))}
+      const Icon = getCategoryIcon(category);
+
+      const active =
+        selectedCategory.includes(category);
+
+      const totalProducts =
+        products.filter(
+          (item) => item.name === category
+        ).length;
+
+      return (
+
+        <button
+          key={category}
+          onClick={() =>
+            handleCategory(category)
+          }
+          className={`snap-start flex-shrink-0
+          w-20 sm:w-24 md:w-28
+          rounded-2xl
+          border border-gray-200
+          p-3
+          transition-all duration-300
+
+          ${
+            active
+              ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white border-blue-600 shadow-lg scale-105"
+              : "bg-white hover:border-blue-500 hover:shadow-md"
+          }`}
+        >
+
+          <div
+            className={`w-9 h-9 rounded-full mx-auto flex items-center justify-center
+
+            ${
+              active
+                ? "bg-white/20"
+                : "bg-blue-100"
+            }`}
+          >
+
+            <Icon
+              size={18}
+              className={
+                active
+                  ? "text-white"
+                  : "text-blue-700"
+              }
+            />
 
           </div>
 
-        </div>
+          <h4 className="mt-2 text-[11px] font-semibold text-center truncate">
+
+            {category}
+
+          </h4>
+
+          <p
+            className={`mt-1 text-[10px] text-center
+
+            ${
+              active
+                ? "text-blue-100"
+                : "text-gray-500"
+            }`}
+          >
+
+            {totalProducts} Product
+
+          </p>
+
+        </button>
+
+      );
+
+    })}
+
+  </div>
+
+</div>
 
         {/* Price */}
 
@@ -279,152 +423,208 @@ if (loading) {
 
     {/* ================= PRODUCTS ================= */}
 
-    <div className="lg:col-span-3">
+   {/* ================= PRODUCTS ================= */}
 
-      {filteredProducts.length === 0 ? (
+<div className="lg:col-span-3">
 
-        <div className="h-96 flex justify-center items-center">
+  {filteredProducts.length === 0 ? (
 
-          <h2 className="text-2xl font-bold text-gray-500">
-            No Products Found
-          </h2>
+    <div className="h-[500px] flex flex-col justify-center items-center">
 
-        </div>
+      <Package
+        size={70}
+        className="text-gray-300"
+      />
 
-      ) : (
+      <h2 className="mt-5 text-2xl font-bold text-gray-700">
+        No Products Found
+      </h2>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+      <p className="text-gray-500 mt-2">
+        Try changing your filters.
+      </p>
 
-          {filteredProducts
-            .slice(0, visibleProducts)
-            .map((product) => {
+    </div>
 
-              const lowestPrice =
-                getLowestPrice(
-                  product.pricing
-                );
+  ) : (
 
-              const defaultPrice =
-                product.pricing?.[0] || {};
+    <>
 
-              return (
-                                <div
-                  key={product._id}
-                  className="bg-white rounded-2xl overflow-hidden shadow-lg border hover:shadow-2xl transition duration-300"
-                >
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
 
-                  {/* Product Image */}
+        {filteredProducts
+          .slice(0, visibleProducts)
+          .map((product) => {
 
-                  <div className="relative">
+            const lowestPrice =
+              getLowestPrice(product);
 
-                    <img
-  src={product.images?.[0] || "https://via.placeholder.com/400"}
-  alt={product.name}
-  className="w-full h-64 object-cover"
-  onLoad={() => console.log("Loaded")}
-  onError={(e) => {
-    console.log("Error:", e.target.src);
-  }}
-/>
-                    {/* Stock Badge */}
+            return (
 
-                    <span
-                      className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white ${
-                        product.stock > 0
-                          ? "bg-green-600"
-                          : "bg-red-600"
-                      }`}
-                    >
-                      {product.stock > 0
-                        ? "In Stock"
-                        : "Out Of Stock"}
-                    </span>
+              <div
+                key={product._id}
+                className="group bg-white rounded-3xl border border-gray-200 shadow-md hover:shadow-2xl transition duration-300 overflow-hidden hover:-translate-y-2"
+              >
+
+                {/* IMAGE */}
+
+                <div className="relative bg-gray-100 h-64 overflow-hidden">
+
+                  <img
+                    src={
+                      product.images?.[0] ||
+                      "https://via.placeholder.com/400x400?text=No+Image"
+                    }
+                    alt={product.name}
+                    className="w-full h-full object-contain p-6 group-hover:scale-110 transition duration-500"
+                  />
+
+                  <span className="absolute top-3 left-3 bg-blue-600 text-white text-xs px-3 py-1 rounded-full">
+
+                    {product.name}
+
+                  </span>
+
+                  <span
+                    className={`absolute top-3 right-3 text-xs px-3 py-1 rounded-full text-white
+
+                    ${
+                      product.stock > 0
+                        ? "bg-green-600"
+                        : "bg-red-600"
+                    }`}
+                  >
+
+                    {product.stock > 0
+                      ? "In Stock"
+                      : "Out Of Stock"}
+
+                  </span>
+
+                </div>
+
+                {/* DETAILS */}
+
+                <div className="p-5">
+
+                  <h2 className="font-bold text-lg line-clamp-2">
+
+                    {product.name}
+
+                  </h2>
+
+                  <p className="text-gray-500 mt-2">
+
+                    Brand : {product.brand}
+
+                  </p>
+
+                  <div className="flex justify-between items-center mt-5">
+
+                    <div>
+
+                      <p className="text-xs text-gray-500">
+                        Price
+                      </p>
+
+                      <h2 className="text-3xl font-bold text-green-600">
+
+                        ₹{lowestPrice}
+
+                      </h2>
+
+                    </div>
+
+                    <div>
+
+                      <p className="text-xs text-gray-500">
+                        Stock
+                      </p>
+
+                      <h3 className="font-bold text-blue-600 text-center">
+
+                        {product.stock}
+
+                      </h3>
+
+                    </div>
 
                   </div>
 
-                  {/* Product Details */}
+                  {/* BUTTONS */}
 
-                  <div className="p-4">
+                  <div className="grid grid-cols-2 gap-3 mt-6">
 
-                    <h2 className="text-lg font-bold truncate">
-                      {product.name}
-                    </h2>
+                    <button
+                      onClick={() =>
+                        navigate(`/product/${product._id}`, {
+                          state: product,
+                        })
+                      }
+                      className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
+                    >
 
-                    <p className="text-gray-500 text-sm mt-1">
-                      {product.brand}
-                    </p>
+                      Details
 
-                    <div className="flex justify-between items-center mt-4">
+                    </button>
 
-                      <div>
+                    <button
+                      disabled={product.stock === 0}
+                      onClick={() =>
+                        addToCart({
+                          id: product._id,
+                          title: product.name,
+                          image: product.images?.[0],
+                          quantity: 1,
+                          selectedQty: 1,
+                          price: lowestPrice,
+                        })
+                      }
+                      className="py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold transition"
+                    >
 
-                        <p className="text-xs text-gray-500">
-                          Starting From
-                        </p>
+                      Add Cart
 
-                        <h3 className="text-2xl font-bold text-green-600">
-                          ₹{lowestPrice}
-                        </h3>
-
-                      </div>
-
-                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-medium">
-                        {product.category}
-                      </span>
-
-                    </div>
-
-                    {/* Buttons */}
-
-                    <div className="mt-5 flex gap-3">
-
-                      <button
-                        onClick={() =>
-                          navigate(
-                            `/product/${product._id}`,
-                            {
-                              state: product,
-                            }
-                          )
-                        }
-                        className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
-                      >
-                        View Details
-                      </button>
-
-                      <button
-                        disabled={
-                          product.stock === 0
-                        }
-                        onClick={() =>
-                          addToCart({
-                            id: product._id,
-                            title:
-                              product.name,
-                            image:
-                              product.images?.[0],
-                            quantity: 1,
-                            selectedQty:
-                              defaultPrice.quantity ||
-                              1,
-                            price:
-                              defaultPrice.price ||
-                              lowestPrice,
-                          })
-                        }
-                        className="flex-1 h-11 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition"
-                      >
-                        Add To Cart
-                      </button>
-
-                    </div>
+                    </button>
 
                   </div>
 
                 </div>
-              );
-            })}
+
+              </div>
+
+            );
+
+          })}
+
+      </div>
+
+      {/* LOAD MORE */}
+
+      {visibleProducts < filteredProducts.length && (
+
+        <div className="flex justify-center mt-10">
+
+          <button
+            onClick={() =>
+              setVisibleProducts((prev) => prev + 8)
+            }
+            className="px-10 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold hover:scale-105 transition"
+          >
+
+            Load More
+
+          </button>
+
         </div>
+
+      )}
+
+    </>
+
+  )}
+
+</div>
       )}
 
       {/* Show More */}
