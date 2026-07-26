@@ -128,7 +128,6 @@ const Card = () => {
     setVisibleProducts(8);
   }, [selectedCategory, maxPrice]);
 
-  // Horizontal scroll helpers
   const scrollCategories = (direction) => {
     if (categoryScrollRef.current) {
       const scrollAmount = 220;
@@ -156,11 +155,10 @@ const Card = () => {
   }
 
   // ======================================================
-  // FILTER SIDEBAR CONTENT (reused for desktop + mobile)
+  // FILTER SIDEBAR CONTENT
   // ======================================================
   const FilterContent = () => (
     <>
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
           <Filter size={22} className="text-white" />
@@ -174,7 +172,7 @@ const Card = () => {
         </button>
       </div>
 
-      {/* Shop By Category - Horizontal Scroll */}
+      {/* Shop By Category */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-base font-semibold text-white/90">
@@ -185,7 +183,6 @@ const Card = () => {
           </span>
         </div>
 
-        {/* Scroll Buttons (Desktop) */}
         <div className="hidden sm:flex items-center gap-2 mb-3">
           <button
             onClick={() => scrollCategories("left")}
@@ -201,14 +198,10 @@ const Card = () => {
           </button>
         </div>
 
-        {/* Horizontal Scroll Container */}
         <div
           ref={categoryScrollRef}
           className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide"
-          style={{
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-          }}
+          style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {categories.map((category) => {
             const Icon = getCategoryIcon(category);
@@ -228,7 +221,7 @@ const Card = () => {
                 }`}
               >
                 <div
-                  className={`w-11 h-11 rounded-full mx-auto flex items-center justify-center transition-all ${
+                  className={`w-11 h-11 rounded-full mx-auto flex items-center justify-center ${
                     active ? "bg-indigo-100" : "bg-white/20"
                   }`}
                 >
@@ -237,7 +230,7 @@ const Card = () => {
                     className={active ? "text-indigo-700" : "text-white"}
                   />
                 </div>
-                <h4 className="mt-2.5 text-[11px] sm:text-xs font-semibold text-center truncate leading-tight">
+                <h4 className="mt-2.5 text-[11px] sm:text-xs font-semibold text-center truncate">
                   {category}
                 </h4>
                 <p
@@ -263,7 +256,6 @@ const Card = () => {
             ₹{maxPrice}
           </span>
         </div>
-
         <input
           type="range"
           min="0"
@@ -279,7 +271,6 @@ const Card = () => {
         </div>
       </div>
 
-      {/* Clear Filters */}
       {(selectedCategory.length > 0 || maxPrice < 5000) && (
         <button
           onClick={() => {
@@ -330,7 +321,7 @@ const Card = () => {
         </div>
 
         <div className="grid lg:grid-cols-4 gap-6 lg:gap-8">
-          {/* ================= DESKTOP SIDEBAR ================= */}
+          {/* Desktop Sidebar */}
           <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 rounded-3xl overflow-hidden shadow-2xl">
               <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 p-6 min-h-[480px]">
@@ -339,7 +330,7 @@ const Card = () => {
             </div>
           </div>
 
-          {/* ================= MOBILE FILTER DRAWER ================= */}
+          {/* Mobile Filter Drawer */}
           {showMobileFilter && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div
@@ -352,7 +343,7 @@ const Card = () => {
             </div>
           )}
 
-          {/* ================= PRODUCTS ================= */}
+          {/* Products */}
           <div className="lg:col-span-3">
             {filteredProducts.length === 0 ? (
               <div className="h-[450px] flex flex-col justify-center items-center bg-white rounded-3xl shadow-sm border border-gray-100">
@@ -371,145 +362,133 @@ const Card = () => {
                     setMaxPrice(5000);
                     setShowMobileFilter(false);
                   }}
-                  className="mt-8 px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold shadow-lg transition"
+                  className="mt-8 px-8 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold shadow-lg"
                 >
                   Clear Filters
                 </button>
               </div>
             ) : (
               <>
-                {/* Products Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 sm:gap-6">
-                  {filteredProducts
-                    .slice(0, visibleProducts)
-                    .map((product) => {
-                      const lowestPrice = getLowestPrice(product);
-                      const finalPrice =
-                        lowestPrice || Number(product.price) || 0;
+                  {filteredProducts.slice(0, visibleProducts).map((product) => {
+                    const lowestPrice = getLowestPrice(product);
+                    const finalPrice = lowestPrice || Number(product.price) || 0;
 
-                      return (
-                        <div
-                          key={product._id}
-                          className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
-                        >
-                          {/* IMAGE */}
-                          <div className="relative h-52 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-                            <img
-                              src={product.images?.[0] || "/no-image.png"}
-                              alt={product.name}
-                              className="w-full h-full object-contain p-5 group-hover:scale-110 transition duration-500"
-                              onError={(e) => {
-                                e.target.src = "/no-image.png";
-                              }}
-                            />
-
-                            {product.offer > 0 && (
-                              <span className="absolute top-3 left-3 bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
-                                {product.offer}% OFF
-                              </span>
-                            )}
-
-                            <span
-                              className={`absolute top-3 right-3 text-xs font-semibold px-3 py-1 rounded-full shadow ${
-                                product.stock > 0
-                                  ? "bg-emerald-500 text-white"
-                                  : "bg-red-500 text-white"
-                              }`}
-                            >
-                              {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                    return (
+                      <div
+                        key={product._id}
+                        className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                      >
+                        {/* Image */}
+                        <div className="relative h-52 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+                          <img
+                            src={product.images?.[0] || "/no-image.png"}
+                            alt={product.name}
+                            className="w-full h-full object-contain p-5 group-hover:scale-110 transition duration-500"
+                            onError={(e) => {
+                              e.target.src = "/no-image.png";
+                            }}
+                          />
+                          {product.offer > 0 && (
+                            <span className="absolute top-3 left-3 bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
+                              {product.offer}% OFF
                             </span>
+                          )}
+                          <span
+                            className={`absolute top-3 right-3 text-xs font-semibold px-3 py-1 rounded-full shadow ${
+                              product.stock > 0
+                                ? "bg-emerald-500 text-white"
+                                : "bg-red-500 text-white"
+                            }`}
+                          >
+                            {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                          </span>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-4 sm:p-5">
+                          <h2 className="font-bold text-base sm:text-lg line-clamp-2 text-gray-800 group-hover:text-indigo-700 transition">
+                            {product.name}
+                          </h2>
+
+                          <div className="mt-2 space-y-0.5">
+                            <p className="text-xs sm:text-sm text-gray-500">
+                              Brand:{" "}
+                              <span className="text-gray-700">
+                                {product.brand || "N/A"}
+                              </span>
+                            </p>
+                            <p className="text-xs sm:text-sm text-gray-500">
+                              Material:{" "}
+                              <span className="text-gray-700">
+                                {product.material || "N/A"}
+                              </span>
+                            </p>
                           </div>
 
-                          {/* BODY */}
-                          <div className="p-4 sm:p-5">
-                            <h2 className="font-bold text-base sm:text-lg line-clamp-2 text-gray-800 group-hover:text-indigo-700 transition">
-                              {product.name}
-                            </h2>
-
-                            <div className="mt-2 space-y-0.5">
-                              <p className="text-xs sm:text-sm text-gray-500">
-                                Brand:{" "}
-                                <span className="text-gray-700">
-                                  {product.brand || "N/A"}
-                                </span>
+                          <div className="flex justify-between items-end mt-4">
+                            <div>
+                              <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">
+                                Price
                               </p>
-                              <p className="text-xs sm:text-sm text-gray-500">
-                                Material:{" "}
-                                <span className="text-gray-700">
-                                  {product.material || "N/A"}
-                                </span>
+                              <h3 className="text-xl sm:text-2xl font-extrabold text-indigo-700">
+                                ₹{finalPrice}
+                              </h3>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">
+                                Stock
                               </p>
+                              <h4 className="font-bold text-emerald-600 text-lg">
+                                {product.stock ?? 0}
+                              </h4>
                             </div>
+                          </div>
 
-                            <div className="flex justify-between items-end mt-4">
-                              <div>
-                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">
-                                  Price
-                                </p>
-                                <h3 className="text-xl sm:text-2xl font-extrabold text-indigo-700">
-                                  ₹{finalPrice}
-                                </h3>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">
-                                  Stock
-                                </p>
-                                <h4 className="font-bold text-emerald-600 text-lg">
-                                  {product.stock ?? 0}
-                                </h4>
-                              </div>
-                            </div>
+                          {/* Buttons */}
+                          <div className="grid grid-cols-2 gap-2.5 mt-5">
+                            <button
+                              onClick={() =>
+                                navigate(`/product/${product._id}`, {
+                                  state: { product }, // important
+                                })
+                              }
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
+                            >
+                              View
+                            </button>
 
-                            {/* BUTTONS */}
-                            <div className="grid grid-cols-2 gap-2.5 mt-5">
-                              <button
-                                onClick={() =>
-                                  navigate(`/product/${product._id}`,
-                                           {
-                              state: product,
-                            }
-
-                                          )
-                                }
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
-                              >
-                                View
-                              </button>
-                              <button
-                                disabled={product.stock === 0}
-                                onClick={() =>
-                                  addToCart({
-                                    ...product,
-                                    quantity: 1,
-                                    price: finalPrice,
-                                  })
-                                }
-                                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
-                              >
-                                Add Cart
-                              </button>
-                            </div>
+                            <button
+                              disabled={product.stock === 0}
+                              onClick={() =>
+                                addToCart({
+                                  ...product,
+                                  quantity: 1,
+                                  price: finalPrice,
+                                })
+                              }
+                              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
+                            >
+                              Add Cart
+                            </button>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Load More */}
                 {filteredProducts.length > visibleProducts && (
                   <div className="flex justify-center mt-10">
                     <button
-                      onClick={() =>
-                        setVisibleProducts((prev) => prev + 8)
-                      }
-                      className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white font-semibold shadow-xl hover:shadow-2xl hover:scale-105 transition duration-300"
+                      onClick={() => setVisibleProducts((prev) => prev + 8)}
+                      className="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white font-semibold shadow-xl hover:scale-105 transition"
                     >
                       Load More Products
                     </button>
                   </div>
                 )}
 
-                {/* Result Count */}
                 <div className="mt-8 text-center text-sm text-gray-500">
                   Showing{" "}
                   <span className="font-bold text-indigo-600">
@@ -527,18 +506,13 @@ const Card = () => {
         </div>
       </div>
 
-      {/* Extra CSS for scrollbar hide + mobile drawer animation */}
       <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
         @keyframes slide-up {
           from { transform: translateY(100%); }
           to { transform: translateY(0); }
         }
-        .animate-slide-up {
-          animation: slide-up 0.3s ease-out;
-        }
+        .animate-slide-up { animation: slide-up 0.3s ease-out; }
       `}</style>
     </div>
   );
