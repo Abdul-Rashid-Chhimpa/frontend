@@ -464,7 +464,7 @@ const Card = () => {
                             <div className="grid grid-cols-2 gap-2.5 mt-5">
                               <button
                                 onClick={() =>
-                                  navigate(`/product/${product._id}`)
+                                  navigate(`/products/${product._id}`)
                                 }
                                 className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
                               >
