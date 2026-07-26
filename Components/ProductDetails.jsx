@@ -200,7 +200,7 @@ const ProductDetails = () => {
               </button>
 
               <button
-                onClick={() => navigate("/")}
+                onClick={() => navigate("/cart")}
                 className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-semibold text-lg transition shadow-lg"
               >
                 Continue Shopping
