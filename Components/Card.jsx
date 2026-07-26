@@ -139,9 +139,9 @@ useEffect(() => {
   // LOADING
   // ===========================
 
-  if (loading) {
+if (loading) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex justify-center items-center h-[70vh]">
 
         <div className="text-center">
 
@@ -157,155 +157,83 @@ useEffect(() => {
     );
   }
 
-  // ===========================
-  // RETURN START
-  // ===========================
-
   return (
+    <>
+      <div className="max-w-7xl mx-auto px-4 py-8">
 
-    <div className="max-w-7xl mx-auto px-4 py-8">
+  {/* Heading */}
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+  <div className="text-center mb-10">
 
-      {/* ===========================
-        FILTER SIDEBAR
-=========================== */}
+    <h1 className="text-4xl font-bold">
+      Our Products
+    </h1>
 
-<div className="lg:col-span-1">
+    <p className="text-gray-500 mt-3">
+      Browse our latest collection
+    </p>
 
-  <div className="sticky top-24">
+  </div>
 
-    <div className="bg-white rounded-3xl border border-gray-200 shadow-xl overflow-hidden">
+  <div className="grid lg:grid-cols-4 gap-8">
 
-      {/* HEADER */}
+    {/* ================= FILTER SIDEBAR ================= */}
 
-      <div className="bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 p-5">
+    <div className="lg:col-span-1">
 
-        <h2 className="text-2xl font-bold text-white">
-          Product Filters
+      <div className="bg-white rounded-2xl shadow-lg border p-5 sticky top-24">
+
+        <h2 className="text-2xl font-bold mb-6">
+          Filters
         </h2>
 
-        <p className="text-blue-100 text-sm mt-1">
-          Find the right hand tool easily
-        </p>
-
-      </div>
-
-      <div className="p-6">
-
-        {/* ======================
-            SHOP BY CATEGORY
-        ======================= */}
+        {/* Categories */}
 
         <div>
 
-          <h3 className="text-lg font-bold mb-5">
-            Shop By Category
+          <h3 className="font-semibold mb-4">
+            Categories
           </h3>
 
-          <div className="grid grid-cols-2 gap-4">
-    {categories.map((category) => {
+          <div className="space-y-3">
 
-              const Icon =
-                getCategoryIcon(category);
+            {categories.map((category) => (
 
-              const active =
-                selectedCategory.includes(category);
+              <label
+                key={category}
+                className="flex items-center gap-3 cursor-pointer"
+              >
 
-              const totalProducts =
-                products.filter(
-                  (item) =>
-                    item.category === category
-                ).length;
-
-              return (
-
-                <button
-                  key={category}
-                  onClick={() =>
+                <input
+                  type="checkbox"
+                  checked={selectedCategory.includes(
+                    category
+                  )}
+                  onChange={() =>
                     handleCategory(category)
                   }
-                  className={`group rounded-2xl border p-4 transition-all duration-300
+                  className="w-4 h-4 accent-blue-600"
+                />
 
-                  ${
-                    active
-                      ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white border-transparent shadow-xl scale-105"
-                      : "bg-white hover:border-blue-500 hover:shadow-lg hover:-translate-y-1"
-                  }`}
-                >
+                <span>
+                  {category}
+                </span>
 
-                  <div
-                    className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center mb-3
+              </label>
 
-                    ${
-                      active
-                        ? "bg-white/20"
-                        : "bg-blue-100 group-hover:bg-blue-200"
-                    }`}
-                  >
-
-                    <Icon
-                      size={28}
-                      className={
-                        active
-                          ? "text-white"
-                          : "text-blue-700"
-                      }
-                    />
-
-                  </div>
-
-                  <h4 className="font-semibold text-sm">
-
-                    {category}
-
-                  </h4>
-
-                  <p
-                    className={`text-xs mt-1
-
-                    ${
-                      active
-                        ? "text-blue-100"
-                        : "text-gray-500"
-                    }`}
-                  >
-
-                    {totalProducts} Products
-
-                  </p>
-
-                </button>
-
-              );
-
-            })}
-
-
+            ))}
 
           </div>
 
         </div>
 
-        {/* ======================
-            PRICE FILTER
-        ======================= */}
+        {/* Price */}
 
-        <div className="mt-10">
+        <div className="mt-8">
 
-          <div className="flex justify-between items-center mb-4">
-
-            <h3 className="font-bold text-lg">
-              Maximum Price
-            </h3>
-
-            <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-sm">
-
-              ₹{maxPrice}
-
-            </span>
-
-          </div>
+          <h3 className="font-semibold mb-4">
+            Maximum Price
+          </h3>
 
           <input
             type="range"
@@ -318,274 +246,193 @@ useEffect(() => {
                 Number(e.target.value)
               )
             }
-            className="w-full accent-blue-600 cursor-pointer"
+            className="w-full accent-blue-600"
           />
 
-          <div className="flex justify-between mt-3 text-sm text-gray-500">
+          <div className="flex justify-between mt-2 text-sm">
 
             <span>₹0</span>
 
-            <span>₹5000+</span>
+            <span className="font-semibold text-blue-600">
+              ₹{maxPrice}
+            </span>
 
           </div>
 
         </div>
 
-        {/* ======================
-            RESULT
-        ======================= */}
-
-        <div className="mt-8 rounded-2xl bg-blue-50 border border-blue-200 p-4">
-
-          <h4 className="font-semibold text-blue-700">
-            Results
-          </h4>
-
-          <p className="text-3xl font-bold mt-2">
-
-            {filteredProducts.length}
-
-          </p>
-
-          <p className="text-gray-500 text-sm">
-
-            Products Found
-
-          </p>
-
-        </div>
-
-        {/* ======================
-            CLEAR FILTER
-        ======================= */}
+        {/* Clear */}
 
         <button
           onClick={() => {
-
             setSelectedCategory([]);
-
             setMaxPrice(5000);
-
           }}
-          className="w-full mt-8 py-3 rounded-2xl bg-gradient-to-r from-red-500 to-red-600 text-white font-bold shadow-lg hover:shadow-xl hover:scale-[1.02] duration-300"
+          className="w-full mt-8 bg-red-500 hover:bg-red-600 text-white py-3 rounded-xl font-semibold transition"
         >
-
-          Clear All Filters
-
+          Clear Filters
         </button>
 
       </div>
 
     </div>
 
-  </div>
+    {/* ================= PRODUCTS ================= */}
 
-</div>
-{/* ===========================
-        PRODUCTS SECTION
-=========================== */}
+    <div className="lg:col-span-3">
 
-<div className="lg:col-span-3">
+      {filteredProducts.length === 0 ? (
 
-  {filteredProducts.length === 0 ? (
+        <div className="h-96 flex justify-center items-center">
 
-    <div className="h-[500px] flex flex-col justify-center items-center">
+          <h2 className="text-2xl font-bold text-gray-500">
+            No Products Found
+          </h2>
 
-      <Package
-        size={80}
-        className="text-gray-300"
-      />
+        </div>
 
-      <h2 className="text-3xl font-bold mt-6 text-gray-700">
-        No Products Found
-      </h2>
+      ) : (
 
-      <p className="text-gray-500 mt-2">
-        Please change your filters.
-      </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
 
-    </div>
+          {filteredProducts
+            .slice(0, visibleProducts)
+            .map((product) => {
 
-  ) : (
+              const lowestPrice =
+                getLowestPrice(
+                  product.pricing
+                );
 
-    <>
+              const defaultPrice =
+                product.pricing?.[0] || {};
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-7">
+              return (
+                                <div
+                  key={product._id}
+                  className="bg-white rounded-2xl overflow-hidden shadow-lg border hover:shadow-2xl transition duration-300"
+                >
 
-        {filteredProducts
-          .slice(0, visibleProducts)
-          .map((product) => {
+                  {/* Product Image */}
 
-            const lowestPrice =
-              getLowestPrice(product.pricing);
+                  <div className="relative">
 
-            const defaultPrice =
-              product.pricing?.[0] || {};
+                    <img
+  src={product.images?.[0] || "https://via.placeholder.com/400"}
+  alt={product.name}
+  className="w-full h-64 object-cover"
+  onLoad={() => console.log("Loaded")}
+  onError={(e) => {
+    console.log("Error:", e.target.src);
+  }}
+/>
+                    {/* Stock Badge */}
 
-            return (
+                    <span
+                      className={`absolute top-3 left-3 px-3 py-1 rounded-full text-xs font-semibold text-white ${
+                        product.stock > 0
+                          ? "bg-green-600"
+                          : "bg-red-600"
+                      }`}
+                    >
+                      {product.stock > 0
+                        ? "In Stock"
+                        : "Out Of Stock"}
+                    </span>
 
-              <div
-                key={product._id}
-                className="group bg-white rounded-3xl border border-gray-200 shadow-lg hover:shadow-2xl overflow-hidden transition duration-300 hover:-translate-y-2"
-              >
+                  </div>
 
-                {/* IMAGE */}
+                  {/* Product Details */}
 
-                <div className="relative bg-gray-100 h-72 flex items-center justify-center overflow-hidden">
+                  <div className="p-4">
 
-                  <img
-                    src={
-                      product.images?.[0] ||
-                      "/no-image.png"
-                    }
-                    alt={product.name}
-                    className="w-full h-full object-contain p-6 transition duration-500 group-hover:scale-110"
-                  />
+                    <h2 className="text-lg font-bold truncate">
+                      {product.name}
+                    </h2>
 
-                  <span className="absolute top-4 left-4 bg-blue-600 text-white text-xs px-3 py-1 rounded-full">
+                    <p className="text-gray-500 text-sm mt-1">
+                      {product.brand}
+                    </p>
 
-                    {product.category}
+                    <div className="flex justify-between items-center mt-4">
 
-                  </span>
+                      <div>
 
-                  <span
-                    className={`absolute top-4 right-4 text-xs px-3 py-1 rounded-full text-white
+                        <p className="text-xs text-gray-500">
+                          Starting From
+                        </p>
 
-                    ${
-                      product.stock > 0
-                        ? "bg-green-600"
-                        : "bg-red-600"
-                    }`}
-                  >
+                        <h3 className="text-2xl font-bold text-green-600">
+                          ₹{lowestPrice}
+                        </h3>
 
-                    {product.stock > 0
-                      ? "In Stock"
-                      : "Out of Stock"}
+                      </div>
 
-                  </span>
-
-                </div>
-
-                {/* DETAILS */}
-
-                <div className="p-5">
-
-                  <h2 className="text-xl font-bold line-clamp-2">
-
-                    {product.name}
-
-                  </h2>
-
-                  {/* <p className="text-gray-500 mt-2">
-
-                    Brand : {product.brand}
-
-                  </p> */}
-
-                  <div className="mt-5 flex justify-between items-center">
-
-                    <div>
-
-                      <p className="text-xs text-gray-400">
-                        Starting Price
-                      </p>
-
-                      <h2 className="text-3xl font-bold text-green-600">
-
-                        ₹{lowestPrice}
-
-                      </h2>
+                      <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full font-medium">
+                        {product.category}
+                      </span>
 
                     </div>
 
-                    <div className="text-right">
+                    {/* Buttons */}
 
-                      <p className="text-xs text-gray-500">
+                    <div className="mt-5 flex gap-3">
 
-                        Stock
+                      <button
+                        onClick={() =>
+                          navigate(
+                            `/product/${product._id}`,
+                            {
+                              state: product,
+                            }
+                          )
+                        }
+                        className="flex-1 h-11 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition"
+                      >
+                        View Details
+                      </button>
 
-                      </p>
-
-                      <h3 className="font-bold text-blue-700">
-
-                        {product.stock}
-
-                      </h3>
+                      <button
+                        disabled={
+                          product.stock === 0
+                        }
+                        onClick={() =>
+                          addToCart({
+                            id: product._id,
+                            title:
+                              product.name,
+                            image:
+                              product.images?.[0],
+                            quantity: 1,
+                            selectedQty:
+                              defaultPrice.quantity ||
+                              1,
+                            price:
+                              defaultPrice.price ||
+                              lowestPrice,
+                          })
+                        }
+                        className="flex-1 h-11 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg font-semibold transition"
+                      >
+                        Add To Cart
+                      </button>
 
                     </div>
 
                   </div>
 
-                  {/* BUTTONS */}
-
-                  <div className="grid grid-cols-2 gap-3 mt-6">
-
-                    <button
-                      onClick={() =>
-                        navigate(
-                          `/product/${product._id}`,
-                          {
-                            state: product,
-                          }
-                        )
-                      }
-                      className="py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold transition"
-                    >
-
-                      View Details
-
-                    </button>
-
-                    <button
-                      disabled={
-                        product.stock === 0
-                      }
-                      onClick={() =>
-                        addToCart({
-
-                          id: product._id,
-
-                          title: product.name,
-
-                          image:
-                            product.images?.[0],
-
-                          quantity: 1,
-
-                          selectedQty:
-                            defaultPrice.quantity || 1,
-
-                          price:
-                            defaultPrice.price ||
-                            lowestPrice,
-
-                        })
-                      }
-                      className="py-3 rounded-xl bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-semibold transition"
-                    >
-
-                      Add Cart
-
-                    </button>
-
-                  </div>
-
                 </div>
+              );
+            })}
+        </div>
+      )}
 
-              </div>
-
-            );
-
-          })}
-
-      </div>
-
-      {/* LOAD MORE */}
+      {/* Show More */}
 
       {visibleProducts <
         filteredProducts.length && (
 
-        <div className="flex justify-center mt-12">
+        <div className="flex justify-center mt-10">
 
           <button
             onClick={() =>
@@ -593,29 +440,20 @@ useEffect(() => {
                 (prev) => prev + 8
               )
             }
-            className="px-10 py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-700 text-white font-bold hover:scale-105 transition"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition"
           >
-
-            Load More Products
-
+            Show More
           </button>
 
         </div>
-
       )}
 
-    </>
-
-  )}
-
+    </div>
+  </div>
 </div>
 
-      </div>
-
-    </div>
-
+    </>
   );
-
 };
 
 export default Card;
