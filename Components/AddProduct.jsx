@@ -1,506 +1,388 @@
-
 import { useState } from "react";
 import axios from "axios";
+import {
+  PackagePlus,
+  ImagePlus,
+  Plus,
+  Trash2,
+  CheckCircle,
+  Upload,
+  X,
+} from "lucide-react";
 
 const AddProduct = () => {
- const [images, setImages] = useState([]);
-const [imageFiles, setImageFiles] = useState([]);
-const [selectedImage, setSelectedImage] = useState("");
+  const [images, setImages] = useState([]);
+  const [imageFiles, setImageFiles] = useState([]);
+  const [selectedImage, setSelectedImage] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-const [success, setSuccess] = useState(false);
-const [loading, setLoading] = useState(false);
-
-const [product, setProduct] = useState({
-  name: "",
-  brand: "",
-  material: "",
-  category: "",
-  stock: "",
-  description: "",
-});
-
-// Quantity Wise Pricing
-const [priceList, setPriceList] = useState([
-  {
-    quantity: "",
-    price: "",
-  },
-]);
-
-const handleImageChange = (e) => {
-  const files = Array.from(e.target.files);
-
-  const updatedFiles = [...imageFiles, ...files].slice(0, 10);
-
-  setImageFiles(updatedFiles);
-
-  const previews = updatedFiles.map((file) =>
-    URL.createObjectURL(file)
-  );
-
-  setImages(previews);
-
-  if (previews.length > 0 && !selectedImage) {
-    setSelectedImage(previews[0]);
-  }
-};
-
-const deleteImage = (index) => {
-  const newImages = images.filter((_, i) => i !== index);
-  const newFiles = imageFiles.filter((_, i) => i !== index);
-
-  setImages(newImages);
-  setImageFiles(newFiles);
-
-  if (newImages.length > 0) {
-    setSelectedImage(newImages[0]);
-  } else {
-    setSelectedImage("");
-  }
-};
-
-
-const replaceImage = (index, file) => {
-  if (!file) return;
-
-  const preview = URL.createObjectURL(file);
-
-  const newImages = [...images];
-  newImages[index] = preview;
-
-  const newFiles = [...imageFiles];
-  newFiles[index] = file;
-
-  setImages(newImages);
-  setImageFiles(newFiles);
-
-  if (selectedImage === images[index]) {
-    setSelectedImage(preview);
-  }
-};
-
-const handleChange = (e) => {
-  setProduct({
-    ...product,
-    [e.target.name]: e.target.value,
+  const [product, setProduct] = useState({
+    name: "",
+    brand: "",
+    material: "",
+    category: "",
+    stock: "",
+    description: "",
   });
-};
 
-
-const addPriceRow = () => {
-  setPriceList([
-    ...priceList,
-    {
-      quantity: "",
-      price: "",
-    },
+  const [priceList, setPriceList] = useState([
+    { quantity: "", price: "" },
   ]);
-};
 
-const removePriceRow = (index) => {
-  const data = [...priceList];
+  // ================= IMAGE HANDLERS =================
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    const updatedFiles = [...imageFiles, ...files].slice(0, 10);
+    setImageFiles(updatedFiles);
 
-  data.splice(index, 1);
+    const previews = updatedFiles.map((file) => URL.createObjectURL(file));
+    setImages(previews);
 
-  setPriceList(data);
-};
+    if (previews.length > 0 && !selectedImage) {
+      setSelectedImage(previews[0]);
+    }
+  };
 
+  const deleteImage = (index) => {
+    const newImages = images.filter((_, i) => i !== index);
+    const newFiles = imageFiles.filter((_, i) => i !== index);
+    setImages(newImages);
+    setImageFiles(newFiles);
 
-const handlePriceChange = (
-  index,
-  field,
-  value
-) => {
-  const data = [...priceList];
-
-  data[index][field] = value;
-
-  setPriceList(data);
-};
-
-
-const handleSubmit = async (e) => {
-  e.preventDefault();
-
-  if (imageFiles.length === 0) {
-    alert("Please upload at least one product image");
-    return;
-  }
-
-  // Empty pricing remove
-  const validPricing = priceList.filter(
-    (item) =>
-      item.quantity !== "" &&
-      item.price !== ""
-  );
-
-  if (validPricing.length === 0) {
-    alert("Please add at least one pricing option");
-    return;
-  }
-
-  try {
-    setLoading(true);
-
-    const formData = new FormData();
-
-    // Images
-    imageFiles.forEach((file) => {
-      formData.append("images", file);
-    });
-
-    // Product Details
-    formData.append("name", product.name);
-    formData.append("brand", product.brand);
-    formData.append("category", product.category);
-    formData.append("material", product.material);
-    formData.append("stock", product.stock);
-    formData.append("description", product.description);
-
-    // IMPORTANT
-    formData.append(
-      "pricing",
-      JSON.stringify(validPricing)
-    );
-
-    const res = await axios.post(
-      "https://backend-3-axez.onrender.com/api/products/add-product",
-      formData,
-      {
-        headers: {
-          "Content-Type":
-            "multipart/form-data",
-        },
-      }
-    );
-
-    if (res.data.success) {
-      alert("Product Added Successfully");
-
-      setSuccess(true);
-
-      setImages([]);
-      setImageFiles([]);
+    if (newImages.length > 0) {
+      setSelectedImage(newImages[0]);
+    } else {
       setSelectedImage("");
+    }
+  };
 
-      setProduct({
-        name: "",
-        brand: "",
-        category: "",
-        material: "",
-        stock: "",
-        description: "",
+  const replaceImage = (index, file) => {
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    const newImages = [...images];
+    newImages[index] = preview;
+    const newFiles = [...imageFiles];
+    newFiles[index] = file;
+    setImages(newImages);
+    setImageFiles(newFiles);
+
+    if (selectedImage === images[index]) {
+      setSelectedImage(preview);
+    }
+  };
+
+  // ================= FORM HANDLERS =================
+  const handleChange = (e) => {
+    setProduct({ ...product, [e.target.name]: e.target.value });
+  };
+
+  const addPriceRow = () => {
+    setPriceList([...priceList, { quantity: "", price: "" }]);
+  };
+
+  const removePriceRow = (index) => {
+    const data = [...priceList];
+    data.splice(index, 1);
+    setPriceList(data.length ? data : [{ quantity: "", price: "" }]);
+  };
+
+  const handlePriceChange = (index, field, value) => {
+    const data = [...priceList];
+    data[index][field] = value;
+    setPriceList(data);
+  };
+
+  // ================= SUBMIT =================
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (imageFiles.length === 0) {
+      alert("Please upload at least one product image");
+      return;
+    }
+
+    const validPricing = priceList.filter(
+      (item) => item.quantity !== "" && item.price !== ""
+    );
+
+    if (validPricing.length === 0) {
+      alert("Please add at least one pricing option");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const formData = new FormData();
+
+      imageFiles.forEach((file) => {
+        formData.append("images", file);
       });
 
-      setPriceList([
-        {
-          quantity: "",
-          price: "",
-        },
-      ]);
+      formData.append("name", product.name);
+      formData.append("brand", product.brand);
+      formData.append("category", product.category);
+      formData.append("material", product.material);
+      formData.append("stock", product.stock);
+      formData.append("description", product.description);
+      formData.append("pricing", JSON.stringify(validPricing));
 
-      setTimeout(() => {
-        setSuccess(false);
-      }, 3000);
+      const res = await axios.post(
+        "https://backend-3-axez.onrender.com/api/products/add-product",
+        formData,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+
+      if (res.data.success) {
+        alert("Product Added Successfully");
+        setSuccess(true);
+        setImages([]);
+        setImageFiles([]);
+        setSelectedImage("");
+        setProduct({
+          name: "",
+          brand: "",
+          category: "",
+          material: "",
+          stock: "",
+          description: "",
+        });
+        setPriceList([{ quantity: "", price: "" }]);
+        setTimeout(() => setSuccess(false), 3000);
+      }
+    } catch (err) {
+      console.log(err);
+      alert(err.response?.data?.message || "Product Add Failed");
+    } finally {
+      setLoading(false);
     }
-  } catch (err) {
-    console.log(err);
-
-    alert(
-      err.response?.data?.message ||
-        "Product Add Failed"
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
-    <>
-    {/* Header */}
-<div className="bg-gradient-to-r from-indigo-600 via-blue-600 to-cyan-500 rounded-t-3xl p-8 text-white">
-  <h1 className="text-3xl md:text-4xl font-bold">
-    Add New Product
-  </h1>
-
-  <p className="mt-2 text-white/80">
-    Upload, manage and publish your products
-  </p>
-</div>
-
-{/* Card */}
-<div className="bg-white rounded-b-3xl shadow-xl p-8">
-
-  {success && (
-    <div className="mb-6 bg-green-100 border border-green-500 text-green-700 p-4 rounded-xl">
-      Product Added Successfully
-    </div>
-  )}
-
-  <form
-    onSubmit={handleSubmit}
-    className="space-y-8"
-  >
-
-    {/* Images */}
-    <div>
-
-      <div className="flex justify-between items-center mb-3">
-        <h2 className="text-xl font-bold">
-          Product Images
-        </h2>
-
-        <span className="text-gray-500">
-          {images.length}/10
-        </span>
-      </div>
-
-      <input
-        type="file"
-        multiple
-        accept="image/*"
-        onChange={handleImageChange}
-        className="w-full border rounded-xl p-3"
-      />
-
-      {selectedImage && (
-        <div className="mt-6">
-          <img
-            src={selectedImage}
-            alt=""
-            className="w-full h-[420px] object-cover rounded-2xl border"
-          />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-6 sm:py-8 px-3 sm:px-6">
+      <div className="max-w-4xl mx-auto">
+        {/* Header Card */}
+        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-6">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
+              <PackagePlus size={24} />
+            </div>
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-extrabold">
+                Add New Product
+              </h1>
+              <p className="text-white/80 text-sm sm:text-base mt-0.5">
+                Upload, manage and publish your products
+              </p>
+            </div>
+          </div>
         </div>
-      )}
 
-      <div className="flex flex-wrap gap-4 mt-6">
+        {/* Form Card */}
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+          {/* Success Banner */}
+          {success && (
+            <div className="mx-4 sm:mx-6 mt-5 flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium">
+              <CheckCircle size={18} />
+              Product Added Successfully
+            </div>
+          )}
 
-        {images.map((img, index) => (
+          <form onSubmit={handleSubmit} className="p-4 sm:p-6 md:p-8 space-y-7">
+            {/* ========== IMAGES ========== */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
+                  <ImagePlus size={18} />
+                  Product Images
+                </h2>
+                <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
+                  {images.length}/10
+                </span>
+              </div>
 
-          <div
-            key={index}
-            className="relative"
-          >
+              {/* Upload Zone */}
+              <label className="flex flex-col items-center justify-center w-full h-32 sm:h-36 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group">
+                <Upload size={28} className="text-gray-400 group-hover:text-indigo-500 mb-2" />
+                <span className="text-sm text-gray-500 group-hover:text-indigo-600 font-medium">
+                  Click to upload images
+                </span>
+                <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10 files</span>
+                <input
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
+              </label>
 
-            <img
-              src={img}
-              alt=""
-              onClick={() =>
-                setSelectedImage(img)
-              }
-              className={`w-24 h-24 rounded-xl border-2 object-cover cursor-pointer ${
-                selectedImage === img
-                  ? "border-blue-600"
-                  : "border-gray-300"
-              }`}
-            />
+              {/* Main Preview */}
+              {selectedImage && (
+                <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
+                  <img
+                    src={selectedImage}
+                    alt="Preview"
+                    className="w-full h-[240px] sm:h-[320px] md:h-[380px] object-contain p-3"
+                  />
+                </div>
+              )}
 
-            <button
-              type="button"
-              onClick={() =>
-                deleteImage(index)
-              }
-              className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6"
-            >
-              ✕
-            </button>
+              {/* Thumbnails */}
+              {images.length > 0 && (
+                <div className="flex flex-wrap gap-3 mt-4">
+                  {images.map((img, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={img}
+                        alt=""
+                        onClick={() => setSelectedImage(img)}
+                        className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 object-cover cursor-pointer transition ${
+                          selectedImage === img
+                            ? "border-indigo-600 ring-2 ring-indigo-200"
+                            : "border-gray-200 hover:border-indigo-300"
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => deleteImage(index)}
+                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow"
+                      >
+                        <X size={12} />
+                      </button>
+                      <label className="absolute bottom-0.5 left-0.5 right-0.5 bg-indigo-600 text-white text-[9px] sm:text-[10px] py-0.5 rounded text-center cursor-pointer opacity-0 group-hover:opacity-100 transition">
+                        Edit
+                        <input
+                          hidden
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) =>
+                            replaceImage(index, e.target.files[0])
+                          }
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
-            <label className="absolute bottom-1 right-1 bg-blue-600 text-white text-xs px-2 rounded cursor-pointer">
+            {/* ========== BASIC INFO ========== */}
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
+                Product Information
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {[
+                  { name: "name", placeholder: "Product Name *", required: true },
+                  { name: "category", placeholder: "Category *", required: true },
+                  { name: "brand", placeholder: "Brand" },
+                  { name: "material", placeholder: "Material" },
+                  { name: "stock", placeholder: "Stock", type: "number" },
+                ].map((field) => (
+                  <input
+                    key={field.name}
+                    type={field.type || "text"}
+                    name={field.name}
+                    value={product[field.name]}
+                    onChange={handleChange}
+                    placeholder={field.placeholder}
+                    required={field.required}
+                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                  />
+                ))}
+              </div>
+            </div>
 
-              Edit
+            {/* ========== PRICING ========== */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-base sm:text-lg font-bold text-gray-800">
+                  Quantity Wise Pricing
+                </h2>
+                <button
+                  type="button"
+                  onClick={addPriceRow}
+                  className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition"
+                >
+                  <Plus size={14} />
+                  Add Row
+                </button>
+              </div>
 
-              <input
-                hidden
-                type="file"
-                accept="image/*"
-                onChange={(e) =>
-                  replaceImage(
-                    index,
-                    e.target.files[0]
-                  )
-                }
+              <div className="space-y-2.5">
+                {priceList.map((item, index) => (
+                  <div
+                    key={index}
+                    className="grid grid-cols-12 gap-2 sm:gap-3 items-center"
+                  >
+                    <input
+                      type="number"
+                      placeholder="Quantity"
+                      value={item.quantity}
+                      onChange={(e) =>
+                        handlePriceChange(index, "quantity", e.target.value)
+                      }
+                      className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Price"
+                      value={item.price}
+                      onChange={(e) =>
+                        handlePriceChange(index, "price", e.target.value)
+                      }
+                      className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removePriceRow(index)}
+                      className="col-span-2 bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 transition flex items-center justify-center"
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ========== DESCRIPTION ========== */}
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
+                Description
+              </h2>
+              <textarea
+                rows={5}
+                name="description"
+                value={product.description}
+                onChange={handleChange}
+                placeholder="Write product description..."
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition resize-none"
               />
+            </div>
 
-            </label>
-
-          </div>
-
-        ))}
-
-      </div>
-
-    </div>
-
-    {/* Product Information */}
-
-    <div className="grid md:grid-cols-2 gap-5">
-
-      <input
-        type="text"
-        name="name"
-        value={product.name}
-        onChange={handleChange}
-        placeholder="Product Name"
-        className="border rounded-xl p-3"
-        required
-      />
-
-      <input
-        type="text"
-        name="category"
-        value={product.category}
-        onChange={handleChange}
-        placeholder="Category"
-        className="border rounded-xl p-3"
-        required
-      />
-
-      <input
-        type="text"
-        name="brand"
-        value={product.brand}
-        onChange={handleChange}
-        placeholder="Brand"
-        className="border rounded-xl p-3"
-      />
-
-      <input
-        type="text"
-        name="material"
-        value={product.material}
-        onChange={handleChange}
-        placeholder="Material"
-        className="border rounded-xl p-3"
-      />
-
-      <input
-        type="number"
-        name="stock"
-        value={product.stock}
-        onChange={handleChange}
-        placeholder="Stock"
-        className="border rounded-xl p-3"
-      />
-
-    </div>
-
-    {/* Quantity Wise Pricing */}
-
-    <div>
-
-      <div className="flex justify-between items-center mb-5">
-
-        <h2 className="text-xl font-bold">
-          Quantity Wise Pricing
-        </h2>
-
-        <button
-          type="button"
-          onClick={addPriceRow}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg"
-        >
-          + Add Row
-        </button>
-
-      </div>
-
-      <div className="space-y-3">
-
-        {priceList.map((item, index) => (
-
-          <div
-            key={index}
-            className="grid grid-cols-12 gap-3"
-          >
-
-            <input
-              type="number"
-              placeholder="Quantity"
-
-              value={item.quantity}
-
-              onChange={(e)=>
-                handlePriceChange(
-                  index,
-                  "quantity",
-                  e.target.value
-                )
-              }
-
-              className="col-span-5 border rounded-xl p-3"
-            />
-
-            <input
-              type="number"
-              placeholder="Price"
-
-              value={item.price}
-
-              onChange={(e)=>
-                handlePriceChange(
-                  index,
-                  "price",
-                  e.target.value
-                )
-              }
-
-              className="col-span-5 border rounded-xl p-3"
-            />
-
+            {/* ========== SUBMIT ========== */}
             <button
-              type="button"
-              onClick={()=>
-                removePriceRow(index)
-              }
-              className="col-span-2 bg-red-500 text-white rounded-xl"
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:from-indigo-700 hover:via-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 text-white py-3.5 sm:py-4 rounded-xl text-base sm:text-lg font-semibold shadow-lg transition"
             >
-              Delete
+              {loading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <PackagePlus size={20} />
+                  Add Product
+                </>
+              )}
             </button>
-
-          </div>
-
-        ))}
-
+          </form>
+        </div>
       </div>
-
     </div>
-
-    {/* Description */}
-
-    <textarea
-
-      rows={6}
-
-      name="description"
-
-      value={product.description}
-
-      onChange={handleChange}
-
-      placeholder="Product Description"
-
-      className="w-full border rounded-xl p-4"
-
-    />
-
-    <button
-
-      type="submit"
-
-      disabled={loading}
-
-      className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-xl text-lg font-semibold"
-
-    >
-      {loading
-        ? "Uploading..."
-        : "Add Product"}
-    </button>
-
-  </form>
-
-</div>
-</>
   );
 };
 
