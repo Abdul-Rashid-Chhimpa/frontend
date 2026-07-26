@@ -4,8 +4,6 @@ import {
   Package,
   ArrowLeft,
   ShoppingCart,
-  Minus,
-  Plus,
   Check,
 } from "lucide-react";
 import { CartContext } from "../Components/Context"; // apna path check karo
@@ -21,8 +19,6 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(!location.state?.product);
   const [error, setError] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
-
-  // Selected pricing option index
   const [selectedOption, setSelectedOption] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
@@ -117,7 +113,6 @@ const ProductDetails = () => {
       : ["/no-image.png"];
 
   // ================= PRICING OPTIONS =================
-  // Agar pricing array hai to use karo, warna single price se option banao
   const pricingOptions =
     product.pricing && product.pricing.length > 0
       ? [...product.pricing]
@@ -142,33 +137,27 @@ const ProductDetails = () => {
   const currentOption = pricingOptions[selectedOption] || pricingOptions[0];
   const unitPrice = currentOption.price;
   const totalPrice = unitPrice * quantity;
+  const maxStock = product.stock || 1;
 
-  // ================= QUANTITY HANDLERS =================
-  const increaseQty = () => {
-    if (quantity < (product.stock || 0)) {
-      setQuantity((prev) => prev + 1);
-    }
-  };
-
-  const decreaseQty = () => {
-    if (quantity > 1) {
-      setQuantity((prev) => prev - 1);
-    }
-  };
-
-  // Jab koi pricing option select ho to quantity uske minimum pe set kar do
+  // ================= HANDLERS =================
   const handleSelectOption = (index) => {
     setSelectedOption(index);
     const minQty = pricingOptions[index].quantity || 1;
-    setQuantity(minQty);
+    setQuantity(Math.min(minQty, maxStock));
   };
 
-  // ================= ADD TO CART =================
+  const handleQuantityChange = (value) => {
+    let qty = Number(value);
+    if (isNaN(qty) || qty < 1) qty = 1;
+    if (qty > maxStock) qty = maxStock;
+    setQuantity(qty);
+  };
+
   const handleAddToCart = () => {
     addToCart({
       ...product,
       quantity: quantity,
-      price: unitPrice, // selected option ka price
+      price: unitPrice,
       selectedOption: {
         quantity: currentOption.quantity,
         price: currentOption.price,
@@ -176,6 +165,19 @@ const ProductDetails = () => {
       },
     });
   };
+
+  // Quick select buttons (dynamic based on stock)
+  const quickQtys = [
+    1,
+    5,
+    10,
+    25,
+    50,
+    100,
+    250,
+    500,
+    maxStock,
+  ].filter((q, i, arr) => q <= maxStock && arr.indexOf(q) === i);
 
   // ================= RENDER =================
   return (
@@ -194,7 +196,6 @@ const ProductDetails = () => {
           <div className="grid md:grid-cols-2 gap-0">
             {/* ================= LEFT - IMAGE GALLERY ================= */}
             <div className="p-6 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100">
-              {/* Big Main Image */}
               <div className="relative bg-white rounded-2xl border border-gray-200 overflow-hidden mb-5 flex items-center justify-center h-[340px] sm:h-[400px] md:h-[460px]">
                 <img
                   src={images[selectedImage]}
@@ -211,7 +212,6 @@ const ProductDetails = () => {
                 )}
               </div>
 
-              {/* Thumbnails */}
               {images.length > 1 && (
                 <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {images.map((img, index) => (
@@ -246,21 +246,17 @@ const ProductDetails = () => {
                 </h1>
 
                 {/* Basic Info */}
-                <div className="space-y-2.5 text-gray-600 mb-6">
+                <div className="space-y-2 text-gray-600 mb-6">
                   <p>
                     <span className="font-semibold text-gray-800">Brand:</span>{" "}
                     {product.brand || "N/A"}
                   </p>
                   <p>
-                    <span className="font-semibold text-gray-800">
-                      Material:
-                    </span>{" "}
+                    <span className="font-semibold text-gray-800">Material:</span>{" "}
                     {product.material || "N/A"}
                   </p>
                   <p>
-                    <span className="font-semibold text-gray-800">
-                      Category:
-                    </span>{" "}
+                    <span className="font-semibold text-gray-800">Category:</span>{" "}
                     {product.category || product.name}
                   </p>
                   <p>
@@ -284,7 +280,6 @@ const ProductDetails = () => {
                   <h3 className="font-semibold text-gray-800 mb-3">
                     Select Price Option
                   </h3>
-
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {pricingOptions.map((option, index) => {
                       const isSelected = selectedOption === index;
@@ -298,13 +293,11 @@ const ProductDetails = () => {
                               : "border-gray-200 hover:border-indigo-300 bg-white"
                           }`}
                         >
-                          {/* Check mark */}
                           {isSelected && (
                             <div className="absolute top-3 right-3 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
                               <Check size={14} className="text-white" />
                             </div>
                           )}
-
                           <p className="text-sm text-gray-500 mb-1">
                             {option.label}
                           </p>
@@ -321,48 +314,78 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* ========== QUANTITY SELECTOR ========== */}
+                {/* ========== UNIQUE QUANTITY SELECTOR ========== */}
                 <div className="mb-6">
-                  <p className="text-sm font-medium text-gray-700 mb-2">
-                    Quantity
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center border border-gray-300 rounded-xl overflow-hidden">
-                      <button
-                        onClick={decreaseQty}
-                        disabled={quantity <= 1}
-                        className="w-11 h-11 flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                      >
-                        <Minus size={18} />
-                      </button>
-                      <span className="w-14 text-center font-semibold text-lg">
-                        {quantity}
-                      </span>
-                      <button
-                        onClick={increaseQty}
-                        disabled={quantity >= (product.stock || 0)}
-                        className="w-11 h-11 flex items-center justify-center bg-gray-50 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                      >
-                        <Plus size={18} />
-                      </button>
-                    </div>
-                    <span className="text-sm text-gray-500">
-                      Max: {product.stock || 0}
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium text-gray-700">
+                      Select Quantity
+                    </p>
+                    <span className="text-sm font-bold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full">
+                      {quantity} units
                     </span>
+                  </div>
+
+                  {/* Direct Number Input */}
+                  <div className="mb-4">
+                    <input
+                      type="number"
+                      min="1"
+                      max={maxStock}
+                      value={quantity}
+                      onChange={(e) => handleQuantityChange(e.target.value)}
+                      className="w-full border-2 border-gray-200 focus:border-indigo-500 rounded-xl px-4 py-3 text-lg font-semibold text-center outline-none transition"
+                      placeholder="Enter quantity"
+                    />
+                    <p className="text-xs text-gray-400 mt-1 text-center">
+                      Type any quantity (Max {maxStock})
+                    </p>
+                  </div>
+
+                  {/* Slider */}
+                  <div className="mb-4">
+                    <input
+                      type="range"
+                      min="1"
+                      max={maxStock}
+                      value={quantity}
+                      onChange={(e) => handleQuantityChange(e.target.value)}
+                      className="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                    <div className="flex justify-between text-xs text-gray-400 mt-1">
+                      <span>1</span>
+                      <span>{maxStock}</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Select Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    {quickQtys.map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => setQuantity(q)}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                          quantity === q
+                            ? "bg-indigo-600 text-white shadow"
+                            : "bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700"
+                        }`}
+                      >
+                        {q === maxStock ? `Max (${q})` : q}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 {/* ========== TOTAL PRICE ========== */}
-                <div className="mb-8 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
+                <div className="mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100">
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-gray-700 font-medium">Total Price</p>
                       <p className="text-xs text-gray-500 mt-0.5">
-                        Selected: {currentOption.label} × {quantity}
+                        {currentOption.label} × {quantity} units
                       </p>
                     </div>
-                    <span className="text-2xl font-extrabold text-indigo-700">
-                      ₹{totalPrice}
+                    <span className="text-2xl sm:text-3xl font-extrabold text-indigo-700">
+                      ₹{totalPrice.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -410,6 +433,10 @@ const ProductDetails = () => {
         .scrollbar-hide {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+          opacity: 1;
         }
       `}</style>
     </div>
