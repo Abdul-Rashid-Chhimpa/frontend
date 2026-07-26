@@ -91,7 +91,7 @@ const Footer = () => {
                 <span className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition">
                   <Phone size={18} className="text-blue-400" />
                 </span>
-                <span className="text-sm sm:text-base">+91 9887663598</span>
+                <span className="text-sm sm:text-base">+91 9251113598</span>
               </a>
 
               {/* Location → Opens Google Maps */}
