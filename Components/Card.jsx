@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 const Card = () => {
- const { addToCart } = useContext(CartContext);
+const { addToCart } = useContext(CartContext);
 const navigate = useNavigate();
 
 // ===========================
@@ -24,159 +24,116 @@ const navigate = useNavigate();
 
 const [products, setProducts] = useState([]);
 const [loading, setLoading] = useState(true);
-const [selectedCategory, setSelectedCategory] = useState([]);
-const [maxPrice, setMaxPrice] = useState(5000);
-const [visibleProducts, setVisibleProducts] = useState(8);
 
-// ===========================
-// API URL
-// ===========================
+const [selectedCategory, setSelectedCategory] =
+  useState([]);
 
-const API_URL =
-  "https://backend-3-axez.onrender.com/api/products";
+const [maxPrice, setMaxPrice] =
+  useState(5000);
+
+const [visibleProducts, setVisibleProducts] =
+  useState(8);
 
 // ===========================
 // FETCH PRODUCTS
 // ===========================
 
 const fetchProducts = async () => {
-  setLoading(true);
-
   try {
-    const response = await axios.get(API_URL);
+    setLoading(true);
 
-    const { success, products } = response.data;
+    const { data } = await axios.get(
+      "https://backend-3-axez.onrender.com/api/products"
+    );
 
-    if (success) {
-      setProducts(Array.isArray(products) ? products : []);
+    if (data.success) {
+      setProducts(data.products || []);
     } else {
       setProducts([]);
     }
   } catch (error) {
-    console.error("Error fetching products:", error);
-
+    console.error(error);
     setProducts([]);
   } finally {
     setLoading(false);
   }
 };
 
-// ===========================
-// LOAD PRODUCTS
-// ===========================
-
 useEffect(() => {
   fetchProducts();
 }, []);
-  // ===========================
-  // CATEGORIES
-  // ===========================
+
+// ===========================
+// ALL CATEGORIES
+// ===========================
 
 const categories = [
   ...new Set(
     products
-      .map((item) => item.category?.name)
+      .map((item) => item.category)
       .filter(Boolean)
   ),
 ];
 
-  // ===========================
-  // CATEGORY ICONS
-  // ===========================
+// ===========================
+// CATEGORY FILTER
+// ===========================
 
-  const categoryIcons = {
-    Hammer: Hammer,
-    Hammers: Hammer,
+const handleCategory = (category) => {
+  setSelectedCategory((prev) =>
+    prev.includes(category)
+      ? prev.filter((item) => item !== category)
+      : [...prev, category]
+  );
+};
 
-    Wrench: Wrench,
-    Wrenches: Wrench,
-    Spanner: Wrench,
-    Spanners: Wrench,
+// ===========================
+// LOWEST PRICE
+// ===========================
 
-    Drill: Drill,
-    Drills: Drill,
+const getLowestPrice = (pricing = []) => {
+  if (!pricing || pricing.length === 0)
+    return 0;
 
-    Measuring: Ruler,
-    Measurement: Ruler,
-    Tape: Ruler,
+  return Math.min(
+    ...pricing.map((item) =>
+      Number(item.price || 0)
+    )
+  );
+};
 
-    Safety: Shield,
+// ===========================
+// FILTER PRODUCTS
+// ===========================
 
-    Hardware: Cog,
-    Accessories: Settings,
+const filteredProducts = products.filter(
+  (product) => {
+    const categoryMatch =
+      selectedCategory.length === 0 ||
+      selectedCategory.includes(
+        product.category
+      );
 
-    Others: Package,
-  };
+    const lowestPrice =
+      getLowestPrice(product.pricing);
 
-  const getCategoryIcon = (category) => {
-    if (!category) return Package;
-
-    const key = category.replace(/\s+/g, "");
+    const priceMatch =
+      lowestPrice <= maxPrice;
 
     return (
-      categoryIcons[category] ||
-      categoryIcons[key] ||
-      Package
+      categoryMatch &&
+      priceMatch
     );
-  };
+  }
+);
 
-  // ===========================
-  // CATEGORY FILTER
-  // ===========================
+// ===========================
+// RESET SHOW MORE
+// ===========================
 
-  const handleCategory = (category) => {
-    setSelectedCategory((prev) =>
-      prev.includes(category)
-        ? prev.filter(
-            (item) => item !== category
-          )
-        : [...prev, category]
-    );
-  };
-
-  // ===========================
-  // LOWEST PRICE
-  // ===========================
-
-  const getLowestPrice = (pricing = []) => {
-    if (!pricing.length) return 0;
-
-    return Math.min(
-      ...pricing.map((item) =>
-        Number(item.price || 0)
-      )
-    );
-  };
-
-  // ===========================
-  // FILTER PRODUCTS
-  // ===========================
-
- const filteredProducts =
-    products.filter((product) => {
-
-      const categoryMatch =
-        selectedCategory.length === 0 ||
-        selectedCategory.includes(
-          product.category
-        );
-
-      const lowestPrice =
-        getLowestPrice(product.pricing);
-
-      const priceMatch =
-        lowestPrice <= maxPrice;
-
-      return (
-        categoryMatch &&
-        priceMatch
-      );
-    });
-
-
-  useEffect(() => {
-    setVisibleProducts(8);
-  }, [selectedCategory, maxPrice]);
+useEffect(() => {
+  setVisibleProducts(8);
+}, [selectedCategory, maxPrice]);
 
   // ===========================
   // LOADING
