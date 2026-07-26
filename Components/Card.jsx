@@ -72,13 +72,13 @@ useEffect(() => {
   // CATEGORIES
   // ===========================
 
-  const categories = [
-    ...new Set(
-      products
-        .map((item) => item.category)
-        .filter(Boolean)
-    ),
-  ];
+const categories = [
+  ...new Set(
+    products
+      .map((item) => item.category?.name)
+      .filter(Boolean)
+  ),
+];
 
   // ===========================
   // CATEGORY ICONS
