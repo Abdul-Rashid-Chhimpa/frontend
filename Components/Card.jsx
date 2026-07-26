@@ -14,6 +14,7 @@ import {
   Settings,
   Package,
 } from "lucide-react";
+// import { CartContext } from "../../context/CartContext";
 import { CartContext } from "../../context/CartContext";
 
 // ======================================================
