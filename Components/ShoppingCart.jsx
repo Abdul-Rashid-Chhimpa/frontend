@@ -56,6 +56,10 @@ const ShoppingCart = () => {
     return "1 unit";
   };
 
+  const getOptionQty = (item) => {
+    return item.selectedOption?.quantity || item.selectedQty || 1;
+  };
+
   const getImage = (item) => {
     return (
       item.image ||
@@ -190,10 +194,13 @@ const ShoppingCart = () => {
               const image = getImage(item);
               const name = item.name || item.title || "Product";
               const optionLabel = getSelectedLabel(item);
+              const optionQty = getOptionQty(item);
+              const lineTotal =
+                Number(item.price || 0) * Number(item.quantity || 1);
 
               return (
                 <div
-                  key={`${itemId}-${optionLabel}-${index}`}
+                  key={`${itemId}-${optionQty}-${item.price}-${index}`}
                   className="bg-white rounded-2xl shadow-md border border-gray-100 p-5 flex flex-col sm:flex-row gap-5 hover:shadow-lg transition"
                 >
                   {/* IMAGE */}
@@ -231,19 +238,17 @@ const ShoppingCart = () => {
 
                     {/* Price */}
                     <p className="text-2xl font-extrabold text-emerald-600 mt-3">
-                      ₹{Number(item.price || 0)}
+                      ₹{Number(item.price || 0).toLocaleString()}
                       <span className="text-sm font-normal text-gray-500 ml-1">
                         / unit
                       </span>
                     </p>
 
                     {/* Quantity Controls */}
-                    <div className="flex items-center gap-3 mt-4">
+                    <div className="flex flex-wrap items-center gap-3 mt-4">
                       <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
                         <button
-                          onClick={() =>
-                            decreaseQty(itemId, item.selectedOption?.quantity)
-                          }
+                          onClick={() => decreaseQty(itemId, optionQty)}
                           className="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition"
                         >
                           <Minus size={16} />
@@ -252,9 +257,7 @@ const ShoppingCart = () => {
                           {item.quantity}
                         </span>
                         <button
-                          onClick={() =>
-                            increaseQty(itemId, item.selectedOption?.quantity)
-                          }
+                          onClick={() => increaseQty(itemId, optionQty)}
                           className="w-10 h-10 flex items-center justify-center bg-gray-50 hover:bg-gray-100 transition"
                         >
                           <Plus size={16} />
@@ -262,24 +265,18 @@ const ShoppingCart = () => {
                       </div>
 
                       <p className="text-sm text-gray-500">
-                        Total:{" "}
+                        Line Total:{" "}
                         <span className="font-semibold text-gray-800">
-                          ₹
-                          {(
-                            Number(item.price || 0) *
-                            Number(item.quantity || 1)
-                          ).toLocaleString()}
+                          ₹{lineTotal.toLocaleString()}
                         </span>
                       </p>
                     </div>
                   </div>
 
                   {/* REMOVE */}
-                  <div className="flex sm:flex-col justify-between sm:justify-start items-end gap-3">
+                  <div className="flex sm:flex-col justify-end items-end">
                     <button
-                      onClick={() =>
-                        removeFromCart(itemId, item.selectedOption?.quantity)
-                      }
+                      onClick={() => removeFromCart(itemId, optionQty)}
                       className="flex items-center gap-2 text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-xl transition text-sm font-medium"
                     >
                       <Trash2 size={16} />
@@ -332,7 +329,6 @@ const ShoppingCart = () => {
                 </span>
               </div>
 
-              {/* Checkout */}
               <button
                 onClick={checkoutHandler}
                 disabled={loading || cart.length === 0}
@@ -341,7 +337,6 @@ const ShoppingCart = () => {
                 {loading ? "Placing Order..." : "Proceed To Checkout"}
               </button>
 
-              {/* Continue Shopping */}
               <button
                 onClick={continueShopping}
                 className="w-full mt-3 border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-600 hover:text-white py-3.5 rounded-xl font-semibold transition"
@@ -349,7 +344,6 @@ const ShoppingCart = () => {
                 Continue Shopping
               </button>
 
-              {/* Clear Cart */}
               <button
                 onClick={clearCart}
                 disabled={cart.length === 0}
