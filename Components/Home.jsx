@@ -8,6 +8,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 const Home = () => {
   const images = ["01.jpeg", "02.jpeg", "03.jpg", "04.jpg", "05.jpg"];
   const [active, setActive] = useState(2);
+  
 
   useEffect(() => {
     const timer = setInterval(() => {
