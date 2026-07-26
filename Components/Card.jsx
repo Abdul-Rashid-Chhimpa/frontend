@@ -15,54 +15,59 @@ import {
 } from "lucide-react";
 
 const Card = () => {
-  const { addToCart } = useContext(CartContext);
-  const navigate = useNavigate();
+ const { addToCart } = useContext(CartContext);
+const navigate = useNavigate();
 
-  // ===========================
-  // STATES
-  // ===========================
+// ===========================
+// STATES
+// ===========================
 
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+const [products, setProducts] = useState([]);
+const [loading, setLoading] = useState(true);
+const [selectedCategory, setSelectedCategory] = useState([]);
+const [maxPrice, setMaxPrice] = useState(5000);
+const [visibleProducts, setVisibleProducts] = useState(8);
 
-  const [selectedCategory, setSelectedCategory] =
-    useState([]);
+// ===========================
+// API URL
+// ===========================
 
-  const [maxPrice, setMaxPrice] =
-    useState(5000);
+const API_URL =
+  "https://backend-3-axez.onrender.com/api/products";
 
-  const [visibleProducts, setVisibleProducts] =
-    useState(8);
+// ===========================
+// FETCH PRODUCTS
+// ===========================
 
-  // ===========================
-  // FETCH PRODUCTS
-  // ===========================
+const fetchProducts = async () => {
+  setLoading(true);
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
+  try {
+    const response = await axios.get(API_URL);
 
-      const { data } = await axios.get(
-        "https://backend-3-axez.onrender.com/api/products"
-      );
+    const { success, products } = response.data;
 
-      if (data.success) {
-        setProducts(data.products || []);
-      } else {
-        setProducts([]);
-      }
-    } catch (error) {
-      console.log(error);
+    if (success) {
+      setProducts(Array.isArray(products) ? products : []);
+    } else {
       setProducts([]);
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching products:", error);
 
-  useEffect(() => {
-    fetchProducts();
-  }, []);
+    setProducts([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
+// ===========================
+// LOAD PRODUCTS
+// ===========================
+
+useEffect(() => {
+  fetchProducts();
+}, []);
   // ===========================
   // CATEGORIES
   // ===========================
