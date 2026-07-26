@@ -3,7 +3,7 @@ import toast from "react-hot-toast";
 
 export const CartContext = createContext();
 
-export const CartProvider = ({ children }) => {
+ const CartProvider = ({ children }) => {
   const [cart, setCart] = useState(() => {
     try {
       const saved = localStorage.getItem("cart");
@@ -144,3 +144,5 @@ export const CartProvider = ({ children }) => {
     </CartContext.Provider>
   );
 };
+
+export default cart
