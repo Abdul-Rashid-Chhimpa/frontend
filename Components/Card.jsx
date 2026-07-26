@@ -147,26 +147,22 @@ const Card = () => {
   // FILTER PRODUCTS
   // ===========================
 
-  const filteredProducts =
-    products.filter((product) => {
+  const filteredProducts = products.filter((product) => {
 
-      const categoryMatch =
-        selectedCategory.length === 0 ||
-        selectedCategory.includes(
-          product.category
-        );
+  const categoryMatch =
+    selectedCategory.length === 0 ||
+    selectedCategory.includes(product.name);
 
-      const lowestPrice =
-        getLowestPrice(product.pricing);
+  const lowestPrice = getLowestPrice(product.pricing);
 
-      const priceMatch =
-        lowestPrice <= maxPrice;
+  const actualPrice =
+    lowestPrice > 0 ? lowestPrice : Number(product.price);
 
-      return (
-        categoryMatch &&
-        priceMatch
-      );
-    });
+  const priceMatch = actualPrice <= maxPrice;
+
+  return categoryMatch && priceMatch;
+
+});
 
   useEffect(() => {
     setVisibleProducts(8);
