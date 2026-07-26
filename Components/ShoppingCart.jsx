@@ -25,7 +25,7 @@ const ShoppingCart = () => {
   const [loading, setLoading] = useState(false);
 
   // ===============================
-  // TOTALS
+  // TOTALS (quantity × price)
   // ===============================
   const totalItems = useMemo(() => {
     return cart.reduce(
@@ -35,11 +35,11 @@ const ShoppingCart = () => {
   }, [cart]);
 
   const subTotal = useMemo(() => {
-    return cart.reduce(
-      (total, item) =>
-        total + Number(item.price || 0) * Number(item.quantity || 1),
-      0
-    );
+    return cart.reduce((total, item) => {
+      const price = Number(item.price || 0);
+      const qty = Number(item.quantity || 1);
+      return total + price * qty;
+    }, 0);
   }, [cart]);
 
   const gst = useMemo(() => Math.round(subTotal * 0.18), [subTotal]);
@@ -68,9 +68,6 @@ const ShoppingCart = () => {
     );
   };
 
-  // ===============================
-  // CONTINUE SHOPPING
-  // ===============================
   const continueShopping = () => navigate("/");
 
   // ===============================
@@ -101,6 +98,7 @@ const ShoppingCart = () => {
           image: getImage(item),
           price: Number(item.price),
           quantity: Number(item.quantity || 1),
+          lineTotal: Number(item.price || 0) * Number(item.quantity || 1),
           selectedOption: item.selectedOption || null,
         })),
         totalItems,
@@ -195,12 +193,14 @@ const ShoppingCart = () => {
               const name = item.name || item.title || "Product";
               const optionLabel = getSelectedLabel(item);
               const optionQty = getOptionQty(item);
-              const lineTotal =
-                Number(item.price || 0) * Number(item.quantity || 1);
+
+              const unitPrice = Number(item.price || 0);
+              const qty = Number(item.quantity || 1);
+              const lineTotal = unitPrice * qty; // ← ye important hai
 
               return (
                 <div
-                  key={`${itemId}-${optionQty}-${item.price}-${index}`}
+                  key={`${itemId}-${optionQty}-${unitPrice}-${index}`}
                   className="bg-white rounded-2xl shadow-md border border-gray-100 p-5 flex flex-col sm:flex-row gap-5 hover:shadow-lg transition"
                 >
                   {/* IMAGE */}
@@ -236,16 +236,17 @@ const ShoppingCart = () => {
                       </span>
                     </div>
 
-                    {/* Price */}
-                    <p className="text-2xl font-extrabold text-emerald-600 mt-3">
-                      ₹{Number(item.price || 0).toLocaleString()}
-                      <span className="text-sm font-normal text-gray-500 ml-1">
-                        / unit
+                    {/* Unit Price (chhota) */}
+                    <p className="text-sm text-gray-500 mt-3">
+                      Unit Price:{" "}
+                      <span className="font-medium text-gray-700">
+                        ₹{unitPrice.toLocaleString()}
                       </span>
                     </p>
 
-                    {/* Quantity Controls */}
-                    <div className="flex flex-wrap items-center gap-3 mt-4">
+                    {/* Quantity + Line Total */}
+                    <div className="flex flex-wrap items-center gap-4 mt-3">
+                      {/* Quantity Controls */}
                       <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
                         <button
                           onClick={() => decreaseQty(itemId, optionQty)}
@@ -253,8 +254,8 @@ const ShoppingCart = () => {
                         >
                           <Minus size={16} />
                         </button>
-                        <span className="w-12 text-center font-bold text-gray-800">
-                          {item.quantity}
+                        <span className="w-14 text-center font-bold text-gray-800 text-lg">
+                          {qty}
                         </span>
                         <button
                           onClick={() => increaseQty(itemId, optionQty)}
@@ -264,12 +265,18 @@ const ShoppingCart = () => {
                         </button>
                       </div>
 
-                      <p className="text-sm text-gray-500">
-                        Line Total:{" "}
-                        <span className="font-semibold text-gray-800">
+                      {/* Line Total (badi price) */}
+                      <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-2">
+                        <p className="text-xs text-emerald-600 font-medium">
+                          Line Total
+                        </p>
+                        <p className="text-xl font-extrabold text-emerald-700">
                           ₹{lineTotal.toLocaleString()}
-                        </span>
-                      </p>
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          {qty} × ₹{unitPrice.toLocaleString()}
+                        </p>
+                      </div>
                     </div>
                   </div>
 
