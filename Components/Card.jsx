@@ -449,7 +449,7 @@ const Card = () => {
                           <div className="grid grid-cols-2 gap-2.5 mt-5">
                             <button
                               onClick={() =>
-                                navigate(`/product/${product._id}`, {
+                                navigate(`/api/products/${product._id}`, {
                                   state: { product }, // important
                                 })
                               }
