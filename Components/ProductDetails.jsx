@@ -6,6 +6,7 @@ import {
   ShoppingCart,
   Minus,
   Plus,
+  Check,
 } from "lucide-react";
 import { CartContext } from "../Components/Context"; // apna path check karo
 import axios from "axios";
@@ -20,12 +21,16 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(!location.state?.product);
   const [error, setError] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
+
+  // Selected pricing option index
+  const [selectedOption, setSelectedOption] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
   // ================= FETCH PRODUCT =================
   useEffect(() => {
     if (product) {
       setSelectedImage(0);
+      setSelectedOption(0);
       setQuantity(1);
       return;
     }
@@ -34,7 +39,6 @@ const ProductDetails = () => {
       try {
         setLoading(true);
 
-        // 1. Try single product API
         try {
           const { data } = await axios.get(
             `https://backend-3-axez.onrender.com/api/products/${id}`
@@ -42,14 +46,12 @@ const ProductDetails = () => {
           if (data.success && data.product) {
             setProduct(data.product);
             setSelectedImage(0);
+            setSelectedOption(0);
             setQuantity(1);
             return;
           }
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
 
-        // 2. Fallback - all products
         const res = await axios.get(
           "https://backend-3-axez.onrender.com/api/products"
         );
@@ -58,6 +60,7 @@ const ProductDetails = () => {
         if (found) {
           setProduct(found);
           setSelectedImage(0);
+          setSelectedOption(0);
           setQuantity(1);
         } else {
           setError(true);
@@ -113,31 +116,31 @@ const ProductDetails = () => {
       ? product.images
       : ["/no-image.png"];
 
-  // ================= PRICE LOGIC =================
-  // Agar pricing array hai to quantity ke hisaab se price nikaalo
-  const getPriceForQuantity = (qty) => {
-    if (product.pricing && product.pricing.length > 0) {
-      // pricing ko quantity ke ascending order me sort karo
-      const sorted = [...product.pricing].sort(
-        (a, b) => Number(a.quantity || a.minQty || 0) - Number(b.quantity || b.minQty || 0)
-      );
+  // ================= PRICING OPTIONS =================
+  // Agar pricing array hai to use karo, warna single price se option banao
+  const pricingOptions =
+    product.pricing && product.pricing.length > 0
+      ? [...product.pricing]
+          .sort(
+            (a, b) =>
+              Number(a.quantity || a.minQty || 1) -
+              Number(b.quantity || b.minQty || 1)
+          )
+          .map((tier) => ({
+            quantity: Number(tier.quantity || tier.minQty || 1),
+            price: Number(tier.price) || 0,
+            label: `${tier.quantity || tier.minQty || 1}+ units`,
+          }))
+      : [
+          {
+            quantity: 1,
+            price: Number(product.price) || 0,
+            label: "1 unit",
+          },
+        ];
 
-      // jo tier current quantity ke liye applicable ho
-      let applicable = sorted[0];
-      for (let tier of sorted) {
-        const minQty = Number(tier.quantity || tier.minQty || 1);
-        if (qty >= minQty) {
-          applicable = tier;
-        }
-      }
-      return Number(applicable.price) || 0;
-    }
-
-    // normal single price
-    return Number(product.price || 0);
-  };
-
-  const unitPrice = getPriceForQuantity(quantity);
+  const currentOption = pricingOptions[selectedOption] || pricingOptions[0];
+  const unitPrice = currentOption.price;
   const totalPrice = unitPrice * quantity;
 
   // ================= QUANTITY HANDLERS =================
@@ -153,11 +156,24 @@ const ProductDetails = () => {
     }
   };
 
+  // Jab koi pricing option select ho to quantity uske minimum pe set kar do
+  const handleSelectOption = (index) => {
+    setSelectedOption(index);
+    const minQty = pricingOptions[index].quantity || 1;
+    setQuantity(minQty);
+  };
+
+  // ================= ADD TO CART =================
   const handleAddToCart = () => {
     addToCart({
       ...product,
       quantity: quantity,
-      price: unitPrice, // current unit price
+      price: unitPrice, // selected option ka price
+      selectedOption: {
+        quantity: currentOption.quantity,
+        price: currentOption.price,
+        label: currentOption.label,
+      },
     });
   };
 
@@ -188,7 +204,6 @@ const ProductDetails = () => {
                     e.target.src = "/no-image.png";
                   }}
                 />
-
                 {product.offer > 0 && (
                   <span className="absolute top-4 left-4 bg-red-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow">
                     {product.offer}% OFF
@@ -264,62 +279,45 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* ========== PRICING TIERS (if multiple prices) ========== */}
-                {product.pricing && product.pricing.length > 0 && (
-                  <div className="mb-6">
-                    <h3 className="font-semibold text-gray-800 mb-3">
-                      Price Chart
-                    </h3>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-sm border border-gray-200 rounded-xl overflow-hidden">
-                        <thead className="bg-indigo-50">
-                          <tr>
-                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">
-                              Quantity
-                            </th>
-                            <th className="px-4 py-2.5 text-left font-semibold text-gray-700">
-                              Price / Unit
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {[...product.pricing]
-                            .sort(
-                              (a, b) =>
-                                Number(a.quantity || a.minQty || 0) -
-                                Number(b.quantity || b.minQty || 0)
-                            )
-                            .map((tier, index) => (
-                              <tr
-                                key={index}
-                                className="border-t border-gray-100 hover:bg-gray-50"
-                              >
-                                <td className="px-4 py-2.5 text-gray-700">
-                                  {tier.quantity || tier.minQty || 1}+
-                                </td>
-                                <td className="px-4 py-2.5 font-medium text-indigo-700">
-                                  ₹{Number(tier.price) || 0}
-                                </td>
-                              </tr>
-                            ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* ========== CURRENT PRICE ========== */}
+                {/* ========== SELECTABLE PRICING OPTIONS ========== */}
                 <div className="mb-6">
-                  <p className="text-sm text-gray-500 mb-1">Unit Price</p>
-                  <div className="flex items-center gap-3">
-                    <p className="text-3xl sm:text-4xl font-extrabold text-indigo-700">
-                      ₹{unitPrice}
-                    </p>
-                    {product.offer > 0 && (
-                      <span className="text-sm text-red-500 font-semibold">
-                        ({product.offer}% OFF)
-                      </span>
-                    )}
+                  <h3 className="font-semibold text-gray-800 mb-3">
+                    Select Price Option
+                  </h3>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {pricingOptions.map((option, index) => {
+                      const isSelected = selectedOption === index;
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => handleSelectOption(index)}
+                          className={`relative text-left p-4 rounded-2xl border-2 transition-all duration-200 ${
+                            isSelected
+                              ? "border-indigo-600 bg-indigo-50 shadow-md"
+                              : "border-gray-200 hover:border-indigo-300 bg-white"
+                          }`}
+                        >
+                          {/* Check mark */}
+                          {isSelected && (
+                            <div className="absolute top-3 right-3 w-6 h-6 bg-indigo-600 rounded-full flex items-center justify-center">
+                              <Check size={14} className="text-white" />
+                            </div>
+                          )}
+
+                          <p className="text-sm text-gray-500 mb-1">
+                            {option.label}
+                          </p>
+                          <p className="text-xl font-bold text-indigo-700">
+                            ₹{option.price}
+                            <span className="text-sm font-normal text-gray-500">
+                              {" "}
+                              / unit
+                            </span>
+                          </p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -337,11 +335,9 @@ const ProductDetails = () => {
                       >
                         <Minus size={18} />
                       </button>
-
                       <span className="w-14 text-center font-semibold text-lg">
                         {quantity}
                       </span>
-
                       <button
                         onClick={increaseQty}
                         disabled={quantity >= (product.stock || 0)}
@@ -350,7 +346,6 @@ const ProductDetails = () => {
                         <Plus size={18} />
                       </button>
                     </div>
-
                     <span className="text-sm text-gray-500">
                       Max: {product.stock || 0}
                     </span>
@@ -360,16 +355,16 @@ const ProductDetails = () => {
                 {/* ========== TOTAL PRICE ========== */}
                 <div className="mb-8 p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-700 font-medium">
-                      Total Price
-                    </span>
+                    <div>
+                      <p className="text-gray-700 font-medium">Total Price</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        Selected: {currentOption.label} × {quantity}
+                      </p>
+                    </div>
                     <span className="text-2xl font-extrabold text-indigo-700">
                       ₹{totalPrice}
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    {quantity} × ₹{unitPrice}
-                  </p>
                 </div>
 
                 {/* Description */}
