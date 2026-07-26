@@ -242,83 +242,65 @@ const Card = () => {
 
           <div className="grid grid-cols-2 gap-4">
 
-            {categories.map((category) => {
+           {categories.map((category) => {
 
-              const Icon =
-                getCategoryIcon(category);
+  const Icon = getCategoryIcon(category);
 
-              const active =
-                selectedCategory.includes(category);
+  const active =
+    selectedCategory.includes(category);
 
-              const totalProducts =
-                products.filter(
-                  (item) =>
-                    item.category === category
-                ).length;
+  const totalProducts = products.filter(
+    (item) => item.name === category
+  ).length;
 
-              return (
+  return (
 
-                <button
-                  key={category}
-                  onClick={() =>
-                    handleCategory(category)
-                  }
-                  className={`group rounded-2xl border p-4 transition-all duration-300
+    <button
+      key={category}
+      onClick={() => handleCategory(category)}
+      className={`group flex-shrink-0 w-24 sm:w-28 rounded-xl border p-3 transition-all duration-300 ${
+        active
+          ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white border-transparent shadow-lg"
+          : "bg-white hover:border-blue-500 hover:shadow-md"
+      }`}
+    >
 
-                  ${
-                    active
-                      ? "bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 text-white border-transparent shadow-xl scale-105"
-                      : "bg-white hover:border-blue-500 hover:shadow-lg hover:-translate-y-1"
-                  }`}
-                >
+      <div
+        className={`w-10 h-10 rounded-full mx-auto flex items-center justify-center mb-2 ${
+          active
+            ? "bg-white/20"
+            : "bg-blue-100 group-hover:bg-blue-200"
+        }`}
+      >
+        <Icon
+          size={20}
+          className={
+            active
+              ? "text-white"
+              : "text-blue-700"
+          }
+        />
+      </div>
 
-                  <div
-                    className={`w-14 h-14 rounded-full mx-auto flex items-center justify-center mb-3
+      <h4 className="text-xs font-semibold text-center truncate">
+        {category}
+      </h4>
 
-                    ${
-                      active
-                        ? "bg-white/20"
-                        : "bg-blue-100 group-hover:bg-blue-200"
-                    }`}
-                  >
+      <p
+        className={`text-[10px] text-center mt-1 ${
+          active
+            ? "text-blue-100"
+            : "text-gray-500"
+        }`}
+      >
+        {totalProducts} Product
+      </p>
 
-                    <Icon
-                      size={28}
-                      className={
-                        active
-                          ? "text-white"
-                          : "text-blue-700"
-                      }
-                    />
+    </button>
 
-                  </div>
+  );
 
-                  <h4 className="font-semibold text-sm">
-
-                    {category}
-
-                  </h4>
-
-                  <p
-                    className={`text-xs mt-1
-
-                    ${
-                      active
-                        ? "text-blue-100"
-                        : "text-gray-500"
-                    }`}
-                  >
-
-                    {totalProducts} Products
-
-                  </p>
-
-                </button>
-
-              );
-
-            })}
-
+})}
           </div>
 
         </div>
