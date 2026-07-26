@@ -1,48 +1,36 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
-import { Pencil, Trash2 } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Package,
+  Plus,
+  X,
+  ImagePlus,
+  Boxes,
+  RefreshCw,
+} from "lucide-react";
 
 const GetAllProducts = () => {
-
-  // ===============================
-  // STATES
-  // ===============================
-
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-
   const [editProduct, setEditProduct] = useState(null);
-
   const [expandedDesc, setExpandedDesc] = useState({});
+  const [updating, setUpdating] = useState(false);
 
-  const API =
-    "https://backend-3-axez.onrender.com/api/products";
+  const API = "https://backend-3-axez.onrender.com/api/products";
 
-  // ===============================
-  // FETCH PRODUCTS
-  // ===============================
-
+  // ================= FETCH =================
   const fetchProducts = async () => {
     try {
-
       setLoading(true);
-
       const { data } = await axios.get(API);
-
-      if (data.success) {
-        setProducts(data.products);
-      }
-
+      if (data.success) setProducts(data.products || []);
     } catch (error) {
-
       console.log(error);
-
       alert("Failed To Load Products");
-
     } finally {
-
       setLoading(false);
-
     }
   };
 
@@ -50,918 +38,512 @@ const GetAllProducts = () => {
     fetchProducts();
   }, []);
 
-  // ===============================
-  // DELETE PRODUCT
-  // ===============================
-
+  // ================= DELETE =================
   const deleteProduct = async (id) => {
-
-    const confirmDelete = window.confirm(
-      "Delete this product ?"
-    );
-
-    if (!confirmDelete) return;
-
+    if (!window.confirm("Delete this product?")) return;
     try {
-
-      const { data } = await axios.delete(
-        `${API}/${id}`
-      );
-
+      const { data } = await axios.delete(`${API}/${id}`);
       if (data.success) {
-
-        setProducts((prev) =>
-          prev.filter(
-            (item) => item._id !== id
-          )
-        );
-
+        setProducts((prev) => prev.filter((item) => item._id !== id));
         alert("Product Deleted Successfully");
-
       }
-
     } catch (error) {
-
       console.log(error);
-
       alert("Delete Failed");
-
     }
-
   };
 
-  // ===============================
-  // HANDLE INPUT CHANGE
-  // ===============================
-
+  // ================= EDIT HANDLERS =================
   const handleEditChange = (e) => {
-
     const { name, value } = e.target;
-
-    setEditProduct((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-
+    setEditProduct((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ===============================
-  // PRICE CHANGE
-  // ===============================
-
-  const handlePriceChange = (
-    index,
-    field,
-    value
-  ) => {
-
-    const updatedPricing = [
-      ...editProduct.pricing,
-    ];
-
+  const handlePriceChange = (index, field, value) => {
+    const updatedPricing = [...(editProduct.pricing || [])];
     updatedPricing[index][field] = value;
-
-    setEditProduct((prev) => ({
-      ...prev,
-      pricing: updatedPricing,
-    }));
-
+    setEditProduct((prev) => ({ ...prev, pricing: updatedPricing }));
   };
-
-  // ===============================
-  // ADD PRICE ROW
-  // ===============================
 
   const addPriceRow = () => {
-
     setEditProduct((prev) => ({
-
       ...prev,
-
-      pricing: [
-
-        ...prev.pricing,
-
-        {
-          quantity: "",
-          price: "",
-        },
-
-      ],
-
+      pricing: [...(prev.pricing || []), { quantity: "", price: "" }],
     }));
-
   };
-
-  // ===============================
-  // REMOVE PRICE ROW
-  // ===============================
 
   const removePriceRow = (index) => {
-
     setEditProduct((prev) => ({
-
       ...prev,
-
-      pricing: prev.pricing.filter(
-        (_, i) => i !== index
-      ),
-
+      pricing: prev.pricing.filter((_, i) => i !== index),
     }));
-
   };
-
-  // ===============================
-  // DESCRIPTION TOGGLE
-  // ===============================
 
   const toggleDescription = (id) => {
-
-    setExpandedDesc((prev) => ({
-
-      ...prev,
-
-      [id]: !prev[id],
-
-    }));
-
+    setExpandedDesc((prev) => ({ ...prev, [id]: !prev[id] }));
   };
-    
 
-
-
-// ================= DELETE IMAGE =================
-
-const deleteImage = (index) => {
-
-  setEditProduct((prev) => {
-
-    const updatedImages = [...prev.images];
-
-    updatedImages.splice(index, 1);
-
-    const updatedNewImages = (prev.newImages || [])
-      .filter((item) => item && item.index !== index)
-      .map((item) => {
-
-        if (item.index > index) {
-          return {
-            ...item,
-            index: item.index - 1,
-          };
-        }
-
-        return item;
-
-      });
-
-    return {
-      ...prev,
-      images: updatedImages,
-      newImages: updatedNewImages,
-    };
-
-  });
-
-};
-
-
-// ================= ADD IMAGE =================
-
-const addImage = (file) => {
-
-  if (!file) return;
-
-  const preview = URL.createObjectURL(file);
-
-  setEditProduct((prev) => ({
-
-    ...prev,
-
-    images: [...prev.images, preview],
-
-    newImages: [
-
-      ...(prev.newImages || []),
-
-      {
-        file,
-        index: prev.images.length,
-      },
-
-    ],
-
-  }));
-
-};
-
-
-// ================= REPLACE IMAGE =================
-
-const replaceImage = (index, file) => {
-
-  if (!file) return;
-
-  const preview = URL.createObjectURL(file);
-
-  setEditProduct((prev) => {
-
-    const updatedImages = [...prev.images];
-
-    updatedImages[index] = preview;
-
-    let updatedNewImages = [...(prev.newImages || [])];
-
-    const existing = updatedNewImages.findIndex(
-      (img) => img.index === index
-    );
-
-    if (existing !== -1) {
-
-      updatedNewImages[existing] = {
-        file,
-        index,
-      };
-
-    } else {
-
-      updatedNewImages.push({
-        file,
-        index,
-      });
-
-    }
-
-    return {
-
-      ...prev,
-
-      images: updatedImages,
-
-      newImages: updatedNewImages,
-
-    };
-
-  });
-
-};
-
-
-// ================= UPDATE PRODUCT =================
-
-const updateProduct = async () => {
-
-  try {
-
-    const formData = new FormData();
-
-    formData.append("name", editProduct.name);
-    formData.append("brand", editProduct.brand);
-    formData.append("category", editProduct.category);
-    formData.append("material", editProduct.material);
-    formData.append("stock", editProduct.stock);
-    formData.append("description", editProduct.description);
-
-    formData.append(
-      "pricing",
-      JSON.stringify(editProduct.pricing)
-    );
-
-    // Sirf Cloudinary URLs bhejo
-    const existingImages = editProduct.images.filter(
-      (img) =>
-        typeof img === "string" &&
-        img.startsWith("http")
-    );
-
-    formData.append(
-      "existingImages",
-      JSON.stringify(existingImages)
-    );
-
-    (editProduct.newImages || []).forEach((item) => {
-
-      if (!item) return;
-
-      formData.append("images", item.file);
-
-      formData.append(
-        "replaceIndexes",
-        item.index
-      );
-
+  // ================= IMAGE HANDLERS =================
+  const deleteImage = (index) => {
+    setEditProduct((prev) => {
+      const updatedImages = [...(prev.images || [])];
+      updatedImages.splice(index, 1);
+      const updatedNewImages = (prev.newImages || [])
+        .filter((item) => item && item.index !== index)
+        .map((item) =>
+          item.index > index ? { ...item, index: item.index - 1 } : item
+        );
+      return { ...prev, images: updatedImages, newImages: updatedNewImages };
     });
+  };
 
-    const { data } = await axios.put(
+  const addImage = (file) => {
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setEditProduct((prev) => ({
+      ...prev,
+      images: [...(prev.images || []), preview],
+      newImages: [
+        ...(prev.newImages || []),
+        { file, index: (prev.images || []).length },
+      ],
+    }));
+  };
 
-      `${API}/${editProduct._id}`,
-
-      formData,
-
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+  const replaceImage = (index, file) => {
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setEditProduct((prev) => {
+      const updatedImages = [...(prev.images || [])];
+      updatedImages[index] = preview;
+      let updatedNewImages = [...(prev.newImages || [])];
+      const existing = updatedNewImages.findIndex((img) => img.index === index);
+      if (existing !== -1) {
+        updatedNewImages[existing] = { file, index };
+      } else {
+        updatedNewImages.push({ file, index });
       }
+      return { ...prev, images: updatedImages, newImages: updatedNewImages };
+    });
+  };
 
-    );
+  // ================= UPDATE =================
+  const updateProduct = async () => {
+    try {
+      setUpdating(true);
+      const formData = new FormData();
+      formData.append("name", editProduct.name || "");
+      formData.append("brand", editProduct.brand || "");
+      formData.append("category", editProduct.category || "");
+      formData.append("material", editProduct.material || "");
+      formData.append("stock", editProduct.stock || 0);
+      formData.append("description", editProduct.description || "");
+      formData.append("pricing", JSON.stringify(editProduct.pricing || []));
 
-    if (data.success) {
+      const existingImages = (editProduct.images || []).filter(
+        (img) => typeof img === "string" && img.startsWith("http")
+      );
+      formData.append("existingImages", JSON.stringify(existingImages));
 
-      alert("Product Updated Successfully");
+      (editProduct.newImages || []).forEach((item) => {
+        if (!item) return;
+        formData.append("images", item.file);
+        formData.append("replaceIndexes", item.index);
+      });
 
-      setEditProduct(null);
+      const { data } = await axios.put(`${API}/${editProduct._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-      fetchProducts();
-
-    } else {
-
-      alert(data.message);
-
+      if (data.success) {
+        alert("Product Updated Successfully");
+        setEditProduct(null);
+        fetchProducts();
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      alert(error.response?.data?.message || "Update Failed");
+    } finally {
+      setUpdating(false);
     }
+  };
 
-  } catch (error) {
-
-    console.log(error);
-
-    alert(
-      error.response?.data?.message ||
-      "Update Failed"
-    );
-
-  }
-
-};
-
-  // ===============================
-  // LOADING
-  // ===============================
-
+  // ================= LOADING =================
   if (loading) {
-
     return (
-
-      <div className="text-center py-20 text-xl font-semibold">
-
-        Loading Products...
-
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-gray-600 font-medium">Loading Products...</p>
+        </div>
       </div>
-
     );
-
   }
+
   return (
-  <div className="p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-6 sm:py-8 px-3 sm:px-6">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900">
+              All Products
+            </h1>
+            <p className="text-gray-500 mt-1 text-sm sm:text-base">
+              {products.length} product{products.length !== 1 ? "s" : ""} found
+            </p>
+          </div>
+          <button
+            onClick={fetchProducts}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition font-medium text-sm shadow-sm"
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </button>
+        </div>
 
-    <h1 className="text-3xl font-bold mb-8">
-      All Products
-    </h1>
+        {/* Empty */}
+        {products.length === 0 ? (
+          <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-12 text-center">
+            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5">
+              <Boxes size={36} className="text-indigo-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800">No Products Found</h2>
+            <p className="text-gray-500 mt-2">Add products to see them here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
+            {products.map((product) => {
+              const expanded = expandedDesc[product._id];
+              const lowestPrice =
+                product.pricing?.length > 0
+                  ? Math.min(...product.pricing.map((p) => Number(p.price) || 0))
+                  : Number(product.price) || 0;
 
-    {products.length === 0 ? (
-
-      <div className="text-center text-2xl font-semibold py-20">
-
-        No Products Found
-
-      </div>
-
-    ) : (
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-
-        {products.map((product) => {
-
-          const expanded =
-            expandedDesc[product._id];
-
-          return (
-
-            <div
-              key={product._id}
-              className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl duration-300"
-            >
-
-              {/* ========================= */}
-              {/* MAIN IMAGE */}
-              {/* ========================= */}
-
-              <img
-                src={
-                  product.images?.[0] ||
-                  "https://via.placeholder.com/500x400"
-                }
-                alt={product.name}
-                className="w-full h-56 object-cover"
-              />
-
-              {/* ========================= */}
-              {/* THUMBNAIL IMAGES */}
-              {/* ========================= */}
-
-              <div className="flex gap-2 p-3 overflow-x-auto">
-
-                {product.images?.map(
-                  (img, index) => (
-
+              return (
+                <div
+                  key={product._id}
+                  className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col"
+                >
+                  {/* Image */}
+                  <div className="relative h-48 sm:h-52 bg-gradient-to-br from-gray-50 to-gray-100">
                     <img
-                      key={index}
-                      src={img}
-                      alt={`product-${index}`}
-                      className="w-14 h-14 rounded-lg border object-cover flex-shrink-0"
+                      src={product.images?.[0] || "https://via.placeholder.com/500x400?text=No+Image"}
+                      alt={product.name}
+                      className="w-full h-full object-contain p-4"
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/500x400?text=No+Image";
+                      }}
                     />
-
-                  )
-                )}
-
-              </div>
-
-              {/* ========================= */}
-              {/* PRODUCT CONTENT */}
-              {/* ========================= */}
-
-              <div className="p-4">
-
-                <h2 className="font-bold text-xl">
-
-                  {product.name}
-
-                </h2>
-
-                <div className="flex flex-wrap gap-2 mt-2">
-
-                  <span className="bg-blue-100 text-blue-700 text-xs px-3 py-1 rounded-full">
-
-                    {product.category}
-
-                  </span>
-
-                  <span className="bg-green-100 text-green-700 text-xs px-3 py-1 rounded-full">
-
-                    Stock : {product.stock}
-
-                  </span>
-
-                </div>
-
-                <div className="mt-3 text-sm space-y-1">
-
-                  <p>
-
-                    <span className="font-semibold">
-
-                      Brand :
-
-                    </span>{" "}
-
-                    {product.brand || "-"}
-
-                  </p>
-
-                  <p>
-
-                    <span className="font-semibold">
-
-                      Material :
-
-                    </span>{" "}
-
-                    {product.material || "-"}
-
-                  </p>
-
-                </div>
-                                {/* ========================= */}
-                {/* QUANTITY WISE PRICING */}
-                {/* ========================= */}
-
-                <div className="mt-4">
-
-                  <h3 className="font-semibold mb-2">
-                    Quantity Pricing
-                  </h3>
-
-                  <div className="border rounded-lg overflow-hidden">
-
-                    <table className="w-full text-sm">
-
-                      <thead className="bg-gray-100">
-
-                        <tr>
-
-                          <th className="py-2">
-                            Qty
-                          </th>
-
-                          <th className="py-2">
-                            Price
-                          </th>
-
-                        </tr>
-
-                      </thead>
-
-                      <tbody>
-
-                        {product.pricing?.map(
-                          (price, index) => (
-
-                            <tr
-                              key={index}
-                              className="border-t"
-                            >
-
-                              <td className="text-center py-2">
-
-                                {price.quantity}
-
-                              </td>
-
-                              <td className="text-center py-2 font-bold text-green-600">
-
-                                ₹{price.price}
-
-                              </td>
-
-                            </tr>
-
-                          )
-                        )}
-
-                      </tbody>
-
-                    </table>
-
+                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm text-gray-700">
+                      Stock: {product.stock ?? 0}
+                    </span>
                   </div>
 
-                </div>
-
-                {/* ========================= */}
-                {/* DESCRIPTION */}
-                {/* ========================= */}
-
-                <div className="mt-4 text-sm text-gray-700 leading-6">
-
-                  {expanded
-                    ? product.description
-                    : product.description?.slice(0, 80)}
-
-                  {product.description?.length > 80 && (
-
-                    <button
-                      onClick={() =>
-                        toggleDescription(product._id)
-                      }
-                      className="text-blue-600 ml-1 font-medium"
-                    >
-
-                      {expanded
-                        ? " Show Less"
-                        : "...Read More"}
-
-                    </button>
-
+                  {/* Thumbnails */}
+                  {product.images?.length > 1 && (
+                    <div className="flex gap-2 px-4 pt-3 overflow-x-auto scrollbar-hide">
+                      {product.images.map((img, index) => (
+                        <img
+                          key={index}
+                          src={img}
+                          alt=""
+                          className="w-12 h-12 rounded-lg border border-gray-200 object-cover flex-shrink-0"
+                        />
+                      ))}
+                    </div>
                   )}
 
+                  {/* Content */}
+                  <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                    <h2 className="font-bold text-lg text-gray-900 line-clamp-2">
+                      {product.name}
+                    </h2>
+
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {product.category && (
+                        <span className="bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                          {product.category}
+                        </span>
+                      )}
+                      {product.brand && (
+                        <span className="bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                          {product.brand}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 text-sm text-gray-600 space-y-0.5">
+                      <p>
+                        <span className="font-medium text-gray-800">Material:</span>{" "}
+                        {product.material || "—"}
+                      </p>
+                      <p className="text-emerald-600 font-bold text-base mt-1">
+                        From ₹{lowestPrice.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* Pricing Table */}
+                    {product.pricing?.length > 0 && (
+                      <div className="mt-4">
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                          Quantity Pricing
+                        </h3>
+                        <div className="border border-gray-100 rounded-xl overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="py-2 px-3 text-left text-gray-600 font-medium">Qty</th>
+                                <th className="py-2 px-3 text-right text-gray-600 font-medium">Price</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {product.pricing.map((price, index) => (
+                                <tr key={index} className="border-t border-gray-50">
+                                  <td className="py-2 px-3 text-gray-700">{price.quantity}+</td>
+                                  <td className="py-2 px-3 text-right font-semibold text-emerald-600">
+                                    ₹{Number(price.price).toLocaleString()}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Description */}
+                    {product.description && (
+                      <div className="mt-3 text-sm text-gray-600 leading-relaxed">
+                        {expanded
+                          ? product.description
+                          : product.description.slice(0, 80)}
+                        {product.description.length > 80 && (
+                          <button
+                            onClick={() => toggleDescription(product._id)}
+                            className="text-indigo-600 ml-1 font-medium hover:underline"
+                          >
+                            {expanded ? "Show Less" : "...Read More"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex gap-2.5 mt-auto pt-5">
+                      <button
+                        onClick={() =>
+                          setEditProduct({ ...product, newImages: [] })
+                        }
+                        className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
+                      >
+                        <Pencil size={15} />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteProduct(product._id)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
+                      >
+                        <Trash2 size={15} />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                 </div>
-
-                {/* ========================= */}
-                {/* ACTION BUTTONS */}
-                {/* ========================= */}
-
-                <div className="flex gap-3 mt-5">
-
-                  <button
-                    onClick={() =>
-                      setEditProduct({
-                        ...product,
-                        newImages: [],
-                      })
-                    }
-                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"
-                  >
-
-                    <Pencil size={16} />
-
-                    Edit
-
-                  </button>
-
-                  <button
-                    onClick={() =>
-                      deleteProduct(product._id)
-                    }
-                    className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"
-                  >
-
-                    <Trash2 size={16} />
-
-                    Delete
-
-                  </button>
-
-                </div>
-
-              </div>
-
-            </div>
-
-          );
-
-        })}
-
+              );
+            })}
+          </div>
+        )}
       </div>
 
-    )}
+      {/* ================= EDIT MODAL ================= */}
+      {editProduct && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-5">
+          <div className="bg-white w-full max-w-3xl rounded-2xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-5 sm:px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl sm:rounded-t-3xl">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Edit Product
+              </h2>
+              <button
+                onClick={() => setEditProduct(null)}
+                className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition"
+              >
+                <X size={20} />
+              </button>
+            </div>
 
-    {/* ========================= */}
-    {/* EDIT MODAL PART 2B */}
-    {/* ========================= */}
+            <div className="p-5 sm:p-6 space-y-6">
+              {/* Images */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <ImagePlus size={18} />
+                  Product Images
+                </h3>
+                <div className="flex flex-wrap gap-3">
+                  {editProduct.images?.map((img, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={img}
+                        alt=""
+                        className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl object-cover border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => deleteImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow"
+                      >
+                        ✕
+                      </button>
+                      <label className="absolute bottom-1 left-1 right-1 bg-indigo-600 text-white text-[10px] sm:text-xs py-1 rounded text-center cursor-pointer opacity-90 hover:opacity-100">
+                        Replace
+                        <input
+                          hidden
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files[0])
+                              replaceImage(index, e.target.files[0]);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  ))}
 
-    {editProduct && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-5">
-
-        <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl max-h-[95vh] overflow-y-auto p-6">
-
-          <h2 className="text-3xl font-bold mb-6">
-            Edit Product
-          </h2>
-
-          {/* ========================= */}
-          {/* PRODUCT IMAGES */}
-          {/* ========================= */}
-
-          <div className="mb-8">
-
-            <h3 className="font-semibold text-lg mb-4">
-              Product Images
-            </h3>
-
-            <div className="flex flex-wrap gap-4">
-
-              {editProduct.images?.map((img, index) => (
-
-                <div
-                  key={index}
-                  className="relative"
-                >
-
-                  <img
-                    src={img}
-                    alt=""
-                    className="w-28 h-28 rounded-xl object-cover border"
-                  />
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      deleteImage(index)
-                    }
-                    className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6"
-                  >
-                    ✕
-                  </button>
-
-                  <label className="absolute bottom-1 left-1 bg-blue-600 text-white text-xs px-2 py-1 rounded cursor-pointer">
-
-                    Replace
-
+                  <label className="w-24 h-24 sm:w-28 sm:h-28 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition text-gray-400">
+                    <Plus size={24} />
+                    <span className="text-[10px] mt-1">Add</span>
                     <input
                       hidden
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
-
-                        if (e.target.files[0]) {
-
-                          replaceImage(
-                            index,
-                            e.target.files[0]
-                          );
-
-                        }
-
+                        if (e.target.files[0]) addImage(e.target.files[0]);
                       }}
                     />
-
                   </label>
-
                 </div>
+              </div>
 
-              ))}
-
-              {/* ADD IMAGE */}
-
-              <label className="w-28 h-28 border-2 border-dashed rounded-xl flex items-center justify-center cursor-pointer text-3xl">
-
-                +
-
-                <input
-                  hidden
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-
-                    if (e.target.files[0]) {
-
-                      addImage(
-                        e.target.files[0]
-                      );
-
-                    }
-
-                  }}
-                />
-
-              </label>
-
-            </div>
-
-          </div>
-
-          {/* ========================= */}
-          {/* BASIC DETAILS */}
-          {/* ========================= */}
-
-          <div className="grid md:grid-cols-2 gap-4">
-
-            <input
-              type="text"
-              name="name"
-              value={editProduct.name}
-              onChange={handleEditChange}
-              placeholder="Product Name"
-              className="border rounded-lg p-3"
-            />
-
-            <input
-              type="text"
-              name="brand"
-              value={editProduct.brand}
-              onChange={handleEditChange}
-              placeholder="Brand"
-              className="border rounded-lg p-3"
-            />
-
-            <input
-              type="text"
-              name="category"
-              value={editProduct.category}
-              onChange={handleEditChange}
-              placeholder="Category"
-              className="border rounded-lg p-3"
-            />
-
-            <input
-              type="text"
-              name="material"
-              value={editProduct.material}
-              onChange={handleEditChange}
-              placeholder="Material"
-              className="border rounded-lg p-3"
-            />
-
-            <input
-              type="number"
-              name="stock"
-              value={editProduct.stock}
-              onChange={handleEditChange}
-              placeholder="Stock"
-              className="border rounded-lg p-3"
-            />
-
-          </div>
-
-          {/* ========================= */}
-          {/* QUANTITY PRICING */}
-          {/* ========================= */}
-
-          <div className="mt-8">
-
-            <div className="flex justify-between items-center mb-4">
-
-              <h3 className="text-xl font-semibold">
-
-                Quantity Wise Pricing
-
-              </h3>
-
-              <button
-                type="button"
-                onClick={addPriceRow}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg"
-              >
-
-                + Add Price
-
-              </button>
-
-            </div>
-
-            {editProduct.pricing?.map(
-              (item, index) => (
-
-                <div
-                  key={index}
-                  className="grid grid-cols-12 gap-3 mb-3"
-                >
-
+              {/* Basic Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {[
+                  { name: "name", placeholder: "Product Name" },
+                  { name: "brand", placeholder: "Brand" },
+                  { name: "category", placeholder: "Category" },
+                  { name: "material", placeholder: "Material" },
+                  { name: "stock", placeholder: "Stock", type: "number" },
+                ].map((field) => (
                   <input
-                    type="number"
-                    value={item.quantity}
-                    placeholder="Quantity"
-                    onChange={(e) =>
-                      handlePriceChange(
-                        index,
-                        "quantity",
-                        e.target.value
-                      )
-                    }
-                    className="col-span-5 border rounded-lg p-3"
+                    key={field.name}
+                    type={field.type || "text"}
+                    name={field.name}
+                    value={editProduct[field.name] || ""}
+                    onChange={handleEditChange}
+                    placeholder={field.placeholder}
+                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
                   />
+                ))}
+              </div>
 
-                  <input
-                    type="number"
-                    value={item.price}
-                    placeholder="Price"
-                    onChange={(e) =>
-                      handlePriceChange(
-                        index,
-                        "price",
-                        e.target.value
-                      )
-                    }
-                    className="col-span-5 border rounded-lg p-3"
-                  />
-
+              {/* Pricing */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800">
+                    Quantity Wise Pricing
+                  </h3>
                   <button
                     type="button"
-                    onClick={() =>
-                      removePriceRow(index)
-                    }
-                    className="col-span-2 bg-red-600 text-white rounded-lg"
+                    onClick={addPriceRow}
+                    className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition"
                   >
-
-                    Delete
-
+                    <Plus size={14} />
+                    Add Price
                   </button>
-
                 </div>
 
-              )
-            )}
-                      </div>
+                <div className="space-y-2.5">
+                  {editProduct.pricing?.map((item, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-12 gap-2 sm:gap-3 items-center"
+                    >
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        placeholder="Qty"
+                        onChange={(e) =>
+                          handlePriceChange(index, "quantity", e.target.value)
+                        }
+                        className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
+                      />
+                      <input
+                        type="number"
+                        value={item.price}
+                        placeholder="Price"
+                        onChange={(e) =>
+                          handlePriceChange(index, "price", e.target.value)
+                        }
+                        className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePriceRow(index)}
+                        className="col-span-2 bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 text-sm transition"
+                      >
+                        <Trash2 size={14} className="mx-auto" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-          {/* ========================= */}
-          {/* DESCRIPTION */}
-          {/* ========================= */}
+              {/* Description */}
+              <div>
+                <label className="font-semibold text-gray-800 text-sm mb-2 block">
+                  Description
+                </label>
+                <textarea
+                  rows="4"
+                  name="description"
+                  value={editProduct.description || ""}
+                  onChange={handleEditChange}
+                  placeholder="Product description..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition resize-none"
+                />
+              </div>
 
-          <div className="mt-6">
-
-            <textarea
-              rows="5"
-              name="description"
-              value={editProduct.description}
-              onChange={handleEditChange}
-              placeholder="Description"
-              className="w-full border rounded-xl p-3"
-            />
-
+              {/* Footer Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={updateProduct}
+                  disabled={updating}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white py-3 rounded-xl font-semibold transition shadow-sm"
+                >
+                  {updating ? "Saving..." : "Save Changes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditProduct(null)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
-
-          {/* ========================= */}
-          {/* FOOTER BUTTONS */}
-          {/* ========================= */}
-
-          <div className="flex gap-4 mt-8">
-
-            <button
-              type="button"
-              onClick={updateProduct}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl font-semibold"
-            >
-              Save Changes
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setEditProduct(null)}
-              className="flex-1 bg-gray-500 hover:bg-gray-600 text-white py-3 rounded-xl font-semibold"
-            >
-              Cancel
-            </button>
-
-          </div>
-
         </div>
+      )}
 
-      </div>
-
-    )}
-
-  </div>
-
-);
-
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+    </div>
+  );
 };
 
 export default GetAllProducts;
