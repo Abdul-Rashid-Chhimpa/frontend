@@ -1,320 +1,218 @@
-import { useLocation, useNavigate } from "react-router-dom";
-import { useContext, useState,useEffect } from "react";
-import { CartContext } from "./Context";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useContext, useEffect, useState } from "react";
+import { Package, ArrowLeft, ShoppingCart } from "lucide-react";
+import { CartContext } from "../Components/Context"; // adjust path if needed
+import axios from "axios";
 
 const ProductDetails = () => {
+  const { id } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { addToCart } = useContext(CartContext);
 
-const location = useLocation();
-const navigate = useNavigate();
+  const [product, setProduct] = useState(location.state?.product || null);
+  const [loading, setLoading] = useState(!location.state?.product);
+  const [error, setError] = useState(false);
 
-const { addToCart } = useContext(CartContext);
+  // If product was not passed via state → try to fetch from API
+  useEffect(() => {
+    if (product) return; // already have it from Card
 
-// ================= PRODUCT DATA =================
+    const fetchSingleProduct = async () => {
+      try {
+        setLoading(true);
+        // Try single product endpoint first
+        const { data } = await axios.get(
+          `https://backend-3-axez.onrender.com/api/products/${id}`
+        );
 
-const product = location.state;
+        if (data.success && data.product) {
+          setProduct(data.product);
+        } else {
+          // Fallback: fetch all products and find by id
+          const res = await axios.get(
+            "https://backend-3-axez.onrender.com/api/products"
+          );
+          const found = res.data.products?.find((p) => p._id === id);
+          if (found) {
+            setProduct(found);
+          } else {
+            setError(true);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+        // Last fallback
+        try {
+          const res = await axios.get(
+            "https://backend-3-axez.onrender.com/api/products"
+          );
+          const found = res.data.products?.find((p) => p._id === id);
+          if (found) setProduct(found);
+          else setError(true);
+        } catch {
+          setError(true);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
 
-// ================= SELECTED IMAGE =================
+    fetchSingleProduct();
+  }, [id, product]);
 
-const [selectedImage, setSelectedImage] = useState("");
-
-// ================= SELECTED PRICING =================
-
-const [selectedPricing, setSelectedPricing] = useState({
-  quantity: 1,
-  price: 0,
-});
-
-// ================= LOAD PRODUCT =================
-
-useEffect(() => {
-  if (!product) return;
-
-  // Default Image
-  if (product.images?.length > 0) {
-    setSelectedImage(product.images[0]);
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
+        <div className="text-center">
+          <div className="w-14 h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-600 font-medium">Loading product...</p>
+        </div>
+      </div>
+    );
   }
 
-  // Default Pricing
-  if (product.pricing?.length > 0) {
-    setSelectedPricing(product.pricing[0]);
-  } else {
-    setSelectedPricing({
-      quantity: 1,
-      price: 0,
-    });
-  }
-}, [product]);
-
-// ================= PRODUCT NOT FOUND =================
-
-if (!product) {
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center gap-6">
-
-      <h1 className="text-3xl font-bold text-red-600">
-        Product Not Found
-      </h1>
-
-      <p className="text-gray-500">
-        This product doesn't exist or was removed.
-      </p>
-
-      <button
-        onClick={() => navigate("/")}
-        className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl transition"
-      >
-        Back To Home
-      </button>
-
-    </div>
-  );
-}
-
-
-  return (
-
-<div className="grid grid-cols-1 ml-2  mr-2 mt-2 mb-2 lg:grid-cols-2 gap-12">
-
-  {/* ================= LEFT : PRODUCT IMAGES ================= */}
-
-  <div>
-
-    {/* Main Image */}
-
-    <div className="bg-white rounded-3xl border shadow-lg h-[500px] flex items-center justify-center overflow-hidden">
-
-      <img
-        src={selectedImage}
-        alt={product.name}
-        className="max-w-full max-h-full object-contain hover:scale-110 transition duration-300"
-      />
-
-    </div>
-
-    {/* Thumbnails */}
-
-    <div className="grid grid-cols-4 sm:grid-cols-5 gap-3 mt-5">
-
-      {product.images?.map((img, index) => (
-
+  if (error || !product) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
+        <Package size={80} className="text-gray-300 mb-6" />
+        <h1 className="text-3xl font-bold text-gray-800 mb-2">
+          Product Not Found
+        </h1>
+        <p className="text-gray-500 mb-8 text-center">
+          This product doesn't exist or was removed.
+        </p>
         <button
-          key={index}
-          type="button"
-          onClick={() => setSelectedImage(img)}
-          className={`rounded-xl border-2 overflow-hidden transition hover:scale-105 ${
-            selectedImage === img
-              ? "border-blue-600 shadow-lg"
-              : "border-gray-300"
-          }`}
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition"
         >
+          <ArrowLeft size={18} />
+          Back To Home
+        </button>
+      </div>
+    );
+  }
 
-          <img
-            src={img}
-            alt={`Product ${index + 1}`}
-            className="w-full h-20 object-contain bg-white p-2"
-          />
+  // Price helper
+  const getPrice = () => {
+    if (product.pricing?.length > 0) {
+      return Math.min(...product.pricing.map((p) => Number(p.price) || 0));
+    }
+    return Number(product.price || 0);
+  };
 
+  const finalPrice = getPrice();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-10 px-4">
+      <div className="max-w-6xl mx-auto">
+        {/* Back Button */}
+        <button
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium mb-8 transition"
+        >
+          <ArrowLeft size={20} />
+          Back
         </button>
 
-      ))}
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden grid md:grid-cols-2 gap-0">
+          {/* Image Section */}
+          <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-8 flex items-center justify-center min-h-[400px]">
+            <img
+              src={product.images?.[0] || "/no-image.png"}
+              alt={product.name}
+              className="max-h-[420px] w-full object-contain"
+              onError={(e) => (e.target.src = "/no-image.png")}
+            />
+          </div>
 
-    </div>
+          {/* Details Section */}
+          <div className="p-8 md:p-10 flex flex-col">
+            <div className="flex-1">
+              {product.offer > 0 && (
+                <span className="inline-block bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full mb-4">
+                  {product.offer}% OFF
+                </span>
+              )}
 
-  </div>
+              <h1 className="text-3xl font-extrabold text-gray-900 mb-3">
+                {product.name}
+              </h1>
 
-  {/* ================= RIGHT : PRODUCT DETAILS ================= */}
+              <div className="space-y-2 text-gray-600 mb-6">
+                <p>
+                  <span className="font-medium text-gray-800">Brand:</span>{" "}
+                  {product.brand || "N/A"}
+                </p>
+                <p>
+                  <span className="font-medium text-gray-800">Material:</span>{" "}
+                  {product.material || "N/A"}
+                </p>
+                <p>
+                  <span className="font-medium text-gray-800">Category:</span>{" "}
+                  {product.category || product.name}
+                </p>
+                <p>
+                  <span className="font-medium text-gray-800">Stock:</span>{" "}
+                  <span
+                    className={
+                      product.stock > 0 ? "text-emerald-600" : "text-red-600"
+                    }
+                  >
+                    {product.stock > 0
+                      ? `${product.stock} available`
+                      : "Out of Stock"}
+                  </span>
+                </p>
+              </div>
 
-  <div>
+              <div className="mb-8">
+                <p className="text-sm text-gray-500 mb-1">Price</p>
+                <p className="text-4xl font-extrabold text-indigo-700">
+                  ₹{finalPrice}
+                </p>
+              </div>
 
-    <h1 className="text-3xl md:text-4xl font-bold">
-      {product.name}
-    </h1>
+              {product.description && (
+                <div className="mb-8">
+                  <h3 className="font-semibold text-gray-800 mb-2">
+                    Description
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    {product.description}
+                  </p>
+                </div>
+              )}
+            </div>
 
-    {/* Category & Stock */}
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 mt-auto">
+              <button
+                disabled={product.stock === 0}
+                onClick={() =>
+                  addToCart({
+                    ...product,
+                    quantity: 1,
+                    price: finalPrice,
+                  })
+                }
+                className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-4 rounded-xl font-semibold text-lg transition shadow-lg"
+              >
+                <ShoppingCart size={22} />
+                Add to Cart
+              </button>
 
-    <div className="flex flex-wrap gap-3 mt-5">
-
-      <span className="bg-blue-100 text-blue-700 px-4 py-2 rounded-full text-sm font-semibold">
-        {product.category}
-      </span>
-
-      <span
-        className={`px-4 py-2 rounded-full text-sm font-semibold ${
-          product.stock > 0
-            ? "bg-green-100 text-green-700"
-            : "bg-red-100 text-red-700"
-        }`}
-      >
-        {product.stock > 0
-          ? `${product.stock} Pieces Available`
-          : "Out Of Stock"}
-      </span>
-
-    </div>
-
-    {/* Description */}
-
-    <div className="mt-8">
-
-      <h2 className="text-xl font-bold mb-3">
-        Description
-      </h2>
-
-      <p className="text-gray-600 leading-8">
-        {product.description}
-      </p>
-
-    </div>
-
-    {/* Product Information */}
-
-    <div className="grid grid-cols-2 gap-4 mt-8">
-
-      <div className="bg-gray-50 rounded-xl p-4">
-
-        <p className="text-gray-500 text-sm">
-          Brand
-        </p>
-
-        <h3 className="font-semibold mt-1">
-          {product.brand || "-"}
-        </h3>
-
+              <button
+                onClick={() => navigate("/")}
+                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-4 rounded-xl font-semibold text-lg transition shadow-lg"
+              >
+                Continue Shopping
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <div className="bg-gray-50 rounded-xl p-4">
-
-        <p className="text-gray-500 text-sm">
-          Material
-        </p>
-
-        <h3 className="font-semibold mt-1">
-          {product.material || "-"}
-        </h3>
-
-      </div>
-
-      <div className="bg-gray-50 rounded-xl p-4">
-
-        <p className="text-gray-500 text-sm">
-          Category
-        </p>
-
-        <h3 className="font-semibold mt-1">
-          {product.category}
-        </h3>
-
-      </div>
-
-      <div className="bg-gray-50 rounded-xl p-4">
-
-        <p className="text-gray-500 text-sm">
-          Available Stock
-        </p>
-
-        <h3 className="font-semibold mt-1">
-          {product.stock} Pieces
-        </h3>
-
-      </div>
-
     </div>
-
-    {/* Quantity */}
-
-    <div className="mt-8">
-
-      <h2 className="font-semibold text-lg mb-3">
-        Select Quantity
-      </h2>
-
-      <select
-        value={selectedPricing?.quantity || ""}
-        onChange={(e) => {
-
-          const pricing = product.pricing.find(
-            (item) =>
-              item.quantity === Number(e.target.value)
-          );
-
-          setSelectedPricing(pricing);
-
-        }}
-        className="w-full border-2 rounded-xl p-4 outline-none focus:border-blue-600"
-      >
-
-        {product.pricing?.map((item, index) => (
-
-          <option
-            key={index}
-            value={item.quantity}
-          >
-            {item.quantity} Pieces - ₹{item.price}
-          </option>
-
-        ))}
-
-      </select>
-
-    </div>
-
-    {/* Price */}
-
-    <div className="bg-green-50 rounded-2xl mt-8 p-6 border">
-
-      <p className="text-gray-500">
-        Total Price
-      </p>
-
-      <h2 className="text-5xl font-bold text-green-600 mt-2">
-        ₹{selectedPricing?.price || 0}
-      </h2>
-
-    </div>
-
-    {/* Buttons */}
-
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-
-      <button
-        disabled={product.stock === 0}
-        onClick={() =>
-          addToCart({
-            ...product,
-            price: selectedPricing.price,
-            selectedQty: selectedPricing.quantity,
-          })
-        }
-        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white py-4 rounded-xl font-semibold transition"
-      >
-        Add To Cart
-      </button>
-
-      <button
-        disabled={product.stock === 0}
-        onClick={() => {
-
-          addToCart({
-            ...product,
-            price: selectedPricing.price,
-            selectedQty: selectedPricing.quantity,
-          });
-
-          navigate("/cart");
-
-        }}
-        className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white py-4 rounded-xl font-semibold transition"
-      >
-        Buy Now
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-
   );
 };
 
