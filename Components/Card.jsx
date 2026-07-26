@@ -18,7 +18,7 @@ const Card = () => {
 const { addToCart } = useContext(CartContext);
 const navigate = useNavigate();
 
-// ===========================
+// ===========================m
 // STATES
 // ===========================
 
@@ -624,8 +624,7 @@ if (loading) {
 
   )}
 
-</div>
-      )}
+
 
       {/* Show More */}
 
