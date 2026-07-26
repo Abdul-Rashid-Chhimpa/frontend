@@ -1,7 +1,7 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useContext, useEffect, useState } from "react";
 import { Package, ArrowLeft, ShoppingCart } from "lucide-react";
-import { CartContext } from "../Components/Context"; // adjust path if needed
+import { CartContext } from "../Components/Context"; // apna path check karo
 import axios from "axios";
 
 const ProductDetails = () => {
@@ -10,57 +10,55 @@ const ProductDetails = () => {
   const navigate = useNavigate();
   const { addToCart } = useContext(CartContext);
 
+  // Pehle state se product lo (View button se aaya hua)
   const [product, setProduct] = useState(location.state?.product || null);
   const [loading, setLoading] = useState(!location.state?.product);
   const [error, setError] = useState(false);
 
-  // If product was not passed via state → try to fetch from API
   useEffect(() => {
-    if (product) return; // already have it from Card
+    // Agar already state me product hai to kuch mat karo
+    if (product) return;
 
-    const fetchSingleProduct = async () => {
+    const fetchProduct = async () => {
       try {
         setLoading(true);
-        // Try single product endpoint first
-        const { data } = await axios.get(
-          `https://backend-3-axez.onrender.com/api/products/${id}`
-        );
 
-        if (data.success && data.product) {
-          setProduct(data.product);
-        } else {
-          // Fallback: fetch all products and find by id
-          const res = await axios.get(
-            "https://backend-3-axez.onrender.com/api/products"
+        // 1. Try single product API
+        try {
+          const { data } = await axios.get(
+            `https://backend-3-axez.onrender.com/api/products/${id}`
           );
-          const found = res.data.products?.find((p) => p._id === id);
-          if (found) {
-            setProduct(found);
-          } else {
-            setError(true);
+          if (data.success && data.product) {
+            setProduct(data.product);
+            return;
           }
+        } catch (e) {
+          // single product endpoint nahi hai to ignore
+        }
+
+        // 2. Fallback → saare products lao aur find karo
+        const res = await axios.get(
+          "https://backend-3-axez.onrender.com/api/products"
+        );
+        const found = res.data.products?.find((p) => p._id === id);
+
+        if (found) {
+          setProduct(found);
+        } else {
+          setError(true);
         }
       } catch (err) {
         console.error(err);
-        // Last fallback
-        try {
-          const res = await axios.get(
-            "https://backend-3-axez.onrender.com/api/products"
-          );
-          const found = res.data.products?.find((p) => p._id === id);
-          if (found) setProduct(found);
-          else setError(true);
-        } catch {
-          setError(true);
-        }
+        setError(true);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSingleProduct();
+    fetchProduct();
   }, [id, product]);
 
+  // Loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50">
@@ -72,6 +70,7 @@ const ProductDetails = () => {
     );
   }
 
+  // Not Found
   if (error || !product) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
@@ -106,7 +105,6 @@ const ProductDetails = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-10 px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium mb-8 transition"
@@ -115,8 +113,8 @@ const ProductDetails = () => {
           Back
         </button>
 
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden grid md:grid-cols-2 gap-0">
-          {/* Image Section */}
+        <div className="bg-white rounded-3xl shadow-xl overflow-hidden grid md:grid-cols-2">
+          {/* Image */}
           <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-8 flex items-center justify-center min-h-[400px]">
             <img
               src={product.images?.[0] || "/no-image.png"}
@@ -126,7 +124,7 @@ const ProductDetails = () => {
             />
           </div>
 
-          {/* Details Section */}
+          {/* Details */}
           <div className="p-8 md:p-10 flex flex-col">
             <div className="flex-1">
               {product.offer > 0 && (
@@ -185,7 +183,6 @@ const ProductDetails = () => {
               )}
             </div>
 
-            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-4 mt-auto">
               <button
                 disabled={product.stock === 0}
