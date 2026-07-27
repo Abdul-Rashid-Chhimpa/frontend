@@ -143,7 +143,7 @@ const Register = () => {
               <img
                 src="/pedwallogo.png"
                 alt="Pedwal Logo"
-                className="h-12 sm:h-14 object-contain mixblend-multiply "
+                className="h-12 sm:h-14 object-contain mixblend-multiply rounded-xl shadow-lg "
                 onError={(e) => {
                   e.target.style.display = "none";
                 }}
