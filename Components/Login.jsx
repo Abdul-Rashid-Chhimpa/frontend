@@ -134,7 +134,7 @@ const Login = () => {
           <img
             src="/pedwallogo.png"
             alt="Logo"
-            className="h-20 mx-auto mb-8 drop-shadow-2xl"
+            className="h-20 mx-auto mb-8 drop-shadow-2xl rounded-xl shadow-lg"
           />
           <h1 className="text-4xl font-bold text-white mb-4 tracking-tight">
             Welcome to Pedwal
