@@ -143,7 +143,7 @@ const Register = () => {
               <img
                 src="/pedwallogo.png"
                 alt="Pedwal Logo"
-                className="h-12 sm:h-14 object-contain brightness-0 invert"
+                className="h-12 sm:h-14 object-contain "
                 onError={(e) => {
                   e.target.style.display = "none";
                 }}
