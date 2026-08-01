@@ -261,36 +261,37 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* ========== PRICING TIERS - HORIZONTAL SCROLL (3 cards visible) ========== */}
+                {/* ========== PRICING TIERS - MAX 3 CARDS VISIBLE + SCROLL ========== */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-2.5 sm:mb-3 text-sm sm:text-base">
                     Price Chart
                   </h3>
 
-                  <div className="overflow-x-auto pb-2 price-scroll">
-                    <div className="flex gap-2.5 sm:gap-3 min-w-max">
+                  {/* max-w limits visible area to ~3 cards */}
+                  <div className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pb-2 price-scroll">
+                    <div className="flex gap-2.5 min-w-max">
                       {pricingTiers.map((tier, index) => {
                         const isActive = unitPrice === tier.price;
                         return (
                           <div
                             key={index}
-                            className={`flex-shrink-0 w-[100px] sm:w-[110px] px-2.5 py-2.5 sm:px-3 sm:py-3 rounded-xl border text-center transition ${
+                            className={`flex-shrink-0 w-[95px] sm:w-[100px] px-2 py-2.5 rounded-xl border text-center transition ${
                               isActive
                                 ? "border-indigo-500 bg-indigo-50 shadow-md"
                                 : "border-gray-200 bg-gray-50"
                             }`}
                           >
-                            <p className="text-[10px] sm:text-[11px] text-gray-500 mb-0.5">
+                            <p className="text-[10px] text-gray-500 mb-0.5">
                               {tier.minQty}+ units
                             </p>
                             <p
-                              className={`text-sm sm:text-base font-bold leading-tight ${
+                              className={`text-sm font-bold leading-tight ${
                                 isActive ? "text-indigo-700" : "text-gray-800"
                               }`}
                             >
                               ₹{tier.price}
                             </p>
-                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5">
+                            <p className="text-[9px] text-gray-400 mt-0.5">
                               / unit
                             </p>
                           </div>
@@ -300,7 +301,9 @@ const ProductDetails = () => {
                   </div>
 
                   <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
-                    Scroll to see all prices • Auto updates with quantity
+                    {pricingTiers.length > 3
+                      ? "Scroll → to see more prices"
+                      : "Price auto updates with quantity"}
                   </p>
                 </div>
 
