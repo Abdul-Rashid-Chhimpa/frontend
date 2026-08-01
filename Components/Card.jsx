@@ -451,37 +451,50 @@ const Card = () => {
                           </div>
 
                           {/* Buttons - Buy Now + Add Cart */}
-                          <div className="grid grid-cols-2 gap-2.5 mt-5">
-                            <button
-                              onClick={() =>
-                                navigate(`/product/${product._id}`, {
-                                  state: { product },
-                                })
-                              }
-                              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
-                            >
-                              Buy Now
-                            </button>
+{/* Buttons */}
+<div className="grid grid-cols-2 gap-2.5 mt-5">
+  <button
+    onClick={() =>
+      navigate(`/product/${product._id}`, {
+        state: { product },
+      })
+    }
+    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
+  >
+    Buy Now
+  </button>
 
-                            <button
-                              disabled={product.stock === 0}
-                              onClick={() =>
-                                addToCart({
-                                  ...product,
-                                  quantity: 1,
-                                  price: finalPrice,
-                                })
-                              }
-                              className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
-                            >
-                              Add Cart
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+  <button
+    disabled={product.stock === 0}
+    onClick={() =>
+      addToCart({
+        ...product,
+        quantity: 1,
+        price: finalPrice,
+      })
+    }
+    className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
+  >
+    Add Cart
+  </button>
+</div>
+
+{/* View Varieties Button - sirf tab dikhe jab varieties hon */}
+{product.variantGroup &&
+  products.filter(
+    (p) => p.variantGroup === product.variantGroup && p._id !== product._id
+  ).length > 0 && (
+    <button
+      onClick={() =>
+        navigate(`/varieties/${product.variantGroup}`, {
+          state: { groupName: product.variantGroup, productName: product.name },
+        })
+      }
+      className="w-full mt-2.5 py-2.5 rounded-xl border-2 border-indigo-200 text-indigo-700 font-semibold text-sm hover:bg-indigo-50 hover:border-indigo-400 transition"
+    >
+      View More Varieties
+    </button>
+  )}
 
                 {filteredProducts.length > visibleProducts && (
                   <div className="flex justify-center mt-10">
