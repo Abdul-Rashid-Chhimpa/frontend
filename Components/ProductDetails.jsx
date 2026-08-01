@@ -1,10 +1,6 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useContext, useEffect, useState, useRef } from "react";
-import {
-  Package,
-  ArrowLeft,
-  ShoppingCart,
-} from "lucide-react";
+import { Package, ArrowLeft, ShoppingCart } from "lucide-react";
 import { CartContext } from "../Components/Context";
 import axios from "axios";
 
@@ -19,6 +15,7 @@ const ProductDetails = () => {
   const [error, setError] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+  const [isPaused, setIsPaused] = useState(false); // Auto-slide pause state
 
   // Scroll container + active card refs
   const priceScrollRef = useRef(null);
@@ -69,6 +66,19 @@ const ProductDetails = () => {
     fetchProduct();
   }, [id, product]);
 
+  // ================= AUTO SLIDE / RANDOM IMAGE CHANGING =================
+  const imagesList = product?.images?.length > 0 ? product.images : ["/no-image.png"];
+
+  useEffect(() => {
+    if (imagesList.length <= 1 || isPaused) return;
+
+    const interval = setInterval(() => {
+      setSelectedImage((prevIndex) => (prevIndex + 1) % imagesList.length);
+    }, 3500); // Har 3.5 seconds mein automatic image slide hoga
+
+    return () => clearInterval(interval);
+  }, [imagesList.length, isPaused]);
+
   // ================= AUTO SCROLL ACTIVE PRICE CARD =================
   useEffect(() => {
     if (activeCardRef.current && priceScrollRef.current) {
@@ -78,7 +88,7 @@ const ProductDetails = () => {
         block: "nearest",
       });
     }
-  }, [quantity]); // quantity change pe active card scroll hoga
+  }, [quantity]);
 
   // ================= LOADING =================
   if (loading) {
@@ -115,12 +125,6 @@ const ProductDetails = () => {
       </div>
     );
   }
-
-  // ================= IMAGES =================
-  const images =
-    product.images && product.images.length > 0
-      ? product.images
-      : ["/no-image.png"];
 
   // ================= PRICING TIERS (sorted) =================
   const pricingTiers =
@@ -180,7 +184,6 @@ const ProductDetails = () => {
     (q, i, arr) => q <= maxStock && arr.indexOf(q) === i
   );
 
-  // ================= RENDER =================
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
       <div className="max-w-6xl mx-auto">
@@ -196,12 +199,17 @@ const ProductDetails = () => {
         <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
             {/* ================= LEFT - IMAGE GALLERY ================= */}
-            <div className="p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100">
-              <div className="relative bg-white rounded-xl sm:rounded-2xl border border-gray-200 overflow-hidden mb-4 sm:mb-5 flex items-center justify-center h-[260px] xs:h-[300px] sm:h-[360px] md:h-[420px] lg:h-[460px]">
+            <div 
+              className="p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100"
+              onMouseEnter={() => setIsPaused(true)}
+              onMouseLeave={() => setIsPaused(false)}
+            >
+              {/* Main Image Box (Padding removed & object-contain tuned) */}
+              <div className="relative bg-white rounded-xl sm:rounded-2xl border border-gray-100 overflow-hidden mb-4 sm:mb-5 flex items-center justify-center h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[460px] p-1">
                 <img
-                  src={images[selectedImage]}
+                  src={imagesList[selectedImage]}
                   alt={product.name}
-                  className="max-h-full max-w-full object-contain p-3 sm:p-4 transition-all duration-300"
+                  className="max-h-full max-w-full object-contain transition-all duration-300"
                   onError={(e) => {
                     e.target.src = "/no-image.png";
                   }}
@@ -213,22 +221,26 @@ const ProductDetails = () => {
                 )}
               </div>
 
-              {images.length > 1 && (
+              {/* Thumbnails (Hover Effects & Ring Shadows Removed) */}
+              {imagesList.length > 1 && (
                 <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
-                  {images.map((img, index) => (
+                  {imagesList.map((img, index) => (
                     <button
                       key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl border-2 overflow-hidden transition-all duration-200 ${
+                      onClick={() => {
+                        setSelectedImage(index);
+                        setIsPaused(true); // User click par auto-slide temporary pause hoga
+                      }}
+                      className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl overflow-hidden border transition-all duration-150 ${
                         selectedImage === index
-                          ? "border-indigo-600 ring-2 ring-indigo-300 scale-105"
-                          : "border-gray-200 hover:border-indigo-400"
+                          ? "border-indigo-600 opacity-100"
+                          : "border-gray-200 opacity-60 hover:opacity-100"
                       }`}
                     >
                       <img
                         src={img}
                         alt={`Thumbnail ${index + 1}`}
-                        className="w-full h-full object-contain bg-white p-1"
+                        className="w-full h-full object-contain bg-white"
                         onError={(e) => {
                           e.target.src = "/no-image.png";
                         }}
@@ -276,56 +288,55 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* ========== PRICING TIERS - AUTO SCROLL ACTIVE CARD ========== */}
-            
-<div className="mb-5 sm:mb-6">
-  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
-    Price Chart
-  </h3>
+                {/* ========== PRICING TIERS ========== */}
+                <div className="mb-5 sm:mb-6">
+                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
+                    Price Chart
+                  </h3>
 
-  <div
-    ref={priceScrollRef}
-    className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pt-3 pb-4 price-scroll"
-  >
-    <div className="flex gap-3 min-w-max px-1">
-      {pricingTiers.map((tier, index) => {
-        const isActive = unitPrice === tier.price;
+                  <div
+                    ref={priceScrollRef}
+                    className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pt-3 pb-4 price-scroll"
+                  >
+                    <div className="flex gap-3 min-w-max px-1">
+                      {pricingTiers.map((tier, index) => {
+                        const isActive = unitPrice === tier.price;
 
-        return (
-          <div
-            key={index}
-            ref={isActive ? activeCardRef : null}
-            className={`flex-shrink-0 w-[100px] px-2.5 py-3 rounded-xl border text-center transition-all duration-300 ${
-              isActive
-                ? "border-indigo-500 bg-indigo-50 shadow-md scale-105"
-                : "border-gray-200 bg-gray-50"
-            }`}
-          >
-            <p className="text-[10px] text-gray-500 mb-1">
-              {tier.minQty}+ units
-            </p>
-            <p
-              className={`text-sm font-bold leading-tight ${
-                isActive ? "text-indigo-700" : "text-gray-800"
-              }`}
-            >
-              ₹{tier.price}
-            </p>
-            <p className="text-[9px] text-gray-400 mt-1">
-              / unit
-            </p>
-          </div>
-        );
-      })}
-    </div>
-  </div>
+                        return (
+                          <div
+                            key={index}
+                            ref={isActive ? activeCardRef : null}
+                            className={`flex-shrink-0 w-[100px] px-2.5 py-3 rounded-xl border text-center transition-all duration-300 ${
+                              isActive
+                                ? "border-indigo-500 bg-indigo-50 shadow-md scale-105"
+                                : "border-gray-200 bg-gray-50"
+                            }`}
+                          >
+                            <p className="text-[10px] text-gray-500 mb-1">
+                              {tier.minQty}+ units
+                            </p>
+                            <p
+                              className={`text-sm font-bold leading-tight ${
+                                isActive ? "text-indigo-700" : "text-gray-800"
+                              }`}
+                            >
+                              ₹{tier.price}
+                            </p>
+                            <p className="text-[9px] text-gray-400 mt-1">
+                              / unit
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-  <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
-    {pricingTiers.length > 3
-      ? "Active price auto scrolls into view"
-      : "Price auto updates with quantity"}
-  </p>
-</div>
+                  <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
+                    {pricingTiers.length > 3
+                      ? "Active price auto scrolls into view"
+                      : "Price auto updates with quantity"}
+                  </p>
+                </div>
 
                 {/* ========== QUANTITY SELECTOR ========== */}
                 <div className="mb-5 sm:mb-6">
