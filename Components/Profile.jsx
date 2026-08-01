@@ -91,14 +91,17 @@ const Profile = () => {
       setLoading(true);
       const token = localStorage.getItem("token");
 
-      const { data } = await axios.put(
-        "https://backend-3-axez.onrender.com/api/auth/update-profile",
-        formData,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+   
 
+      const { data } = await axios.put(
+  "https://backend-3-axez.onrender.com/api/auth/profile",
+  formData,
+  {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  }
+);
       if (data.success) {
         toast.success(data.message || "Profile updated successfully!");
 
