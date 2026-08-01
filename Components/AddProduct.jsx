@@ -24,21 +24,18 @@ const AddProduct = () => {
     category: "",
     stock: "",
     description: "",
+    variantGroup: "", // ← NEW
   });
 
-  const [priceList, setPriceList] = useState([
-    { quantity: "", price: "" },
-  ]);
+  const [priceList, setPriceList] = useState([{ quantity: "", price: "" }]);
 
   // ================= IMAGE HANDLERS =================
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     const updatedFiles = [...imageFiles, ...files].slice(0, 10);
     setImageFiles(updatedFiles);
-
     const previews = updatedFiles.map((file) => URL.createObjectURL(file));
     setImages(previews);
-
     if (previews.length > 0 && !selectedImage) {
       setSelectedImage(previews[0]);
     }
@@ -49,7 +46,6 @@ const AddProduct = () => {
     const newFiles = imageFiles.filter((_, i) => i !== index);
     setImages(newImages);
     setImageFiles(newFiles);
-
     if (newImages.length > 0) {
       setSelectedImage(newImages[0]);
     } else {
@@ -66,7 +62,6 @@ const AddProduct = () => {
     newFiles[index] = file;
     setImages(newImages);
     setImageFiles(newFiles);
-
     if (selectedImage === images[index]) {
       setSelectedImage(preview);
     }
@@ -125,6 +120,7 @@ const AddProduct = () => {
       formData.append("material", product.material);
       formData.append("stock", product.stock);
       formData.append("description", product.description);
+      formData.append("variantGroup", product.variantGroup || ""); // ← NEW
       formData.append("pricing", JSON.stringify(validPricing));
 
       const res = await axios.post(
@@ -146,6 +142,7 @@ const AddProduct = () => {
           material: "",
           stock: "",
           description: "",
+          variantGroup: "",
         });
         setPriceList([{ quantity: "", price: "" }]);
         setTimeout(() => setSuccess(false), 3000);
@@ -180,7 +177,6 @@ const AddProduct = () => {
 
         {/* Form Card */}
         <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-          {/* Success Banner */}
           {success && (
             <div className="mx-4 sm:mx-6 mt-5 flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium">
               <CheckCircle size={18} />
@@ -201,13 +197,17 @@ const AddProduct = () => {
                 </span>
               </div>
 
-              {/* Upload Zone */}
               <label className="flex flex-col items-center justify-center w-full h-32 sm:h-36 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group">
-                <Upload size={28} className="text-gray-400 group-hover:text-indigo-500 mb-2" />
+                <Upload
+                  size={28}
+                  className="text-gray-400 group-hover:text-indigo-500 mb-2"
+                />
                 <span className="text-sm text-gray-500 group-hover:text-indigo-600 font-medium">
                   Click to upload images
                 </span>
-                <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10 files</span>
+                <span className="text-xs text-gray-400 mt-1">
+                  PNG, JPG up to 10 files
+                </span>
                 <input
                   type="file"
                   multiple
@@ -217,7 +217,6 @@ const AddProduct = () => {
                 />
               </label>
 
-              {/* Main Preview */}
               {selectedImage && (
                 <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
                   <img
@@ -228,7 +227,6 @@ const AddProduct = () => {
                 </div>
               )}
 
-              {/* Thumbnails */}
               {images.length > 0 && (
                 <div className="flex flex-wrap gap-3 mt-4">
                   {images.map((img, index) => (
@@ -294,6 +292,26 @@ const AddProduct = () => {
               </div>
             </div>
 
+            {/* ========== VARIANT GROUP (NEW) ========== */}
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
+                Variant Group (Optional)
+              </h2>
+              <input
+                type="text"
+                name="variantGroup"
+                value={product.variantGroup}
+                onChange={handleChange}
+                placeholder="e.g. pliers-water, wrench-adj, spanner-set"
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Same group name wale products ek family banenge. Example:{" "}
+                <span className="font-medium text-indigo-600">pliers-water</span>{" "}
+                — is naam se multiple pliers add karo to unpe “View Varieties” button dikhega.
+              </p>
+            </div>
+
             {/* ========== PRICING ========== */}
             <div>
               <div className="flex items-center justify-between mb-3">
@@ -309,7 +327,6 @@ const AddProduct = () => {
                   Add Row
                 </button>
               </div>
-
               <div className="space-y-2.5">
                 {priceList.map((item, index) => (
                   <div
