@@ -14,10 +14,11 @@ import {
   Globe,
   Calendar,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
-
+const navigate = useNavigate();
   // Profile State
   const [userProfile, setUserProfile] = useState({
     fullName: "Rahul Sharma",
@@ -404,12 +405,12 @@ const Profile = () => {
                 </div>
               </div>
               <button
-                type="button"
-                onClick={() => alert("Redirecting to Change Password page...")}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 font-medium text-xs hover:bg-gray-100 transition shadow-sm"
-              >
-                Change Password
-              </button>
+  type="button"
+  onClick={() => navigate("/forgot-password")}
+  className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 font-medium text-xs hover:bg-gray-100 transition shadow-sm"
+>
+  Forgot Password?
+</button>
             </div>
           </div>
 
