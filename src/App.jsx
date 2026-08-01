@@ -13,6 +13,7 @@ import ShoppingCart from "../Components/ShoppingCart";
 import AdminSidebar from "../Components/AdminSidebar";
 import MyOrders from "../Components/MyOrders";
 
+import Profile from "../Components/Profile";
 
 import CartProvider from "../Components/Context";
 import { Toaster } from "react-hot-toast";
@@ -38,6 +39,7 @@ function App() {
           <Route path="/product/:id" element={<ProductDetails />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/about" element={<About />} />
+              <Route path="/profile" element={<Profile />} />
           <Route path="/add-product" element={<AddProcuct />} />
           <Route path="/get-all-products" element={<GetAllProducts />} />
           <Route path="/login" element={<Login />} />
