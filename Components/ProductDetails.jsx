@@ -277,7 +277,7 @@ const ProductDetails = () => {
                 </div>
 
                 {/* ========== PRICING TIERS - AUTO SCROLL ACTIVE CARD ========== */}
-                <div className="mb-5 sm:mb-6">
+                <div className="mb-5 sm:mb-6 p-2">
                   <h3 className="font-semibold text-gray-800 mb-2.5 sm:mb-3 text-sm sm:text-base">
                     Price Chart
                   </h3>
