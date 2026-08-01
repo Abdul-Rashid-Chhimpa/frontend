@@ -370,132 +370,147 @@ const Card = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5 sm:gap-6">
-                  {filteredProducts.slice(0, visibleProducts).map((product) => {
-                    const lowestPrice = getLowestPrice(product);
-                    const finalPrice =
-                      lowestPrice || Number(product.price) || 0;
+                  {filteredProducts
+                    .slice(0, visibleProducts)
+                    .map((product) => {
+                      const lowestPrice = getLowestPrice(product);
+                      const finalPrice =
+                        lowestPrice || Number(product.price) || 0;
 
-                    return (
-                      <div
-                        key={product._id}
-                        className="group bg-white rounded-2xl border border-gray-100 shadow-sm 
-                                   hover:shadow-2xl hover:-translate-y-2 hover:border-indigo-200 
-                                   transition-all duration-300 overflow-hidden cursor-pointer"
-                      >
-                        {/* Image */}
-                        <div className="relative h-52 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-                          <img
-                            src={product.images?.[0] || "/no-image.png"}
-                            alt={product.name}
-                            className="w-full h-full object-contain p-5 group-hover:scale-110 transition duration-500"
-                            onError={(e) => {
-                              e.target.src = "/no-image.png";
-                            }}
-                          />
+                      return (
+                        <div
+                          key={product._id}
+                          className="group bg-white rounded-2xl border border-gray-100 shadow-sm 
+                                     hover:shadow-2xl hover:-translate-y-2 hover:border-indigo-200 
+                                     transition-all duration-300 overflow-hidden cursor-pointer"
+                        >
+                          {/* Image */}
+                          <div className="relative h-52 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+                            <img
+                              src={product.images?.[0] || "/no-image.png"}
+                              alt={product.name}
+                              className="w-full h-full object-contain p-5 group-hover:scale-110 transition duration-500"
+                              onError={(e) => {
+                                e.target.src = "/no-image.png";
+                              }}
+                            />
 
-                          {product.offer > 0 && (
-                            <span className="absolute top-3 left-3 bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
-                              {product.offer}% OFF
+                            {product.offer > 0 && (
+                              <span className="absolute top-3 left-3 bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
+                                {product.offer}% OFF
+                              </span>
+                            )}
+
+                            <span
+                              className={`absolute top-3 right-3 text-xs font-semibold px-3 py-1 rounded-full shadow ${
+                                product.stock > 0
+                                  ? "bg-emerald-500 text-white"
+                                  : "bg-red-500 text-white"
+                              }`}
+                            >
+                              {product.stock > 0 ? "In Stock" : "Out of Stock"}
                             </span>
-                          )}
+                          </div>
 
-                          <span
-                            className={`absolute top-3 right-3 text-xs font-semibold px-3 py-1 rounded-full shadow ${
-                              product.stock > 0
-                                ? "bg-emerald-500 text-white"
-                                : "bg-red-500 text-white"
-                            }`}
-                          >
-                            {product.stock > 0 ? "In Stock" : "Out of Stock"}
-                          </span>
+                          {/* Body */}
+                          <div className="p-4 sm:p-5">
+                            <h2 className="font-bold text-base sm:text-lg line-clamp-2 text-gray-800 group-hover:text-indigo-700 transition">
+                              {product.name}
+                            </h2>
+
+                            <div className="mt-2 space-y-0.5">
+                              <p className="text-xs sm:text-sm text-gray-500">
+                                Brand:{" "}
+                                <span className="text-gray-700">
+                                  {product.brand || "N/A"}
+                                </span>
+                              </p>
+                              <p className="text-xs sm:text-sm text-gray-500">
+                                Material:{" "}
+                                <span className="text-gray-700">
+                                  {product.material || "N/A"}
+                                </span>
+                              </p>
+                            </div>
+
+                            <div className="flex justify-between items-end mt-4">
+                              <div>
+                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">
+                                  Price
+                                </p>
+                                <h3 className="text-xl sm:text-2xl font-extrabold text-indigo-700">
+                                  ₹{finalPrice}
+                                </h3>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">
+                                  Stock
+                                </p>
+                                <h4 className="font-bold text-emerald-600 text-lg">
+                                  {product.stock ?? 0}
+                                </h4>
+                              </div>
+                            </div>
+
+                            {/* Buttons */}
+                            <div className="grid grid-cols-2 gap-2.5 mt-5">
+                              <button
+                                onClick={() =>
+                                  navigate(`/product/${product._id}`, {
+                                    state: { product },
+                                  })
+                                }
+                                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
+                              >
+                                Buy Now
+                              </button>
+
+                              <button
+                                disabled={product.stock === 0}
+                                onClick={() =>
+                                  addToCart({
+                                    ...product,
+                                    quantity: 1,
+                                    price: finalPrice,
+                                  })
+                                }
+                                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
+                              >
+                                Add Cart
+                              </button>
+                            </div>
+
+                            {/* View More Varieties */}
+                            {product.variantGroup &&
+                              products.filter(
+                                (p) =>
+                                  p.variantGroup === product.variantGroup &&
+                                  p._id !== product._id
+                              ).length > 0 && (
+                                <button
+                                  onClick={() =>
+                                    navigate(
+                                      `/varieties/${product.variantGroup}`,
+                                      {
+                                        state: {
+                                          groupName: product.variantGroup,
+                                          productName: product.name,
+                                        },
+                                      }
+                                    )
+                                  }
+                                  className="w-full mt-2.5 py-2.5 rounded-xl border-2 border-indigo-200 text-indigo-700 font-semibold text-sm hover:bg-indigo-50 hover:border-indigo-400 transition"
+                                >
+                                  View More Varieties
+                                </button>
+                              )}
+                          </div>
                         </div>
+                      );
+                    })}
+                </div>
 
-                        {/* Body */}
-                        <div className="p-4 sm:p-5">
-                          <h2 className="font-bold text-base sm:text-lg line-clamp-2 text-gray-800 group-hover:text-indigo-700 transition">
-                            {product.name}
-                          </h2>
-
-                          <div className="mt-2 space-y-0.5">
-                            <p className="text-xs sm:text-sm text-gray-500">
-                              Brand:{" "}
-                              <span className="text-gray-700">
-                                {product.brand || "N/A"}
-                              </span>
-                            </p>
-                            <p className="text-xs sm:text-sm text-gray-500">
-                              Material:{" "}
-                              <span className="text-gray-700">
-                                {product.material || "N/A"}
-                              </span>
-                            </p>
-                          </div>
-
-                          <div className="flex justify-between items-end mt-4">
-                            <div>
-                              <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">
-                                Price
-                              </p>
-                              <h3 className="text-xl sm:text-2xl font-extrabold text-indigo-700">
-                                ₹{finalPrice}
-                              </h3>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[10px] sm:text-xs text-gray-400 uppercase tracking-wide">
-                                Stock
-                              </p>
-                              <h4 className="font-bold text-emerald-600 text-lg">
-                                {product.stock ?? 0}
-                              </h4>
-                            </div>
-                          </div>
-
-                          {/* Buttons - Buy Now + Add Cart */}
-{/* Buttons */}
-<div className="grid grid-cols-2 gap-2.5 mt-5">
-  <button
-    onClick={() =>
-      navigate(`/product/${product._id}`, {
-        state: { product },
-      })
-    }
-    className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
-  >
-    Buy Now
-  </button>
-
-  <button
-    disabled={product.stock === 0}
-    onClick={() =>
-      addToCart({
-        ...product,
-        quantity: 1,
-        price: finalPrice,
-      })
-    }
-    className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
-  >
-    Add Cart
-  </button>
-</div>
-
-{/* View Varieties Button - sirf tab dikhe jab varieties hon */}
-{product.variantGroup &&
-  products.filter(
-    (p) => p.variantGroup === product.variantGroup && p._id !== product._id
-  ).length > 0 && (
-    <button
-      onClick={() =>
-        navigate(`/varieties/${product.variantGroup}`, {
-          state: { groupName: product.variantGroup, productName: product.name },
-        })
-      }
-      className="w-full mt-2.5 py-2.5 rounded-xl border-2 border-indigo-200 text-indigo-700 font-semibold text-sm hover:bg-indigo-50 hover:border-indigo-400 transition"
-    >
-      View More Varieties
-    </button>
-  )}
-
+                {/* Load More Button */}
                 {filteredProducts.length > visibleProducts && (
                   <div className="flex justify-center mt-10">
                     <button
