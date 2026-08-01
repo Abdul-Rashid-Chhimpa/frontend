@@ -378,7 +378,9 @@ const Card = () => {
                     return (
                       <div
                         key={product._id}
-                        className="group bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+                        className="group bg-white rounded-2xl border border-gray-100 shadow-sm 
+                                   hover:shadow-2xl hover:-translate-y-2 hover:border-indigo-200 
+                                   transition-all duration-300 overflow-hidden cursor-pointer"
                       >
                         {/* Image */}
                         <div className="relative h-52 sm:h-56 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
@@ -390,11 +392,13 @@ const Card = () => {
                               e.target.src = "/no-image.png";
                             }}
                           />
+
                           {product.offer > 0 && (
                             <span className="absolute top-3 left-3 bg-gradient-to-r from-red-500 to-rose-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow">
                               {product.offer}% OFF
                             </span>
                           )}
+
                           <span
                             className={`absolute top-3 right-3 text-xs font-semibold px-3 py-1 rounded-full shadow ${
                               product.stock > 0
@@ -446,7 +450,7 @@ const Card = () => {
                             </div>
                           </div>
 
-                          {/* Buttons - FIXED NAVIGATE */}
+                          {/* Buttons - Buy Now + Add Cart */}
                           <div className="grid grid-cols-2 gap-2.5 mt-5">
                             <button
                               onClick={() =>
@@ -454,9 +458,9 @@ const Card = () => {
                                   state: { product },
                                 })
                               }
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
+                              className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-xl py-2.5 sm:py-3 text-sm font-semibold transition shadow-sm"
                             >
-                              View
+                              Buy Now
                             </button>
 
                             <button
