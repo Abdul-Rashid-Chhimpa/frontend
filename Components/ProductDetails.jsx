@@ -4,7 +4,6 @@ import {
   Package,
   ArrowLeft,
   ShoppingCart,
-  Check,
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
 import axios from "axios";
@@ -19,14 +18,12 @@ const ProductDetails = () => {
   const [loading, setLoading] = useState(!location.state?.product);
   const [error, setError] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
-  const [selectedOption, setSelectedOption] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
   // ================= FETCH PRODUCT =================
   useEffect(() => {
     if (product) {
       setSelectedImage(0);
-      setSelectedOption(0);
       setQuantity(1);
       return;
     }
@@ -34,7 +31,6 @@ const ProductDetails = () => {
     const fetchProduct = async () => {
       try {
         setLoading(true);
-
         try {
           const { data } = await axios.get(
             `https://backend-3-axez.onrender.com/api/products/${id}`
@@ -42,7 +38,6 @@ const ProductDetails = () => {
           if (data.success && data.product) {
             setProduct(data.product);
             setSelectedImage(0);
-            setSelectedOption(0);
             setQuantity(1);
             return;
           }
@@ -52,11 +47,9 @@ const ProductDetails = () => {
           "https://backend-3-axez.onrender.com/api/products"
         );
         const found = res.data.products?.find((p) => p._id === id);
-
         if (found) {
           setProduct(found);
           setSelectedImage(0);
-          setSelectedOption(0);
           setQuantity(1);
         } else {
           setError(true);
@@ -114,40 +107,41 @@ const ProductDetails = () => {
       ? product.images
       : ["/no-image.png"];
 
-  // ================= PRICING OPTIONS =================
-  const pricingOptions =
+  // ================= PRICING TIERS (sorted) =================
+  const pricingTiers =
     product.pricing && product.pricing.length > 0
       ? [...product.pricing]
-          .sort(
-            (a, b) =>
-              Number(a.quantity || a.minQty || 1) -
-              Number(b.quantity || b.minQty || 1)
-          )
           .map((tier) => ({
-            quantity: Number(tier.quantity || tier.minQty || 1),
+            minQty: Number(tier.quantity || tier.minQty || 1),
             price: Number(tier.price) || 0,
-            label: `${tier.quantity || tier.minQty || 1}+ units`,
           }))
+          .sort((a, b) => a.minQty - b.minQty)
       : [
           {
-            quantity: 1,
+            minQty: 1,
             price: Number(product.price) || 0,
-            label: "1 unit",
           },
         ];
 
-  const currentOption = pricingOptions[selectedOption] || pricingOptions[0];
-  const unitPrice = currentOption.price;
+  // ================= AUTO PRICE BASED ON QUANTITY =================
+  // Highest tier jiska minQty <= current quantity, uska price use hoga
+  const getUnitPrice = (qty) => {
+    let applicablePrice = pricingTiers[0].price;
+    for (let i = 0; i < pricingTiers.length; i++) {
+      if (qty >= pricingTiers[i].minQty) {
+        applicablePrice = pricingTiers[i].price;
+      } else {
+        break;
+      }
+    }
+    return applicablePrice;
+  };
+
+  const unitPrice = getUnitPrice(quantity);
   const totalPrice = unitPrice * quantity;
   const maxStock = product.stock || 1;
 
   // ================= HANDLERS =================
-  const handleSelectOption = (index) => {
-    setSelectedOption(index);
-    const minQty = pricingOptions[index].quantity || 1;
-    setQuantity(Math.min(minQty, maxStock));
-  };
-
   const handleQuantityChange = (value) => {
     let qty = Number(value);
     if (isNaN(qty) || qty < 1) qty = 1;
@@ -159,11 +153,11 @@ const ProductDetails = () => {
     addToCart({
       ...product,
       quantity: quantity,
-      price: unitPrice,
+      price: unitPrice, // current applicable unit price
       selectedOption: {
-        quantity: currentOption.quantity,
-        price: currentOption.price,
-        label: currentOption.label,
+        quantity: quantity,
+        price: unitPrice,
+        label: `${quantity} units`,
       },
     });
   };
@@ -189,7 +183,6 @@ const ProductDetails = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
             {/* ================= LEFT - IMAGE GALLERY ================= */}
             <div className="p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100">
-              {/* Big Main Image */}
               <div className="relative bg-white rounded-xl sm:rounded-2xl border border-gray-200 overflow-hidden mb-4 sm:mb-5 flex items-center justify-center h-[260px] xs:h-[300px] sm:h-[360px] md:h-[420px] lg:h-[460px]">
                 <img
                   src={images[selectedImage]}
@@ -206,7 +199,6 @@ const ProductDetails = () => {
                 )}
               </div>
 
-              {/* Thumbnails */}
               {images.length > 1 && (
                 <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {images.map((img, index) => (
@@ -247,15 +239,11 @@ const ProductDetails = () => {
                     {product.brand || "N/A"}
                   </p>
                   <p>
-                    <span className="font-semibold text-gray-800">
-                      Material:
-                    </span>{" "}
+                    <span className="font-semibold text-gray-800">Material:</span>{" "}
                     {product.material || "N/A"}
                   </p>
                   <p>
-                    <span className="font-semibold text-gray-800">
-                      Category:
-                    </span>{" "}
+                    <span className="font-semibold text-gray-800">Category:</span>{" "}
                     {product.category || product.name}
                   </p>
                   <p>
@@ -274,43 +262,43 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* ========== SELECTABLE PRICING OPTIONS ========== */}
+                {/* ========== PRICING TIERS (Info Only - Small Cards) ========== */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-2.5 sm:mb-3 text-sm sm:text-base">
-                    Select Price Option
+                    Price Chart
                   </h3>
-                  <div className="grid grid-cols-1 xs:grid-cols-2 gap-2.5 sm:gap-3">
-                    {pricingOptions.map((option, index) => {
-                      const isSelected = selectedOption === index;
+                  <div className="flex flex-wrap gap-2 sm:gap-2.5">
+                    {pricingTiers.map((tier, index) => {
+                      const isActive = unitPrice === tier.price;
                       return (
-                        <button
+                        <div
                           key={index}
-                          onClick={() => handleSelectOption(index)}
-                          className={`relative text-left p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 transition-all duration-200 ${
-                            isSelected
-                              ? "border-indigo-600 bg-indigo-50 shadow-md"
-                              : "border-gray-200 hover:border-indigo-300 bg-white"
+                          className={`px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border text-center min-w-[90px] transition ${
+                            isActive
+                              ? "border-indigo-500 bg-indigo-50 shadow-sm"
+                              : "border-gray-200 bg-gray-50"
                           }`}
                         >
-                          {isSelected && (
-                            <div className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 w-5 h-5 sm:w-6 sm:h-6 bg-indigo-600 rounded-full flex items-center justify-center">
-                              <Check size={12} className="text-white" />
-                            </div>
-                          )}
-                          <p className="text-xs sm:text-sm text-gray-500 mb-0.5 sm:mb-1 pr-6">
-                            {option.label}
+                          <p className="text-[11px] sm:text-xs text-gray-500">
+                            {tier.minQty}+ units
                           </p>
-                          <p className="text-lg sm:text-xl font-bold text-indigo-700">
-                            ₹{option.price}
-                            <span className="text-xs sm:text-sm font-normal text-gray-500">
-                              {" "}
-                              / unit
+                          <p
+                            className={`text-sm sm:text-base font-bold ${
+                              isActive ? "text-indigo-700" : "text-gray-800"
+                            }`}
+                          >
+                            ₹{tier.price}
+                            <span className="text-[10px] font-normal text-gray-500">
+                              /unit
                             </span>
                           </p>
-                        </button>
+                        </div>
                       );
                     })}
                   </div>
+                  <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
+                    Price automatically updates as you change quantity
+                  </p>
                 </div>
 
                 {/* ========== QUANTITY SELECTOR ========== */}
@@ -324,7 +312,7 @@ const ProductDetails = () => {
                     </span>
                   </div>
 
-                  {/* Direct Number Input */}
+                  {/* Number Input */}
                   <div className="mb-3 sm:mb-4">
                     <input
                       type="number"
@@ -381,8 +369,8 @@ const ProductDetails = () => {
                       <p className="text-gray-700 font-medium text-sm sm:text-base">
                         Total Price
                       </p>
-                      <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5 truncate">
-                        {currentOption.label} × {quantity} units
+                      <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
+                        ₹{unitPrice} × {quantity} units
                       </p>
                     </div>
                     <span className="text-xl sm:text-2xl md:text-3xl font-extrabold text-indigo-700 whitespace-nowrap">
@@ -414,7 +402,6 @@ const ProductDetails = () => {
                   <ShoppingCart size={18} />
                   Add to Cart
                 </button>
-
                 <button
                   onClick={() => navigate("/cart")}
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition shadow-lg"
