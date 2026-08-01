@@ -9,6 +9,7 @@ import {
   ImagePlus,
   Boxes,
   RefreshCw,
+  Layers,
 } from "lucide-react";
 
 const GetAllProducts = () => {
@@ -137,6 +138,10 @@ const GetAllProducts = () => {
       formData.append("category", editProduct.category || "");
       formData.append("material", editProduct.material || "");
       formData.append("stock", editProduct.stock || 0);
+      
+      // 🔥 FIX 1: Variant Group backend update me send kar rahe hain
+      formData.append("variantGroup", editProduct.variantGroup || "");
+      
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(editProduct.pricing || []));
 
@@ -222,6 +227,16 @@ const GetAllProducts = () => {
                   ? Math.min(...product.pricing.map((p) => Number(p.price) || 0))
                   : Number(product.price) || 0;
 
+              // 🔥 FIX 2: Check kar rahe hain ki group me 2 ya usse zyada products hain ya nahi
+              const matchingVarieties = product.variantGroup
+                ? products.filter(
+                    (p) =>
+                      p.variantGroup?.trim().toLowerCase() ===
+                        product.variantGroup?.trim().toLowerCase() &&
+                      p._id !== product._id
+                  )
+                : [];
+
               return (
                 <div
                   key={product._id}
@@ -273,6 +288,13 @@ const GetAllProducts = () => {
                           {product.brand}
                         </span>
                       )}
+                      {/* Variant Group Badge */}
+                      {product.variantGroup && (
+                        <span className="bg-purple-50 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
+                          <Layers size={12} />
+                          {product.variantGroup}
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-3 text-sm text-gray-600 space-y-0.5">
@@ -284,6 +306,17 @@ const GetAllProducts = () => {
                         From ₹{lowestPrice.toLocaleString()}
                       </p>
                     </div>
+
+                    {/* 🔥 FIX 3: View More Varieties Button */}
+                    {matchingVarieties.length > 0 && (
+                      <button
+                        type="button"
+                        className="w-full mt-3 py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold rounded-xl border border-purple-200 transition flex items-center justify-center gap-1.5"
+                      >
+                        <Layers size={14} />
+                        View More Varieties ({matchingVarieties.length + 1} items)
+                      </button>
+                    )}
 
                     {/* Pricing Table */}
                     {product.pricing?.length > 0 && (
@@ -435,6 +468,8 @@ const GetAllProducts = () => {
                   { name: "category", placeholder: "Category" },
                   { name: "material", placeholder: "Material" },
                   { name: "stock", placeholder: "Stock", type: "number" },
+                  // 🔥 FIX 4: Variant group ka input field add kar diya
+                  { name: "variantGroup", placeholder: "Variant Group (e.g. pliers-water)" },
                 ].map((field) => (
                   <input
                     key={field.name}
