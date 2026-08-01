@@ -406,7 +406,7 @@ const navigate = useNavigate();
               </div>
               <button
   type="button"
-  onClick={() => navigate("/forgot-password")}
+  onClick={() => navigate("/login")}
   className="w-full sm:w-auto px-4 py-2 rounded-xl bg-white border border-gray-300 text-gray-700 font-medium text-xs hover:bg-gray-100 transition shadow-sm"
 >
   Forgot Password?
