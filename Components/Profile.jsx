@@ -85,41 +85,45 @@ const Profile = () => {
   };
 
   // ================= 3. SUBMIT & UPDATE PROFILE =================
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    setLoading(true);
+    const token = localStorage.getItem("token");
 
-   
-
-      const { data } = await axios.put(
-  "https://backend-3-axez.onrender.com/api/auth/profile",
-  formData,
-  {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  }
-);
-      if (data.success) {
-        toast.success(data.message || "Profile updated successfully!");
-
-        // 🟢 CRITICAL: Update LocalStorage so refresh retains edited data
-        const updatedUser = { ...savedUser, ...data.user };
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-
-        setIsEditing(false);
-      }
-    } catch (error) {
-      console.error("Profile update error:", error);
-      toast.error(
-        error.response?.data?.message || "Failed to update profile. Try again."
-      );
-    } finally {
-      setLoading(false);
+    if (!token) {
+      toast.error("Session expired! Please login again.");
+      navigate("/login");
+      return;
     }
-  };
+
+    const { data } = await axios.put(
+      "https://backend-3-axez.onrender.com/api/auth/profile",
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`, // Token format should be Bearer <token>
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (data.success) {
+      toast.success(data.message || "Profile updated successfully!");
+      
+      // LocalStorage update karo taaki page reload par purana data na dikhe
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setIsEditing(false);
+    }
+  } catch (error) {
+    console.error("Profile update error detail:", error.response?.data);
+    toast.error(
+      error.response?.data?.message || "Failed to update profile. Try again."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   // ================= 4. CANCEL EDITING =================
   const handleCancel = () => {
