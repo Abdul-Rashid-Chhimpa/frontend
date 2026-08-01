@@ -12,6 +12,7 @@ import Register from "../Components/Register";
 import ShoppingCart from "../Components/ShoppingCart";
 import AdminSidebar from "../Components/AdminSidebar";
 import MyOrders from "../Components/MyOrders";
+import ResetPassword from "../Components/ResetPassword";
 
 import Profile from "../Components/Profile";
 
@@ -48,6 +49,7 @@ function App() {
           <Route path="/cart" element={<ShoppingCart />} />   
           <Route path="/adminsidebar" element={<AdminSidebar />} />
            <Route path="/orders" element={<MyOrders />} />
+                    <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/varieties/:group" element={<Varieties />} />
         </Routes>
       </BrowserRouter>
