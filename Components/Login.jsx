@@ -85,34 +85,43 @@ const Login = () => {
     }
   };
 
-  const handleForgotPassword = async (e) => {
-    e.preventDefault();
-    if (!forgotEmail.trim()) {
-      toast.error("Please enter your email");
-      return;
+const handleForgotPassword = async (e) => {
+  e.preventDefault();
+
+  if (!forgotEmail.trim()) {
+    toast.error("Please enter your email");
+    return;
+  }
+
+  try {
+    setForgotLoading(true);
+
+    const { data } = await axios.post(
+      "https://backend-3-axez.onrender.com/api/auth/forgot-password",
+      { email: forgotEmail.trim() },
+      { timeout: 20000 } // 20 second timeout
+    );
+
+    if (data.success) {
+      setForgotStep(2);
+      toast.success(data.message || "Reset link sent to your email");
+    } else {
+      toast.error(data.message || "Something went wrong");
     }
+  } catch (error) {
+    console.log("Forgot Password Error →", error);
 
-    try {
-      setForgotLoading(true);
-      const { data } = await axios.post(
-        "https://backend-3-axez.onrender.com/api/auth/forgot-password",
-        { email: forgotEmail.trim() }
-      );
-
-      if (data.success) {
-        setForgotStep(2);
-        toast.success(data.message || "Reset link sent!");
-      } else {
-        toast.error(data.message || "Something went wrong");
-      }
-    } catch (error) {
+    if (error.code === "ECONNABORTED") {
+      toast.error("Request timed out. Please try again.");
+    } else {
       toast.error(
         error.response?.data?.message || "Failed to send reset link"
       );
-    } finally {
-      setForgotLoading(false);
     }
-  };
+  } finally {
+    setForgotLoading(false); // ← button unfreeze hoga
+  }
+};
 
   const closeForgotModal = () => {
     setShowForgot(false);
