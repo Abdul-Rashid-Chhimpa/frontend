@@ -124,7 +124,6 @@ const ProductDetails = () => {
         ];
 
   // ================= AUTO PRICE BASED ON QUANTITY =================
-  // Highest tier jiska minQty <= current quantity, uska price use hoga
   const getUnitPrice = (qty) => {
     let applicablePrice = pricingTiers[0].price;
     for (let i = 0; i < pricingTiers.length; i++) {
@@ -153,7 +152,7 @@ const ProductDetails = () => {
     addToCart({
       ...product,
       quantity: quantity,
-      price: unitPrice, // current applicable unit price
+      price: unitPrice,
       selectedOption: {
         quantity: quantity,
         price: unitPrice,
@@ -262,42 +261,46 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* ========== PRICING TIERS (Info Only - Small Cards) ========== */}
+                {/* ========== PRICING TIERS - HORIZONTAL SCROLL (3 cards visible) ========== */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-2.5 sm:mb-3 text-sm sm:text-base">
                     Price Chart
                   </h3>
-                  <div className="flex flex-wrap gap-2 sm:gap-2.5">
-                    {pricingTiers.map((tier, index) => {
-                      const isActive = unitPrice === tier.price;
-                      return (
-                        <div
-                          key={index}
-                          className={`px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl border text-center min-w-[90px] transition ${
-                            isActive
-                              ? "border-indigo-500 bg-indigo-50 shadow-sm"
-                              : "border-gray-200 bg-gray-50"
-                          }`}
-                        >
-                          <p className="text-[11px] sm:text-xs text-gray-500">
-                            {tier.minQty}+ units
-                          </p>
-                          <p
-                            className={`text-sm sm:text-base font-bold ${
-                              isActive ? "text-indigo-700" : "text-gray-800"
+
+                  <div className="overflow-x-auto pb-2 price-scroll">
+                    <div className="flex gap-2.5 sm:gap-3 min-w-max">
+                      {pricingTiers.map((tier, index) => {
+                        const isActive = unitPrice === tier.price;
+                        return (
+                          <div
+                            key={index}
+                            className={`flex-shrink-0 w-[100px] sm:w-[110px] px-2.5 py-2.5 sm:px-3 sm:py-3 rounded-xl border text-center transition ${
+                              isActive
+                                ? "border-indigo-500 bg-indigo-50 shadow-md"
+                                : "border-gray-200 bg-gray-50"
                             }`}
                           >
-                            ₹{tier.price}
-                            <span className="text-[10px] font-normal text-gray-500">
-                              /unit
-                            </span>
-                          </p>
-                        </div>
-                      );
-                    })}
+                            <p className="text-[10px] sm:text-[11px] text-gray-500 mb-0.5">
+                              {tier.minQty}+ units
+                            </p>
+                            <p
+                              className={`text-sm sm:text-base font-bold leading-tight ${
+                                isActive ? "text-indigo-700" : "text-gray-800"
+                              }`}
+                            >
+                              ₹{tier.price}
+                            </p>
+                            <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5">
+                              / unit
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
+
                   <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
-                    Price automatically updates as you change quantity
+                    Scroll to see all prices • Auto updates with quantity
                   </p>
                 </div>
 
@@ -422,6 +425,23 @@ const ProductDetails = () => {
           -ms-overflow-style: none;
           scrollbar-width: none;
         }
+
+        /* Price Chart Scrollbar */
+        .price-scroll::-webkit-scrollbar {
+          height: 6px;
+        }
+        .price-scroll::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 10px;
+        }
+        .price-scroll::-webkit-scrollbar-thumb {
+          background: #c7d2fe;
+          border-radius: 10px;
+        }
+        .price-scroll::-webkit-scrollbar-thumb:hover {
+          background: #818cf8;
+        }
+
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
           opacity: 1;
