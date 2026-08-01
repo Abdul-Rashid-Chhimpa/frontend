@@ -19,6 +19,8 @@ import { Toaster } from "react-hot-toast";
 
 import AdminOrders from "../Components/AdminOrderPage";
 
+import Varieties from "../Components/Varieties";
+
 <Route
   path="/admin/orders"
   element={<AdminOrders />}
@@ -44,6 +46,7 @@ function App() {
           <Route path="/cart" element={<ShoppingCart />} />   
           <Route path="/adminsidebar" element={<AdminSidebar />} />
            <Route path="/orders" element={<MyOrders />} />
+            <Route path="/varieties/:group" element={<Varieties />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
