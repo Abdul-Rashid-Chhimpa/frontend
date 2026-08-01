@@ -277,54 +277,55 @@ const ProductDetails = () => {
                 </div>
 
                 {/* ========== PRICING TIERS - AUTO SCROLL ACTIVE CARD ========== */}
-                <div className="mb-5 sm:mb-6 p-2">
-                  <h3 className="font-semibold text-gray-800 mb-2.5 sm:mb-3 text-sm sm:text-base">
-                    Price Chart
-                  </h3>
+            
+<div className="mb-5 sm:mb-6">
+  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
+    Price Chart
+  </h3>
 
-                  <div
-                    ref={priceScrollRef}
-                    className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pb-2 price-scroll"
-                  >
-                    <div className="flex gap-2.5 min-w-max">
-                      {pricingTiers.map((tier, index) => {
-                        const isActive = unitPrice === tier.price;
+  <div
+    ref={priceScrollRef}
+    className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pt-3 pb-4 price-scroll"
+  >
+    <div className="flex gap-3 min-w-max px-1">
+      {pricingTiers.map((tier, index) => {
+        const isActive = unitPrice === tier.price;
 
-                        return (
-                          <div
-                            key={index}
-                            ref={isActive ? activeCardRef : null}
-                            className={`flex-shrink-0 w-[95px] sm:w-[100px] px-2 py-2.5 rounded-xl border text-center transition-all duration-300 ${
-                              isActive
-                                ? "border-indigo-500 bg-indigo-50 shadow-md scale-105"
-                                : "border-gray-200 bg-gray-50"
-                            }`}
-                          >
-                            <p className="text-[10px] text-gray-500 mb-0.5">
-                              {tier.minQty}+ units
-                            </p>
-                            <p
-                              className={`text-sm font-bold leading-tight ${
-                                isActive ? "text-indigo-700" : "text-gray-800"
-                              }`}
-                            >
-                              ₹{tier.price}
-                            </p>
-                            <p className="text-[9px] text-gray-400 mt-0.5">
-                              / unit
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
+        return (
+          <div
+            key={index}
+            ref={isActive ? activeCardRef : null}
+            className={`flex-shrink-0 w-[100px] px-2.5 py-3 rounded-xl border text-center transition-all duration-300 ${
+              isActive
+                ? "border-indigo-500 bg-indigo-50 shadow-md scale-105"
+                : "border-gray-200 bg-gray-50"
+            }`}
+          >
+            <p className="text-[10px] text-gray-500 mb-1">
+              {tier.minQty}+ units
+            </p>
+            <p
+              className={`text-sm font-bold leading-tight ${
+                isActive ? "text-indigo-700" : "text-gray-800"
+              }`}
+            >
+              ₹{tier.price}
+            </p>
+            <p className="text-[9px] text-gray-400 mt-1">
+              / unit
+            </p>
+          </div>
+        );
+      })}
+    </div>
+  </div>
 
-                  <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
-                    {pricingTiers.length > 3
-                      ? "Active price auto scrolls into view"
-                      : "Price auto updates with quantity"}
-                  </p>
-                </div>
+  <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
+    {pricingTiers.length > 3
+      ? "Active price auto scrolls into view"
+      : "Price auto updates with quantity"}
+  </p>
+</div>
 
                 {/* ========== QUANTITY SELECTOR ========== */}
                 <div className="mb-5 sm:mb-6">
