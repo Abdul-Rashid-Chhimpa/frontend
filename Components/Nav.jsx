@@ -11,6 +11,7 @@ import {
   Phone,
   ShoppingBag,
   Package,
+  User
 } from "lucide-react";
 
 const Nav = () => {
@@ -43,12 +44,19 @@ const Nav = () => {
 
   const isActive = (path) => location.pathname === path;
 
+  // const navLinks = [
+  //   { to: "/", label: "Home", icon: <Home size={18} /> },
+  //   { to: "/about", label: "About", icon: <Info size={18} /> },
+  //   { to: "/contact", label: "Contact", icon: <Phone size={18} /> },
+  //   { to: "/orders", label: "Orders", icon: <Package size={18} /> },
+  // ];
   const navLinks = [
-    { to: "/", label: "Home", icon: <Home size={18} /> },
-    { to: "/about", label: "About", icon: <Info size={18} /> },
-    { to: "/contact", label: "Contact", icon: <Phone size={18} /> },
-    { to: "/orders", label: "Orders", icon: <Package size={18} /> },
-  ];
+  { to: "/", label: "Home", icon: <Home size={18} /> },
+  { to: "/about", label: "About", icon: <Info size={18} /> },
+  { to: "/contact", label: "Contact", icon: <Phone size={18} /> },
+  { to: "/orders", label: "Orders", icon: <Package size={18} /> },
+  { to: "/profile", label: "Profile", icon: <User size={18} /> }, // <-- Profile Added
+];
 
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
