@@ -17,6 +17,7 @@ import axios from "axios";
 import toast from "react-hot-toast";
 import { CartContext } from "../Components/Context"; // Adjust path if needed
 
+
 const Profile = () => {
   const navigate = useNavigate();
   
