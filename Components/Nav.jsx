@@ -1,10 +1,11 @@
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { CartContext } from "./Context";
 import {
   Menu,
   X,
   LogOut,
+  LogIn,
   Home,
   Info,
   Phone,
@@ -14,9 +15,18 @@ import {
 
 const Nav = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  
   const navigate = useNavigate();
   const location = useLocation();
   const { cartCount, cart } = useContext(CartContext);
+
+  // Check authentication status on mount & route change
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const user = localStorage.getItem("user");
+    setIsLoggedIn(Boolean(token || user));
+  }, [location.pathname]);
 
   // Fallback: agar cartCount nahi hai to cart se calculate karo
   const count =
@@ -27,6 +37,7 @@ const Nav = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("cart");
+    setIsLoggedIn(false);
     navigate("/login");
   };
 
@@ -85,14 +96,24 @@ const Nav = () => {
             )}
           </Link>
 
-          {/* Logout */}
-          <button
-            onClick={logoutHandler}
-            className="ml-2 flex items-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition"
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
+          {/* Conditional Login / Logout Button */}
+          {isLoggedIn ? (
+            <button
+              onClick={logoutHandler}
+              className="ml-2 flex items-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition"
+            >
+              <LogOut size={16} />
+              Logout
+            </button>
+          ) : (
+            <Link
+              to="/login"
+              className="ml-2 flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition"
+            >
+              <LogIn size={16} />
+              Login
+            </Link>
+          )}
         </div>
 
         {/* Mobile: Cart + Menu Button */}
@@ -149,16 +170,28 @@ const Nav = () => {
               )}
             </Link>
 
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                logoutHandler();
-              }}
-              className="mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-xl text-sm font-semibold"
-            >
-              <LogOut size={16} />
-              Logout
-            </button>
+            {/* Mobile Conditional Login / Logout Button */}
+            {isLoggedIn ? (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  logoutHandler();
+                }}
+                className="mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-xl text-sm font-semibold"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            ) : (
+              <Link
+                to="/login"
+                onClick={() => setIsOpen(false)}
+                className="mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl text-sm font-semibold"
+              >
+                <LogIn size={16} />
+                Login
+              </Link>
+            )}
           </div>
         </div>
       )}
