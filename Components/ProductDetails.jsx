@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useRef } from "react";
 import {
   Package,
   ArrowLeft,
@@ -19,6 +19,10 @@ const ProductDetails = () => {
   const [error, setError] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+
+  // Scroll container + active card refs
+  const priceScrollRef = useRef(null);
+  const activeCardRef = useRef(null);
 
   // ================= FETCH PRODUCT =================
   useEffect(() => {
@@ -64,6 +68,17 @@ const ProductDetails = () => {
 
     fetchProduct();
   }, [id, product]);
+
+  // ================= AUTO SCROLL ACTIVE PRICE CARD =================
+  useEffect(() => {
+    if (activeCardRef.current && priceScrollRef.current) {
+      activeCardRef.current.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+  }, [quantity]); // quantity change pe active card scroll hoga
 
   // ================= LOADING =================
   if (loading) {
@@ -261,23 +276,27 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* ========== PRICING TIERS - MAX 3 CARDS VISIBLE + SCROLL ========== */}
+                {/* ========== PRICING TIERS - AUTO SCROLL ACTIVE CARD ========== */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-2.5 sm:mb-3 text-sm sm:text-base">
                     Price Chart
                   </h3>
 
-                  {/* max-w limits visible area to ~3 cards */}
-                  <div className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pb-2 price-scroll">
+                  <div
+                    ref={priceScrollRef}
+                    className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pb-2 price-scroll"
+                  >
                     <div className="flex gap-2.5 min-w-max">
                       {pricingTiers.map((tier, index) => {
                         const isActive = unitPrice === tier.price;
+
                         return (
                           <div
                             key={index}
-                            className={`flex-shrink-0 w-[95px] sm:w-[100px] px-2 py-2.5 rounded-xl border text-center transition ${
+                            ref={isActive ? activeCardRef : null}
+                            className={`flex-shrink-0 w-[95px] sm:w-[100px] px-2 py-2.5 rounded-xl border text-center transition-all duration-300 ${
                               isActive
-                                ? "border-indigo-500 bg-indigo-50 shadow-md"
+                                ? "border-indigo-500 bg-indigo-50 shadow-md scale-105"
                                 : "border-gray-200 bg-gray-50"
                             }`}
                           >
@@ -302,7 +321,7 @@ const ProductDetails = () => {
 
                   <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
                     {pricingTiers.length > 3
-                      ? "Scroll → to see more prices"
+                      ? "Active price auto scrolls into view"
                       : "Price auto updates with quantity"}
                   </p>
                 </div>
@@ -429,7 +448,6 @@ const ProductDetails = () => {
           scrollbar-width: none;
         }
 
-        /* Price Chart Scrollbar */
         .price-scroll::-webkit-scrollbar {
           height: 6px;
         }
