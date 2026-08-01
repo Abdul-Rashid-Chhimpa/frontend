@@ -130,7 +130,7 @@ const Card = () => {
 
   const scrollCategories = (direction) => {
     if (categoryScrollRef.current) {
-      const scrollAmount = 220;
+      const scrollAmount = 200;
       categoryScrollRef.current.scrollBy({
         left: direction === "left" ? -scrollAmount : scrollAmount,
         behavior: "smooth",
@@ -155,9 +155,9 @@ const Card = () => {
   }
 
   // ======================================================
-  // FILTER SIDEBAR CONTENT
+  // HELPER JSX RENDERER FOR FILTERS (Prevents Unmounting/Reset)
   // ======================================================
-  const FilterContent = () => (
+  const renderFilterSection = () => (
     <>
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
@@ -183,24 +183,27 @@ const Card = () => {
           </span>
         </div>
 
-        <div className="hidden sm:flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-3">
           <button
             onClick={() => scrollCategories("left")}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition"
+            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition active:scale-95"
+            title="Scroll Left"
           >
             <ChevronLeft size={16} />
           </button>
           <button
             onClick={() => scrollCategories("right")}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition"
+            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition active:scale-95"
+            title="Scroll Right"
           >
             <ChevronRight size={16} />
           </button>
         </div>
 
+        {/* Categories Scroll Container with Fixed Padding & Overflow */}
         <div
           ref={categoryScrollRef}
-          className="flex gap-3 overflow-x-auto pb-3 snap-x snap-mandatory scrollbar-hide"
+          className="flex gap-3 overflow-x-auto py-3 px-1 scrollbar-hide scroll-smooth"
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {categories.map((category) => {
@@ -214,14 +217,14 @@ const Card = () => {
               <button
                 key={category}
                 onClick={() => handleCategory(category)}
-                className={`snap-start flex-shrink-0 w-24 sm:w-28 rounded-2xl p-3.5 transition-all duration-300 border ${
+                className={`flex-shrink-0 w-24 sm:w-28 rounded-2xl p-3 transition-all duration-300 border ${
                   active
-                    ? "bg-white text-indigo-700 border-white shadow-xl scale-105"
-                    : "bg-white/15 text-white border-white/30 hover:bg-white/25 hover:scale-105"
+                    ? "bg-white text-indigo-700 border-white shadow-lg scale-100 ring-2 ring-indigo-300"
+                    : "bg-white/15 text-white border-white/30 hover:bg-white/25"
                 }`}
               >
                 <div
-                  className={`w-11 h-11 rounded-full mx-auto flex items-center justify-center ${
+                  className={`w-10 h-10 rounded-full mx-auto flex items-center justify-center ${
                     active ? "bg-indigo-100" : "bg-white/20"
                   }`}
                 >
@@ -230,11 +233,11 @@ const Card = () => {
                     className={active ? "text-indigo-700" : "text-white"}
                   />
                 </div>
-                <h4 className="mt-2.5 text-[11px] sm:text-xs font-semibold text-center truncate">
+                <h4 className="mt-2 text-[11px] sm:text-xs font-semibold text-center truncate px-1">
                   {category}
                 </h4>
                 <p
-                  className={`mt-1 text-[10px] text-center ${
+                  className={`mt-0.5 text-[10px] text-center ${
                     active ? "text-indigo-500" : "text-white/70"
                   }`}
                 >
@@ -325,7 +328,7 @@ const Card = () => {
           <div className="hidden lg:block lg:col-span-1">
             <div className="sticky top-24 rounded-3xl overflow-hidden shadow-2xl">
               <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 p-6 min-h-[480px]">
-                <FilterContent />
+                {renderFilterSection()}
               </div>
             </div>
           </div>
@@ -338,7 +341,7 @@ const Card = () => {
                 onClick={() => setShowMobileFilter(false)}
               />
               <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto rounded-t-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 p-6 shadow-2xl animate-slide-up">
-                <FilterContent />
+                {renderFilterSection()}
               </div>
             </div>
           )}
