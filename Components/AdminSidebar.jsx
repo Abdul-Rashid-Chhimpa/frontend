@@ -76,7 +76,7 @@ const AdminDashboard = () => {
     },
     {
       title: "Settings",
-      path: "/settings",
+      path: "/admin/settings",
       icon: <Settings size={28} />,
       gradient: "from-slate-600 to-gray-800",
       shadow: "shadow-slate-200",
