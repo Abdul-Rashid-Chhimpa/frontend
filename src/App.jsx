@@ -52,6 +52,7 @@ function App() {
                     <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/varieties/:group" element={<Varieties />} />
           <Route path="/admin/users" element={<Adminuser />} />
+           <Route path="/admin/users" element={<AdminSettings />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
