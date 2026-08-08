@@ -64,5 +64,3 @@ const RandomImg = () => {
 };
 
 export default RandomImg;
-
-export default RandomImg;
