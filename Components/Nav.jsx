@@ -66,7 +66,7 @@ const Nav = () => {
           <img
             src="/logowithqoute.png"
             alt="Logo"
-            className="h-14 sm:h-12 object-contain"
+            className="h-20 sm:h-12 object-contain"
             onError={(e) => {
               e.target.style.display = "none";
             }}
