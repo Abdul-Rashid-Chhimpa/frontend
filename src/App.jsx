@@ -22,7 +22,7 @@ import { Toaster } from "react-hot-toast";
 import AdminOrders from "../Components/AdminOrderPage";
 
 import Varieties from "../Components/Varieties";
-
+import Adminuser from "../Components/AdminUser";
 <Route
   path="/admin/orders"
   element={<AdminOrders />}
@@ -51,6 +51,7 @@ function App() {
            <Route path="/orders" element={<MyOrders />} />
                     <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/varieties/:group" element={<Varieties />} />
+          <Route path="/admin/users" element={<Adminuser />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
