@@ -24,6 +24,7 @@ import AdminOrders from "../Components/AdminOrderPage";
 import Varieties from "../Components/Varieties";
 import Adminuser from "../Components/Adminuser";
 import AdminSettings from"../Components/AdminSettings";
+import AdminCategories from "../Components/AdminCategories";
 <Route
   path="/admin/orders"
   element={<AdminOrders />}
@@ -54,6 +55,7 @@ function App() {
             <Route path="/varieties/:group" element={<Varieties />} />
           <Route path="/admin/users" element={<Adminuser />} />
          <Route path="/admin/settings" element={<AdminSettings />} />
+        <Route path="/admin/categories" element={<AdminCategories />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
