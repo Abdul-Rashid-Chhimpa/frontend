@@ -17,13 +17,14 @@ const RandomImg = () => {
   return (
     <div className="w-full mt-6 sm:mt-8 md:mt-10">
       {/* Banner */}
-      <div className="w-full max-w-7xl mx-auto px-3 sm:px-4">
-        <div className="relative w-full overflow-hidden rounded-xl sm:rounded-2xl bg-gray-100 aspect-[16/7] sm:aspect-[16/6] md:aspect-[21/8] lg:aspect-[21/7]">
+      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4">
+        <div className="w-full bg-gray-100 rounded-xl sm:rounded-2xl overflow-hidden flex items-center justify-center
+                        h-[200px] sm:h-[280px] md:h-[360px] lg:h-[420px] xl:h-[480px]">
           <img
             key={current}
             src={images[current]}
             alt="Banner"
-            className="absolute inset-0 w-full h-full object-cover animate-fade"
+            className="max-w-full max-h-full w-auto h-auto object-contain animate-fade"
           />
         </div>
       </div>
@@ -48,7 +49,7 @@ const RandomImg = () => {
         @keyframes fade {
           from {
             opacity: 0;
-            transform: scale(1.04);
+            transform: scale(1.03);
           }
           to {
             opacity: 1;
