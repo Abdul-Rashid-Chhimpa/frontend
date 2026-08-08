@@ -62,7 +62,7 @@ const AdminDashboard = () => {
     },
     {
       title: "Categories",
-      path: "/categories",
+      path: "/admin/categories",
       icon: <Tags size={28} />,
       gradient: "from-pink-500 to-fuchsia-600",
       shadow: "shadow-pink-200",
