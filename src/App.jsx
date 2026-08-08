@@ -25,6 +25,8 @@ import Varieties from "../Components/Varieties";
 import Adminuser from "../Components/Adminuser";
 import AdminSettings from"../Components/AdminSettings";
 import AdminCategories from "../Components/AdminCategories";
+import AdminAnalytics from "./path/to/AdminAnalytics";
+
 <Route
   path="/admin/orders"
   element={<AdminOrders />}
@@ -56,6 +58,8 @@ function App() {
           <Route path="/admin/users" element={<Adminuser />} />
          <Route path="/admin/settings" element={<AdminSettings />} />
         <Route path="/admin/categories" element={<AdminCategories />} />
+          
+<Route path="/admin/analytics" element={<AdminAnalytics />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
