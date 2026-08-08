@@ -22,7 +22,7 @@ import { Toaster } from "react-hot-toast";
 import AdminOrders from "../Components/AdminOrderPage";
 
 import Varieties from "../Components/Varieties";
-import Adminuser from "../Components/AdminUser";
+import Adminuser from "../Components/Adminuser";
 <Route
   path="/admin/orders"
   element={<AdminOrders />}
