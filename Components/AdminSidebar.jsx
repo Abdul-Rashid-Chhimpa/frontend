@@ -54,7 +54,7 @@ const AdminDashboard = () => {
     },
     {
       title: "Users",
-      path: "/users",
+      path: "/admin/users",
       icon: <Users size={28} />,
       gradient: "from-cyan-500 to-teal-600",
       shadow: "shadow-cyan-200",
