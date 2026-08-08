@@ -25,7 +25,7 @@ import Varieties from "../Components/Varieties";
 import Adminuser from "../Components/Adminuser";
 import AdminSettings from"../Components/AdminSettings";
 import AdminCategories from "../Components/AdminCategories";
-import AdminAnalytics from "./path/to/AdminAnalytics";
+import AdminAnalytics from "../Components/AdminAnalytics";
 
 <Route
   path="/admin/orders"
