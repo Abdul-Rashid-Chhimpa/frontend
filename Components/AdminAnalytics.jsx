@@ -20,11 +20,16 @@ const AdminAnalytics = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const fetchAnalytics = async () => {
+  const fetchAnalytics = async (isBackground = false) => {
     try {
-      setLoading(true);
+      if (!isBackground) setLoading(true);
       setError("");
-      const { data: res } = await axios.get(`${API_BASE}/analytics`);
+      
+      // Timestamp parameter URL me add karke browser caching prevent ki gayi hai
+      const { data: res } = await axios.get(
+        `${API_BASE}/analytics?t=${new Date().getTime()}`
+      );
+      
       if (res.success) {
         setData(res.analytics);
       } else {
@@ -41,6 +46,13 @@ const AdminAnalytics = () => {
 
   useEffect(() => {
     fetchAnalytics();
+
+    // Auto Refresh har 5 second me (Jaise hi Order Deliver click ho live update ho jaye)
+    const interval = setInterval(() => {
+      fetchAnalytics(true);
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   if (loading) {
@@ -63,7 +75,7 @@ const AdminAnalytics = () => {
           <XCircle className="mx-auto text-red-400 mb-3" size={40} />
           <p className="text-gray-700 font-medium">{error || "No data"}</p>
           <button
-            onClick={fetchAnalytics}
+            onClick={() => fetchAnalytics(false)}
             className="mt-4 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold"
           >
             Retry
@@ -75,56 +87,56 @@ const AdminAnalytics = () => {
 
   const { overview } = data;
   const maxCatCount = Math.max(
-    ...(data.productsByCategory.map((c) => c.count) || [1]),
+    ...(data.productsByCategory?.map((c) => c.count) || [1]),
     1
   );
 
   const statCards = [
     {
       label: "Total Products",
-      value: overview.totalProducts,
+      value: overview.totalProducts || 0,
       icon: Package,
       color: "from-indigo-500 to-purple-600",
     },
     {
       label: "Categories",
-      value: overview.totalCategories,
+      value: overview.totalCategories || 0,
       icon: Tags,
       color: "from-violet-500 to-fuchsia-600",
     },
     {
       label: "Users",
-      value: overview.totalUsers,
+      value: overview.totalUsers || 0,
       icon: Users,
       color: "from-blue-500 to-cyan-600",
     },
     {
       label: "Total Stock Units",
-      value: overview.totalStock.toLocaleString("en-IN"),
+      value: (overview.totalStock || 0).toLocaleString("en-IN"),
       icon: Boxes,
       color: "from-emerald-500 to-teal-600",
     },
     {
       label: "Inventory Value",
-      value: `₹${overview.inventoryValue.toLocaleString("en-IN")}`,
+      value: `₹${(overview.inventoryValue || 0).toLocaleString("en-IN")}`,
       icon: IndianRupee,
       color: "from-amber-500 to-orange-600",
     },
     {
       label: "In Stock",
-      value: overview.inStock,
+      value: overview.inStock || 0,
       icon: TrendingUp,
       color: "from-green-500 to-emerald-600",
     },
     {
       label: "Low Stock (≤20)",
-      value: overview.lowStock,
+      value: overview.lowStock || 0,
       icon: AlertTriangle,
       color: "from-yellow-500 to-amber-600",
     },
     {
       label: "Out of Stock",
-      value: overview.outOfStock,
+      value: overview.outOfStock || 0,
       icon: XCircle,
       color: "from-red-500 to-rose-600",
     },
@@ -144,12 +156,12 @@ const AdminAnalytics = () => {
                 Analytics
               </h1>
               <p className="text-xs sm:text-sm text-gray-500">
-                Products, stock & inventory overview
+                Live products, stock & inventory overview
               </p>
             </div>
           </div>
           <button
-            onClick={fetchAnalytics}
+            onClick={() => fetchAnalytics(false)}
             className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-indigo-50 transition shadow-sm self-start"
           >
             <RefreshCw size={16} />
@@ -189,7 +201,7 @@ const AdminAnalytics = () => {
               <Tags size={18} className="text-indigo-600" />
               Products by Category
             </h2>
-            {data.productsByCategory.length === 0 ? (
+            {!data.productsByCategory || data.productsByCategory.length === 0 ? (
               <p className="text-sm text-gray-400">No data</p>
             ) : (
               <div className="space-y-3">
@@ -223,7 +235,7 @@ const AdminAnalytics = () => {
               <Package size={18} className="text-indigo-600" />
               Products by Brand
             </h2>
-            {data.productsByBrand.length === 0 ? (
+            {!data.productsByBrand || data.productsByBrand.length === 0 ? (
               <p className="text-sm text-gray-400">No data</p>
             ) : (
               <div className="flex flex-wrap gap-2">
@@ -250,9 +262,9 @@ const AdminAnalytics = () => {
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
             <h2 className="font-bold text-gray-800 mb-4 flex items-center gap-2">
               <AlertTriangle size={18} className="text-amber-500" />
-              Low Stock Products
+              Low Stock Products (≤20)
             </h2>
-            {data.lowStockProducts.length === 0 ? (
+            {!data.lowStockProducts || data.lowStockProducts.length === 0 ? (
               <p className="text-sm text-gray-400">No low stock items 🎉</p>
             ) : (
               <div className="space-y-2">
@@ -266,11 +278,11 @@ const AdminAnalytics = () => {
                         {p.name}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {p.category} · {p.brand}
+                        {p.category?.name || p.category} · {p.brand || "—"}
                       </p>
                     </div>
                     <span className="shrink-0 ml-2 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-xs font-bold">
-                      {p.stock} left
+                      {p.stock ?? p.countInStock ?? 0} left
                     </span>
                   </div>
                 ))}
@@ -284,7 +296,7 @@ const AdminAnalytics = () => {
               <XCircle size={18} className="text-red-500" />
               Out of Stock
             </h2>
-            {data.outOfStockProducts.length === 0 ? (
+            {!data.outOfStockProducts || data.outOfStockProducts.length === 0 ? (
               <p className="text-sm text-gray-400">All products in stock 🎉</p>
             ) : (
               <div className="space-y-2">
@@ -298,7 +310,7 @@ const AdminAnalytics = () => {
                         {p.name}
                       </p>
                       <p className="text-xs text-gray-400">
-                        {p.category} · {p.brand}
+                        {p.category?.name || p.category} · {p.brand || "—"}
                       </p>
                     </div>
                     <span className="shrink-0 ml-2 px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-xs font-bold">
@@ -313,8 +325,8 @@ const AdminAnalytics = () => {
 
         {/* Recent products */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <h2 className="font-bold text-gray-800 mb-4">Recent Products</h2>
-          {data.recentProducts.length === 0 ? (
+          <h2 className="font-bold text-gray-800 mb-4">Recent Products Stock Status</h2>
+          {!data.recentProducts || data.recentProducts.length === 0 ? (
             <p className="text-sm text-gray-400">No products yet</p>
           ) : (
             <div className="overflow-x-auto">
@@ -322,43 +334,37 @@ const AdminAnalytics = () => {
                 <thead>
                   <tr className="text-left text-xs text-gray-500 uppercase border-b border-gray-100">
                     <th className="pb-3 font-semibold">Product</th>
-                    <th className="pb-3 font-semibold hidden sm:table-cell">
-                      Category
-                    </th>
+                    <th className="pb-3 font-semibold hidden sm:table-cell">Category</th>
                     <th className="pb-3 font-semibold">Stock</th>
                     <th className="pb-3 font-semibold">Price</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.recentProducts.map((p) => (
-                    <tr
-                      key={p._id}
-                      className="border-b border-gray-50 last:border-0"
-                    >
-                      <td className="py-3 font-medium text-gray-800">
-                        {p.name}
-                      </td>
-                      <td className="py-3 text-gray-500 hidden sm:table-cell">
-                        {p.category || "—"}
-                      </td>
-                      <td className="py-3">
-                        <span
-                          className={`font-semibold ${
-                            p.stock === 0
-                              ? "text-red-500"
-                              : p.stock <= 20
-                              ? "text-amber-600"
-                              : "text-emerald-600"
-                          }`}
-                        >
-                          {p.stock ?? 0}
-                        </span>
-                      </td>
-                      <td className="py-3 font-semibold text-indigo-700">
-                        ₹{p.price}
-                      </td>
-                    </tr>
-                  ))}
+                  {data.recentProducts.map((p) => {
+                    const currentStock = p.stock ?? p.countInStock ?? 0;
+                    return (
+                      <tr key={p._id} className="border-b border-gray-50 last:border-0">
+                        <td className="py-3 font-medium text-gray-800">{p.name}</td>
+                        <td className="py-3 text-gray-500 hidden sm:table-cell">
+                          {p.category?.name || p.category || "—"}
+                        </td>
+                        <td className="py-3">
+                          <span
+                            className={`font-semibold ${
+                              currentStock === 0
+                                ? "text-red-500"
+                                : currentStock <= 20
+                                ? "text-amber-600"
+                                : "text-emerald-600"
+                            }`}
+                          >
+                            {currentStock}
+                          </span>
+                        </td>
+                        <td className="py-3 font-semibold text-indigo-700">₹{p.price}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
