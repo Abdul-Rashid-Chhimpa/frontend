@@ -13,7 +13,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 
-const API_BASE = "https://backend-3-axez.onrender.com/api";
+const API_BASE = "https://backend-3-axez.onrender.com/api/products";
 
 const AdminAnalytics = () => {
   const [data, setData] = useState(null);
