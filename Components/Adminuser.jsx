@@ -730,6 +730,35 @@ const handleDelete = async (id, name) => {
                   </>
                 )}
               </button>
+              <button
+  disabled={actionLoading === selectedUser._id}
+  onClick={() => toggleBlock(selectedUser._id)}
+  className={`w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 disabled:opacity-50 transition ${
+    selectedUser.status === "active"
+      ? "bg-red-500 hover:bg-red-600 text-white"
+      : "bg-emerald-500 hover:bg-emerald-600 text-white"
+  }`}
+>
+  {selectedUser.status === "active" ? (
+    <>
+      <ShieldBan size={18} /> Block User
+    </>
+  ) : (
+    <>
+      <ShieldCheck size={18} /> Unblock User
+    </>
+  )}
+</button>
+
+{/* DELETE FROM DB */}
+<button
+  disabled={actionLoading === selectedUser._id}
+  onClick={() => handleDelete(selectedUser._id, selectedUser.name)}
+  className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 border-2 border-red-200 text-red-600 hover:bg-red-50 transition disabled:opacity-50"
+>
+  <Trash2 size={18} />
+  Delete Permanently
+</button>
             </div>
           </div>
         </div>
