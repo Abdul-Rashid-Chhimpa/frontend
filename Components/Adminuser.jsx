@@ -17,6 +17,7 @@ import {
   UserRound,
   RefreshCw,
   MapPin,
+  Trash2,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
@@ -149,6 +150,34 @@ const AdminUsers = () => {
       setMenuOpenId(null);
     }
   };
+  // ---------- DELETE USER ----------
+const handleDelete = async (id, name) => {
+  const ok = window.confirm(
+    `Delete user "${name}"?\n\nYe action permanent hai. Database se data hat jayega.`
+  );
+  if (!ok) return;
+
+  try {
+    setActionLoading(id);
+    const { data } = await axios.delete(`${API_BASE}/users/${id}`);
+
+    if (data.success) {
+      setUsers((prev) => prev.filter((u) => u._id !== id));
+      if (selectedUser?._id === id) setSelectedUser(null);
+    } else {
+      alert(data.message || "Delete failed");
+    }
+  } catch (err) {
+    console.error(err);
+    alert(
+      err.response?.data?.message ||
+        "Delete fail. API check karo (DELETE /api/users/:id)"
+    );
+  } finally {
+    setActionLoading(null);
+    setMenuOpenId(null);
+  }
+};
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "N/A";
@@ -345,6 +374,44 @@ const AdminUsers = () => {
                 {filteredUsers.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-16 text-center">
+                      <td className="px-4 lg:px-6 py-4">
+  <div className="flex items-center justify-center gap-2">
+    <button
+      onClick={() => setSelectedUser(user)}
+      className="p-2 rounded-lg bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition"
+      title="View"
+    >
+      <Eye size={16} />
+    </button>
+
+    <button
+      disabled={actionLoading === user._id}
+      onClick={() => toggleBlock(user._id)}
+      className={`p-2 rounded-lg transition disabled:opacity-50 ${
+        user.status === "active"
+          ? "bg-red-50 text-red-500 hover:bg-red-100"
+          : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100"
+      }`}
+      title={user.status === "active" ? "Block" : "Unblock"}
+    >
+      {user.status === "active" ? (
+        <ShieldBan size={16} />
+      ) : (
+        <ShieldCheck size={16} />
+      )}
+    </button>
+
+    {/* DELETE */}
+    <button
+      disabled={actionLoading === user._id}
+      onClick={() => handleDelete(user._id, user.name)}
+      className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition disabled:opacity-50"
+      title="Delete user"
+    >
+      <Trash2 size={16} />
+    </button>
+  </div>
+</td>
                       <UserRound
                         size={48}
                         className="mx-auto text-gray-300 mb-3"
