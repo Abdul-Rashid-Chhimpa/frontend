@@ -63,14 +63,24 @@ const Nav = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-18 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex-shrink-0">
-          <img
+          {/* <img
             src="/logowithqoute.png"
             alt="Logo"
             className="h-20 sm:h-12 object-contain"
             onError={(e) => {
               e.target.style.display = "none";
             }}
-          />
+          /> */}
+          <div className="flex items-center">
+  <img
+    src="/logowithqoute.png"
+    alt="Logo"
+    className="h-12 sm:h-14 md:h-16 lg:h-20 xl:h-24 w-auto object-contain"
+    onError={(e) => {
+      e.target.style.display = "none";
+    }}
+  />
+</div>
         </Link>
 
         {/* Desktop Menu */}
