@@ -23,6 +23,7 @@ import AdminOrders from "../Components/AdminOrderPage";
 
 import Varieties from "../Components/Varieties";
 import Adminuser from "../Components/Adminuser";
+import AdminSettings from"../Components/AdminSettings";
 <Route
   path="/admin/orders"
   element={<AdminOrders />}
@@ -52,7 +53,7 @@ function App() {
                     <Route path="/reset-password/:token" element={<ResetPassword />} />
             <Route path="/varieties/:group" element={<Varieties />} />
           <Route path="/admin/users" element={<Adminuser />} />
-           <Route path="/admin/users" element={<AdminSettings />} />
+         <Route path="/admin/settings" element={<AdminSettings />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
