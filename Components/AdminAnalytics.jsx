@@ -340,31 +340,38 @@ const AdminAnalytics = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.recentProducts.map((p) => {
-                    const currentStock = p.stock ?? p.countInStock ?? 0;
-                    return (
-                      <tr key={p._id} className="border-b border-gray-50 last:border-0">
-                        <td className="py-3 font-medium text-gray-800">{p.name}</td>
-                        <td className="py-3 text-gray-500 hidden sm:table-cell">
-                          {p.category?.name || p.category || "—"}
-                        </td>
-                        <td className="py-3">
-                          <span
-                            className={`font-semibold ${
-                              currentStock === 0
-                                ? "text-red-500"
-                                : currentStock <= 20
-                                ? "text-amber-600"
-                                : "text-emerald-600"
-                            }`}
-                          >
-                            {currentStock}
-                          </span>
-                        </td>
-                        <td className="py-3 font-semibold text-indigo-700">₹{p.price}</td>
-                      </tr>
-                    );
-                  })}
+                {/* Recent products Table Row */}
+{data.recentProducts.map((p) => {
+  const currentStock = p.stock ?? p.countInStock ?? 0;
+  
+  // Safe Price Parsing
+  const displayPrice = Number(p.price ?? p.unitPrice ?? 0);
+
+  return (
+    <tr key={p._id} className="border-b border-gray-50 last:border-0">
+      <td className="py-3 font-medium text-gray-800">{p.name}</td>
+      <td className="py-3 text-gray-500 hidden sm:table-cell">
+        {p.category?.name || p.category || "—"}
+      </td>
+      <td className="py-3">
+        <span
+          className={`font-semibold ${
+            currentStock === 0
+              ? "text-red-500"
+              : currentStock <= 20
+              ? "text-amber-600"
+              : "text-emerald-600"
+          }`}
+        >
+          {currentStock} left
+        </span>
+      </td>
+      <td className="py-3 font-semibold text-indigo-700">
+        ₹{displayPrice > 0 ? displayPrice.toLocaleString("en-IN") : "0"}
+      </td>
+    </tr>
+  );
+})}
                 </tbody>
               </table>
             </div>
