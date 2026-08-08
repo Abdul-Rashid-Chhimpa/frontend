@@ -69,7 +69,7 @@ const AdminDashboard = () => {
     },
     {
       title: "Analytics",
-      path: "/analytics",
+      path: "/admin/analytics",
       icon: <BarChart3 size={28} />,
       gradient: "from-indigo-500 to-blue-700",
       shadow: "shadow-indigo-200",
