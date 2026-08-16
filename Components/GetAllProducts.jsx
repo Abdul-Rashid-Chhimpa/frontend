@@ -11,6 +11,8 @@ import {
   RefreshCw,
   Layers,
   Percent,
+  Truck,
+  CreditCard,
 } from "lucide-react";
 
 const GetAllProducts = () => {
@@ -22,6 +24,14 @@ const GetAllProducts = () => {
 
   const API = "https://backend-3-axez.onrender.com/api/products";
 
+  // Available payment method options
+  const AVAILABLE_PAYMENT_METHODS = [
+    "Cash on Delivery",
+    "UPI / Online Payment",
+    "Net Banking",
+    "Credit / Debit Card",
+  ];
+
   // ================= FETCH PRODUCTS =================
   const fetchProducts = async () => {
     try {
@@ -31,7 +41,7 @@ const GetAllProducts = () => {
     } catch (error) {
       console.log(error);
       alert("Failed To Load Products");
-    } finally {
+    } font-medium finally {
       setLoading(false);
     }
   };
@@ -59,6 +69,16 @@ const GetAllProducts = () => {
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditProduct((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePaymentMethodToggle = (method) => {
+    setEditProduct((prev) => {
+      const currentMethods = prev.paymentMethods || [];
+      const updatedMethods = currentMethods.includes(method)
+        ? currentMethods.filter((m) => m !== method)
+        : [...currentMethods, method];
+      return { ...prev, paymentMethods: updatedMethods };
+    });
   };
 
   const handlePriceChange = (index, field, value) => {
@@ -155,13 +175,11 @@ const GetAllProducts = () => {
 
   // ================= UPDATE PRODUCT =================
   const updateProduct = async () => {
-    // Validate pricing according to Mongoose schema
     if (!editProduct.pricing || editProduct.pricing.length === 0) {
       alert("At least one pricing option is required.");
       return;
     }
 
-    // Format pricing array to match Schema requirements (Numbers >= 1 and >= 0)
     const formattedPricing = editProduct.pricing.map((p) => ({
       quantity: Number(p.quantity) || 1,
       price: Number(p.price) || 0,
@@ -182,6 +200,14 @@ const GetAllProducts = () => {
       formData.append("variantGroup", editProduct.variantGroup || "");
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(formattedPricing));
+
+      // Added Delivery and Payment details to payload
+      formData.append("deliveryCharge", Number(editProduct.deliveryCharge) || 0);
+      formData.append("deliveryTime", editProduct.deliveryTime || "");
+      formData.append(
+        "paymentMethods",
+        JSON.stringify(editProduct.paymentMethods || [])
+      );
 
       const existingImages = (editProduct.images || []).filter(
         (img) => typeof img === "string" && img.startsWith("http")
@@ -348,6 +374,21 @@ const GetAllProducts = () => {
                       </p>
                     </div>
 
+                    {/* Delivery & Payment Info Display */}
+                    <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600 space-y-1">
+                      <p className="flex items-center gap-1.5 font-medium text-gray-700">
+                        <Truck size={14} className="text-indigo-500" />
+                        Delivery: {product.deliveryCharge ? `₹${product.deliveryCharge}` : "Free"}{" "}
+                        {product.deliveryTime && `(${product.deliveryTime})`}
+                      </p>
+                      {product.paymentMethods?.length > 0 && (
+                        <p className="flex items-center gap-1.5 text-gray-500">
+                          <CreditCard size={14} className="text-emerald-500" />
+                          {product.paymentMethods.join(", ")}
+                        </p>
+                      )}
+                    </div>
+
                     {matchingVarieties.length > 0 && (
                       <button
                         type="button"
@@ -405,7 +446,11 @@ const GetAllProducts = () => {
                     <div className="flex gap-2.5 mt-auto pt-5">
                       <button
                         onClick={() =>
-                          setEditProduct({ ...product, newImages: [] })
+                          setEditProduct({
+                            ...product,
+                            paymentMethods: product.paymentMethods || [],
+                            newImages: [],
+                          })
                         }
                         className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
                       >
@@ -519,6 +564,63 @@ const GetAllProducts = () => {
                     className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
                   />
                 ))}
+              </div>
+
+              {/* Delivery Details */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2 text-sm">
+                  <Truck size={18} className="text-indigo-600" />
+                  Delivery Details
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <input
+                    type="number"
+                    name="deliveryCharge"
+                    value={editProduct.deliveryCharge ?? ""}
+                    onChange={handleEditChange}
+                    placeholder="Delivery Charge (₹, 0 for Free)"
+                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                  />
+                  <input
+                    type="text"
+                    name="deliveryTime"
+                    value={editProduct.deliveryTime ?? ""}
+                    onChange={handleEditChange}
+                    placeholder="Estimated Delivery Time (e.g. 3-5 Business Days)"
+                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                  />
+                </div>
+              </div>
+
+              {/* Payment Methods */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2 text-sm">
+                  <CreditCard size={18} className="text-emerald-600" />
+                  Accepted Payment Methods
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {AVAILABLE_PAYMENT_METHODS.map((method) => {
+                    const isSelected = editProduct.paymentMethods?.includes(method);
+                    return (
+                      <label
+                        key={method}
+                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-sm font-medium ${
+                          isSelected
+                            ? "border-emerald-500 bg-emerald-50/50 text-emerald-900"
+                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={!!isSelected}
+                          onChange={() => handlePaymentMethodToggle(method)}
+                          className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300"
+                        />
+                        {method}
+                      </label>
+                    );
+                  })}
+                </div>
               </div>
 
               {/* Quantity Wise Pricing */}
