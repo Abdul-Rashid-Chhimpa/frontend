@@ -8,8 +8,6 @@ import {
   RefreshCw,
   Package,
   AlertTriangle,
-  CheckCircle2,
-  XCircle,
   TrendingUp,
   Download,
   Calendar,
@@ -35,9 +33,12 @@ const AdminCategories = () => {
       setLoading(true);
       setMessage({ type: "", text: "" });
 
+      // Corrected API endpoint to match backend route /orders/all
       const [prodRes, orderRes] = await Promise.all([
         axios.get(`${API_BASE}/products`),
-        axios.get(`${API_BASE}/orders`).catch(() => ({ data: [] })),
+        axios.get(`${API_BASE}/orders/all`).catch(() =>
+          axios.get(`${API_BASE}/orders`).catch(() => ({ data: [] }))
+        ),
       ]);
 
       // Handle Products Data
@@ -107,71 +108,74 @@ const AdminCategories = () => {
     return Object.values(categoryMap);
   }, [products]);
 
+  // Robust Monthly Stats Calculation
+  const monthlyStats = useMemo(() => {
+    let totalUnitsSold = 0;
+    let totalRevenue = 0;
+    let totalCost = 0;
 
-  // AdminCategories.jsx inside useMemo
-const monthlyStats = useMemo(() => {
-  let totalUnitsSold = 0;
-  let totalRevenue = 0;
-  let totalCost = 0;
+    const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
 
-  // Current selected month target
-  const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
+    orders.forEach((order) => {
+      // 1. Safe Status Check
+      const status = (order.status || "").toLowerCase();
+      const isValidStatus =
+        status === "shipped" ||
+        status === "delivered" ||
+        order.isPaid ||
+        !order.status;
 
-  orders.forEach((order) => {
-    // 1. Status Fallback (Agar status defined nahi hai toh assume valid)
-    const status = (order.status || "").toLowerCase();
-    const isValidStatus =
-      status === "shipped" ||
-      status === "delivered" ||
-      order.isPaid ||
-      !order.status; // Safe fallback if status field missing
+      // 2. Safe Date Extraction & Conversion (YYYY-MM)
+      const rawDate =
+        order.createdAt || order.date || order.orderDate || order.updatedAt;
+      let orderMonth = "";
 
-    // 2. Date Extractor with multiple property fallbacks
-    const rawDate = order.createdAt || order.date || order.orderDate || order.updatedAt;
-    let orderMonth = "";
-    
-    if (rawDate) {
-      const d = new Date(rawDate);
-      if (!isNaN(d.getTime())) {
-        orderMonth = d.toISOString().slice(0, 7);
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, "0");
+          orderMonth = `${year}-${month}`;
+        }
       }
-    }
 
-    // 3. Match Month OR Process all if rawDate doesn't exist
-    if (isValidStatus && (!orderMonth || orderMonth === filterMonth)) {
-      // Items list extractor with field fallbacks
-      const itemsList = order.items || order.orderItems || order.products || [];
+      // 3. Process matching orders
+      if (isValidStatus && (!orderMonth || orderMonth === filterMonth)) {
+        const itemsList =
+          order.items || order.orderItems || order.products || [];
 
-      if (Array.isArray(itemsList) && itemsList.length > 0) {
-        itemsList.forEach((item) => {
-          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
-          const price = Number(
-            item.price ?? item.unitPrice ?? item.product?.price ?? 0
+        if (Array.isArray(itemsList) && itemsList.length > 0) {
+          itemsList.forEach((item) => {
+            const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+            const price = Number(
+              item.price ?? item.unitPrice ?? item.product?.price ?? 0
+            );
+            const cost = Number(
+              item.costPrice ?? item.product?.costPrice ?? price * 0.7
+            );
+
+            totalUnitsSold += qty;
+            totalRevenue += price * qty;
+            totalCost += cost * qty;
+          });
+        } else {
+          const orderTotal = Number(
+            order.totalAmount || order.totalPrice || order.total || 0
           );
-          const cost = Number(
-            item.costPrice ?? item.product?.costPrice ?? price * 0.7
-          );
-
-          totalUnitsSold += qty;
-          totalRevenue += price * qty;
-          totalCost += cost * qty;
-        });
-      } else {
-        // Direct order amount fallback (agar order me items array na ho)
-        const orderTotal = Number(order.totalAmount || order.totalPrice || 0);
-        totalRevenue += orderTotal;
-        totalCost += orderTotal * 0.7;
-        totalUnitsSold += 1;
+          totalRevenue += orderTotal;
+          totalCost += orderTotal * 0.7;
+          totalUnitsSold += 1;
+        }
       }
-    }
-  });
+    });
 
-  const netProfit = totalRevenue - totalCost;
-  const profitMargin =
-    totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
+    const netProfit = totalRevenue - totalCost;
+    const profitMargin =
+      totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
 
-  return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
-}, [orders, selectedMonth]);
+    return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
+  }, [orders, selectedMonth]);
+
   // PDF Export
   const handleDownloadPDF = async () => {
     const element = reportRef.current;
@@ -200,10 +204,6 @@ const monthlyStats = useMemo(() => {
     );
   }, [categoriesWithStock, search]);
 
-  const totalStockInInventory = useMemo(() => {
-    return categoriesWithStock.reduce((acc, c) => acc + c.stockLeft, 0);
-  }, [categoriesWithStock]);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -220,7 +220,7 @@ const monthlyStats = useMemo(() => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
+        {/* Top Bar Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
@@ -254,6 +254,7 @@ const monthlyStats = useMemo(() => {
           </div>
         </div>
 
+        {/* Error / Warning Alert */}
         {message.text && (
           <div className="mb-5 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-700">
             <AlertTriangle size={18} />
@@ -261,20 +262,46 @@ const monthlyStats = useMemo(() => {
           </div>
         )}
 
-        {/* PDF Container */}
+        {/* Search Bar & Category Controls */}
+        <div className="mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
+          <div className="relative w-full sm:w-80">
+            <Search
+              size={18}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+            />
+            <input
+              type="text"
+              placeholder="Search category name..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+            />
+          </div>
+
+          <div className="text-xs text-gray-500 font-semibold bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm w-full sm:w-auto text-center sm:text-right">
+            Total Categories: {filteredCategories.length}
+          </div>
+        </div>
+
+        {/* Printable Report PDF Section Container */}
         <div ref={reportRef} className="p-2 bg-transparent rounded-2xl">
-          {/* Logo Section for Report */}
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6 flex items-center justify-between">
+          {/* Header Banner Inside PDF */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl">
                 A
               </div>
               <div>
-                <h2 className="font-extrabold text-gray-800 text-lg">ADMIN STORE REPORT</h2>
-                <p className="text-xs text-gray-400">Monthly Profit & Inventory Analytics</p>
+                <h2 className="font-extrabold text-gray-800 text-lg">
+                  ADMIN STORE REPORT
+                </h2>
+                <p className="text-xs text-gray-400">
+                  Monthly Profit & Inventory Analytics
+                </p>
               </div>
             </div>
 
+            {/* Month Picker */}
             <div className="flex items-center gap-2 border border-gray-200 px-3 py-1.5 rounded-xl bg-gray-50">
               <Calendar size={16} className="text-gray-500" />
               <input
@@ -286,22 +313,28 @@ const monthlyStats = useMemo(() => {
             </div>
           </div>
 
-          {/* Monthly Sales Cards */}
+          {/* Key Analytics Cards Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase font-medium">Units Sold ({selectedMonth})</p>
+              <p className="text-xs text-gray-500 uppercase font-medium">
+                Units Sold ({selectedMonth})
+              </p>
               <p className="text-2xl font-extrabold text-gray-800 mt-1">
                 {monthlyStats.totalUnitsSold} Pcs
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase font-medium">Monthly Revenue</p>
+              <p className="text-xs text-gray-500 uppercase font-medium">
+                Monthly Revenue
+              </p>
               <p className="text-2xl font-extrabold text-indigo-600 mt-1">
                 ₹{monthlyStats.totalRevenue.toLocaleString("en-IN")}
               </p>
             </div>
             <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase font-medium">Net Profit</p>
+              <p className="text-xs text-gray-500 uppercase font-medium">
+                Net Profit
+              </p>
               <p className="text-2xl font-extrabold text-emerald-600 mt-1">
                 ₹{monthlyStats.netProfit.toLocaleString("en-IN")}
               </p>
@@ -316,36 +349,50 @@ const monthlyStats = useMemo(() => {
             </div>
           </div>
 
-          {/* Categories Grid */}
+          {/* Categories Grid List */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCategories.map((cat, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 flex flex-col justify-between"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-bold text-gray-800 text-lg truncate">
-                      {cat.name}
-                    </h3>
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
-                      Active
-                    </span>
-                  </div>
-                </div>
-
-                <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-400 font-medium">Products Type</p>
-                    <p className="text-sm font-bold text-gray-700">{cat.productCount} items</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-400 font-medium">Stock Left</p>
-                    <span className="font-bold text-sm text-emerald-600">{cat.stockLeft} in stock</span>
-                  </div>
-                </div>
+            {filteredCategories.length === 0 ? (
+              <div className="col-span-full bg-white p-8 rounded-2xl text-center text-gray-400 font-medium">
+                No categories found matching "{search}".
               </div>
-            ))}
+            ) : (
+              filteredCategories.map((cat, idx) => (
+                <div
+                  key={idx}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-bold text-gray-800 text-lg truncate">
+                        {cat.name}
+                      </h3>
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
+                        Active
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-400 font-medium">
+                        Products Type
+                      </p>
+                      <p className="text-sm font-bold text-gray-700">
+                        {cat.productCount} items
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-400 font-medium">
+                        Stock Left
+                      </p>
+                      <span className="font-bold text-sm text-emerald-600">
+                        {cat.stockLeft} in stock
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
       </div>
