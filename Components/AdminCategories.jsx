@@ -107,51 +107,36 @@ const AdminCategories = () => {
     return Object.values(categoryMap);
   }, [products]);
 
-  // 3. Dynamic Calculation for Monthly Sales, Revenue & Net Profit Margin
+  
+  // AdminCategories.jsx inside useMemo calculation
 const monthlyStats = useMemo(() => {
   let totalUnitsSold = 0;
   let totalRevenue = 0;
   let totalCost = 0;
 
-  // Selected Month filter (Format: YYYY-MM)
-  const currentMonthFilter = selectedMonth || new Date().toISOString().slice(0, 7);
+  const currentFilterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
 
   orders.forEach((order) => {
-    // Date extractor with multiple field fallback
-    const rawDate = order.createdAt || order.date || order.orderDate || order.updatedAt;
-    
-    // Convert to YYYY-MM string
-    let orderMonth = "";
-    if (rawDate) {
-      orderMonth = new Date(rawDate).toISOString().slice(0, 7);
-    }
+    // Only process fulfilled/shipped orders
+    const isShippedOrDelivered =
+      order.status === "Shipped" || order.status === "Delivered";
 
-    // Direct month matching OR fallback if no dates exist in dummy backend
-    if (!rawDate || orderMonth === currentMonthFilter) {
-      // Order items extractor with multiple field fallback
-      const itemsList = order.orderItems || order.items || order.products || [];
+    const rawDate = order.createdAt || order.date || order.updatedAt;
+    const orderMonth = rawDate ? new Date(rawDate).toISOString().slice(0, 7) : "";
 
-      if (Array.isArray(itemsList)) {
-        itemsList.forEach((item) => {
-          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
-          const price = Number(
-            item.price ?? item.product?.price ?? item.unitPrice ?? 0
-          );
-          // Profit margin fallback (Agar costPrice define nahi hai toh 30% margin assume karega)
-          const cost = Number(
-            item.costPrice ?? item.product?.costPrice ?? price * 0.7
-          );
+    if (isShippedOrDelivered && orderMonth === currentFilterMonth) {
+      const items = order.items || order.orderItems || [];
 
-          totalUnitsSold += qty;
-          totalRevenue += price * qty;
-          totalCost += cost * qty;
-        });
-      } else {
-        // Fallback agar order structure me direct totalAmount diya ho
-        const orderTotal = Number(order.totalPrice || order.totalAmount || 0);
-        totalRevenue += orderTotal;
-        totalCost += orderTotal * 0.7;
-      }
+      items.forEach((item) => {
+        const qty = Number(item.quantity || item.qty || 1);
+        const price = Number(item.price || item.unitPrice || 0);
+        // Cost Price calculation (fallback 70% if cost not specified)
+        const cost = Number(item.costPrice || item.product?.costPrice || price * 0.7);
+
+        totalUnitsSold += qty;
+        totalRevenue += price * qty;
+        totalCost += cost * qty;
+      });
     }
   });
 
@@ -161,7 +146,6 @@ const monthlyStats = useMemo(() => {
 
   return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
 }, [orders, selectedMonth]);
-
   // PDF Export
   const handleDownloadPDF = async () => {
     const element = reportRef.current;
