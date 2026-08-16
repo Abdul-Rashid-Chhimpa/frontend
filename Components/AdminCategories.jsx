@@ -6,11 +6,11 @@ import {
   Tags,
   Search,
   RefreshCw,
-  Package,
   AlertTriangle,
   TrendingUp,
   Download,
   Calendar,
+  Loader2,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
@@ -19,6 +19,7 @@ const AdminCategories = () => {
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState({ type: "", text: "" });
   const [selectedMonth, setSelectedMonth] = useState(
@@ -33,12 +34,13 @@ const AdminCategories = () => {
       setLoading(true);
       setMessage({ type: "", text: "" });
 
-      // Corrected API endpoint to match backend route /orders/all
       const [prodRes, orderRes] = await Promise.all([
         axios.get(`${API_BASE}/products`),
-        axios.get(`${API_BASE}/orders/all`).catch(() =>
-          axios.get(`${API_BASE}/orders`).catch(() => ({ data: [] }))
-        ),
+        axios
+          .get(`${API_BASE}/orders/all`)
+          .catch(() =>
+            axios.get(`${API_BASE}/orders`).catch(() => ({ data: [] }))
+          ),
       ]);
 
       // Handle Products Data
@@ -117,7 +119,6 @@ const AdminCategories = () => {
     const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
 
     orders.forEach((order) => {
-      // 1. Safe Status Check
       const status = (order.status || "").toLowerCase();
       const isValidStatus =
         status === "shipped" ||
@@ -125,7 +126,6 @@ const AdminCategories = () => {
         order.isPaid ||
         !order.status;
 
-      // 2. Safe Date Extraction & Conversion (YYYY-MM)
       const rawDate =
         order.createdAt || order.date || order.orderDate || order.updatedAt;
       let orderMonth = "";
@@ -139,7 +139,6 @@ const AdminCategories = () => {
         }
       }
 
-      // 3. Process matching orders
       if (isValidStatus && (!orderMonth || orderMonth === filterMonth)) {
         const itemsList =
           order.items || order.orderItems || order.products || [];
@@ -176,23 +175,52 @@ const AdminCategories = () => {
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
   }, [orders, selectedMonth]);
 
-  // PDF Export
+  // FIXED robust PDF Export Function
   const handleDownloadPDF = async () => {
     const element = reportRef.current;
     if (!element) return;
 
     try {
-      const canvas = await html2canvas(element, { scale: 2 });
-      const imgData = canvas.toDataURL("image/png");
+      setDownloadingPdf(true);
 
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: "#ffffff",
+        scrollX: 0,
+        scrollY: -window.scrollY, // Fix blank canvas issue caused by scrolling
+      });
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.98);
       const pdf = new jsPDF("p", "mm", "a4");
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`Sales_Report_${selectedMonth}.pdf`);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      // First Page
+      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pdfHeight;
+
+      // Multi-page layout if content overflows
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save(`Category_Sales_Report_${selectedMonth}.pdf`);
     } catch (error) {
       console.error("PDF Download Error:", error);
+      alert("PDF generate karne me problem aayi. Please refresh and try again.");
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
@@ -246,10 +274,20 @@ const AdminCategories = () => {
             </button>
             <button
               onClick={handleDownloadPDF}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 transition shadow-md"
+              disabled={downloadingPdf}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition shadow-md"
             >
-              <Download size={16} />
-              <span>Download PDF</span>
+              {downloadingPdf ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>Generating PDF...</span>
+                </>
+              ) : (
+                <>
+                  <Download size={16} />
+                  <span>Download PDF</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -284,9 +322,9 @@ const AdminCategories = () => {
         </div>
 
         {/* Printable Report PDF Section Container */}
-        <div ref={reportRef} className="p-2 bg-transparent rounded-2xl">
+        <div ref={reportRef} className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
           {/* Header Banner Inside PDF */}
-          <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="bg-slate-50 p-5 rounded-2xl border border-gray-200 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl">
                 A
@@ -302,7 +340,7 @@ const AdminCategories = () => {
             </div>
 
             {/* Month Picker */}
-            <div className="flex items-center gap-2 border border-gray-200 px-3 py-1.5 rounded-xl bg-gray-50">
+            <div className="flex items-center gap-2 border border-gray-200 px-3 py-1.5 rounded-xl bg-white">
               <Calendar size={16} className="text-gray-500" />
               <input
                 type="month"
@@ -315,7 +353,7 @@ const AdminCategories = () => {
 
           {/* Key Analytics Cards Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
               <p className="text-xs text-gray-500 uppercase font-medium">
                 Units Sold ({selectedMonth})
               </p>
@@ -323,7 +361,7 @@ const AdminCategories = () => {
                 {monthlyStats.totalUnitsSold} Pcs
               </p>
             </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
               <p className="text-xs text-gray-500 uppercase font-medium">
                 Monthly Revenue
               </p>
@@ -331,7 +369,7 @@ const AdminCategories = () => {
                 ₹{monthlyStats.totalRevenue.toLocaleString("en-IN")}
               </p>
             </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
               <p className="text-xs text-gray-500 uppercase font-medium">
                 Net Profit
               </p>
@@ -339,7 +377,7 @@ const AdminCategories = () => {
                 ₹{monthlyStats.netProfit.toLocaleString("en-IN")}
               </p>
             </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
               <p className="text-xs text-gray-500 uppercase font-medium flex items-center gap-1">
                 <TrendingUp size={14} /> Profit Margin
               </p>
@@ -352,27 +390,27 @@ const AdminCategories = () => {
           {/* Categories Grid List */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCategories.length === 0 ? (
-              <div className="col-span-full bg-white p-8 rounded-2xl text-center text-gray-400 font-medium">
+              <div className="col-span-full bg-gray-50 p-8 rounded-2xl text-center text-gray-400 font-medium">
                 No categories found matching "{search}".
               </div>
             ) : (
               filteredCategories.map((cat, idx) => (
                 <div
                   key={idx}
-                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5 flex flex-col justify-between hover:shadow-md transition"
+                  className="bg-slate-50 rounded-2xl border border-gray-200 p-4 sm:p-5 flex flex-col justify-between"
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="font-bold text-gray-800 text-lg truncate">
                         {cat.name}
                       </h3>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700">
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
                         Active
                       </span>
                     </div>
                   </div>
 
-                  <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <div className="mt-5 pt-3 border-t border-gray-200 flex items-center justify-between">
                     <div>
                       <p className="text-xs text-gray-400 font-medium">
                         Products Type
