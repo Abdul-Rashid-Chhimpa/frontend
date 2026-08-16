@@ -27,50 +27,21 @@ const AdminOrders = () => {
       setLoading(true);
       setErrorMsg("");
 
-      let response = null;
+      const { data } = await axios.get(`${API_BASE}/orders/all`);
 
-      // Primary Try: /orders/all
-      try {
-        response = await axios.get(`${API_BASE}/orders/all`);
-      } catch (e1) {
-        // Fallback Try: /orders
-        try {
-          response = await axios.get(`${API_BASE}/orders`);
-        } catch (e2) {
-          throw e1; // Rethrow original error if both fail
-        }
-      }
-
-      if (response && response.data) {
-        const resData = response.data;
-        let fetchedList = [];
-
-        if (resData?.success && Array.isArray(resData.orders)) {
-          fetchedList = resData.orders;
-        } else if (Array.isArray(resData.orders)) {
-          fetchedList = resData.orders;
-        } else if (Array.isArray(resData.data)) {
-          fetchedList = resData.data;
-        } else if (Array.isArray(resData)) {
-          fetchedList = resData;
-        }
-
-        setOrders(fetchedList);
+      if (data && data.orders) {
+        setOrders(data.orders);
+      } else if (Array.isArray(data)) {
+        setOrders(data);
       } else {
-        setErrorMsg("Failed to load orders. Please check backend response.");
+        setOrders([]);
       }
     } catch (error) {
       console.error("Fetch Orders Error:", error);
-      if (error.code === "ERR_NETWORK") {
-        setErrorMsg(
-          "Network Error: Server render instance waking up or CORS blocked. Please refresh in a few seconds."
-        );
-      } else {
-        setErrorMsg(
-          error.response?.data?.message ||
-            "Unable to connect to server. Please try again."
-        );
-      }
+      setErrorMsg(
+        error.response?.data?.message ||
+          "Failed to load orders. Make sure to remove .populate('items.product') from backend controller."
+      );
     } finally {
       setLoading(false);
     }
@@ -172,7 +143,7 @@ const AdminOrders = () => {
           </button>
         </div>
 
-        {/* Error Alert Bar */}
+        {/* Error Notification */}
         {errorMsg && (
           <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-700 shadow-sm">
             <AlertTriangle size={18} className="shrink-0" />
@@ -198,18 +169,6 @@ const AdminOrders = () => {
               const statusStyle = getStatusStyle(currentStatus);
               const isUpdating = updatingId === order._id;
 
-              const itemsList =
-                order.items || order.orderItems || order.products || [];
-
-              const totalAmount =
-                order.totalAmount ?? order.totalPrice ?? order.total ?? 0;
-
-              const customer =
-                order.customerName ||
-                order.user?.name ||
-                order.shippingAddress?.fullName ||
-                "Customer";
-
               return (
                 <div
                   key={order._id}
@@ -220,12 +179,11 @@ const AdminOrders = () => {
                     className={`px-4 sm:px-6 py-4 sm:py-5 border-b ${statusStyle.border} ${statusStyle.bg}`}
                   >
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      {/* Left Info */}
                       <div className="space-y-2">
                         <div className="flex items-center gap-2">
                           <User size={16} className="text-gray-500" />
                           <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                            {customer}
+                            {order.customerName || "Customer"}
                           </h2>
                         </div>
 
@@ -239,19 +197,20 @@ const AdminOrders = () => {
 
                           <span className="flex items-center gap-1.5 font-semibold text-gray-800">
                             <IndianRupee size={13} />
-                            {Number(totalAmount).toLocaleString("en-IN")}
+                            {Number(order.totalAmount || 0).toLocaleString(
+                              "en-IN"
+                            )}
                           </span>
 
-                          {itemsList.length > 0 && (
+                          {order.items?.length > 0 && (
                             <span className="flex items-center gap-1.5">
                               <Package size={13} />
-                              {itemsList.length} items
+                              {order.items.length} items
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Status Badge */}
                       <div
                         className={`inline-flex items-center gap-1.5 self-start lg:self-center px-3.5 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
                       >
@@ -264,61 +223,52 @@ const AdminOrders = () => {
                   {/* Products List */}
                   <div className="px-4 sm:px-6 py-4 sm:py-5">
                     <div className="space-y-3">
-                      {itemsList.map((item, index) => {
-                        const itemTitle =
-                          item.title || item.name || item.product?.title || "Product";
-                        const itemImg =
-                          item.image || item.product?.image || "";
-                        const itemQty =
-                          item.quantity ?? item.qty ?? item.count ?? 1;
-                        const itemPrice =
-                          item.price ?? item.unitPrice ?? item.product?.price ?? 0;
+                      {order.items?.map((item, index) => (
+                        <div
+                          key={item.id || index}
+                          className="flex gap-3 sm:gap-4 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition"
+                        >
+                          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
+                            <img
+                              src={item.image}
+                              alt={item.title}
+                              className="w-full h-full object-contain p-1"
+                              onError={(e) => {
+                                e.target.src =
+                                  "https://via.placeholder.com/80?text=No+Img";
+                              }}
+                            />
+                          </div>
 
-                        return (
-                          <div
-                            key={index}
-                            className="flex gap-3 sm:gap-4 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition"
-                          >
-                            {/* Image */}
-                            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
-                              <img
-                                src={itemImg}
-                                alt={itemTitle}
-                                className="w-full h-full object-contain p-1"
-                                onError={(e) => {
-                                  e.target.src =
-                                    "https://via.placeholder.com/80?text=No+Img";
-                                }}
-                              />
-                            </div>
-
-                            {/* Details */}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
-                                {itemTitle}
-                              </h3>
-                              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
-                                <span>Qty: {itemQty}</span>
-                                <span>•</span>
-                                <span>
-                                  ₹{Number(itemPrice).toLocaleString("en-IN")} / unit
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Line Total */}
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-xs text-gray-400">Total</p>
-                              <p className="font-bold text-gray-900 text-sm sm:text-base">
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
+                              {item.title}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
+                              <span>Qty: {item.quantity}</span>
+                              <span>•</span>
+                              <span>
                                 ₹
-                                {(
-                                  Number(itemPrice) * Number(itemQty)
-                                ).toLocaleString("en-IN")}
-                              </p>
+                                {Number(item.price || 0).toLocaleString(
+                                  "en-IN"
+                                )}{" "}
+                                / unit
+                              </span>
                             </div>
                           </div>
-                        );
-                      })}
+
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-xs text-gray-400">Total</p>
+                            <p className="font-bold text-gray-900 text-sm sm:text-base">
+                              ₹
+                              {(
+                                Number(item.price || 0) *
+                                Number(item.quantity || 1)
+                              ).toLocaleString("en-IN")}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
