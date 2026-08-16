@@ -1,362 +1,592 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 import {
-  PackagePlus,
-  Plus,
+  Pencil,
   Trash2,
-  Upload,
+  Package,
+  Plus,
   X,
+  ImagePlus,
+  Boxes,
+  RefreshCw,
+  Layers,
   Percent,
-  Ruler,
-  Weight,
 } from "lucide-react";
 
-const AddProduct = () => {
-  const [loading, setLoading] = useState(false);
-  const [product, setProduct] = useState({
-    name: "",
-    brand: "",
-    category: "",
-    material: "",
-    stock: "",
-    size: "",
-    weight: "",
-    gst: "",
-    variantGroup: "",
-    description: "",
-    images: [],
-  });
+const GetAllProducts = () => {
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editProduct, setEditProduct] = useState(null);
+  const [expandedDesc, setExpandedDesc] = useState({});
+  const [updating, setUpdating] = useState(false);
 
-  // Dynamic Quantity Wise Pricing State
-  const [pricing, setPricing] = useState([{ quantity: 1, price: "" }]);
+  const API = "https://backend-3-axez.onrender.com/api/products";
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setProduct((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Pricing Handlers
-  const handlePricingChange = (index, field, value) => {
-    const updatedPricing = [...pricing];
-    updatedPricing[index][field] = value;
-    setPricing(updatedPricing);
-  };
-
-  const addPricingRow = () => {
-    setPricing((prev) => [...prev, { quantity: "", price: "" }]);
-  };
-
-  const removePricingRow = (index) => {
-    if (pricing.length === 1) return;
-    setPricing((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Image Upload Handlers
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files);
-    setProduct((prev) => ({
-      ...prev,
-      images: [...prev.images, ...files],
-    }));
-  };
-
-  const removeImage = (index) => {
-    setProduct((prev) => ({
-      ...prev,
-      images: prev.images.filter((_, i) => i !== index),
-    }));
-  };
-
-  // Submit Handler sending FormData to Node/Express Backend
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    // Basic Validation Check
-    if (product.images.length === 0) {
-      alert("Kripya kam se kam ek product image upload karein!");
-      return;
-    }
-
-    setLoading(true);
-
+  // ================= FETCH =================
+  const fetchProducts = async () => {
     try {
-      const formData = new FormData();
-      formData.append("name", product.name);
-      formData.append("brand", product.brand);
-      formData.append("category", product.category);
-      formData.append("material", product.material);
-      formData.append("stock", Number(product.stock));
-      formData.append("size", product.size);
-      formData.append("weight", product.weight);
-      formData.append("gst", Number(product.gst));
-      formData.append("variantGroup", product.variantGroup);
-      formData.append("description", product.description);
-
-      // Clean pricing data before stringify
-      const formattedPricing = pricing.map((item) => ({
-        quantity: Number(item.quantity),
-        price: Number(item.price),
-      }));
-
-      formData.append("pricing", JSON.stringify(formattedPricing));
-
-      // Append image files
-      product.images.forEach((img) => {
-        formData.append("images", img);
-      });
-
-      // UPDATE YOUR BACKEND API URL HERE
-      const response = await axios.post("http://localhost:5000/api/products/add", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      alert(response.data?.message || "Product Safaltapoorvak Add Ho Gaya!");
-
-      // Reset Form on Success
-      setProduct({
-        name: "",
-        brand: "",
-        category: "",
-        material: "",
-        stock: "",
-        size: "",
-        weight: "",
-        gst: "",
-        variantGroup: "",
-        description: "",
-        images: [],
-      });
-      setPricing([{ quantity: 1, price: "" }]);
-
-    } catch (err) {
-      console.error("Submission Error:", err);
-      alert(
-        err.response?.data?.message || err.message || "Product Add Failed! Network ya Backend Check Karein."
-      );
+      setLoading(true);
+      const { data } = await axios.get(API);
+      if (data.success) setProducts(data.products || []);
+    } catch (error) {
+      console.log(error);
+      alert("Failed To Load Products");
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchProducts();
+  }, []);
+
+  // ================= DELETE =================
+  const deleteProduct = async (id) => {
+    if (!window.confirm("Delete this product?")) return;
+    try {
+      const { data } = await axios.delete(`${API}/${id}`);
+      if (data.success) {
+        setProducts((prev) => prev.filter((item) => item._id !== id));
+        alert("Product Deleted Successfully");
+      }
+    } catch (error) {
+      console.log(error);
+      alert("Delete Failed");
+    }
+  };
+
+  // ================= EDIT HANDLERS =================
+  const handleEditChange = (e) => {
+    const { name, value } = e.target;
+    setEditProduct((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePriceChange = (index, field, value) => {
+    const updatedPricing = [...(editProduct.pricing || [])];
+    updatedPricing[index][field] = value;
+    setEditProduct((prev) => ({ ...prev, pricing: updatedPricing }));
+  };
+
+  const addPriceRow = () => {
+    setEditProduct((prev) => ({
+      ...prev,
+      pricing: [...(prev.pricing || []), { quantity: "", price: "" }],
+    }));
+  };
+
+  const removePriceRow = (index) => {
+    setEditProduct((prev) => ({
+      ...prev,
+      pricing: prev.pricing.filter((_, i) => i !== index),
+    }));
+  };
+
+  const toggleDescription = (id) => {
+    setExpandedDesc((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // ================= IMAGE HANDLERS =================
+  const deleteImage = (index) => {
+    setEditProduct((prev) => {
+      const updatedImages = [...(prev.images || [])];
+      updatedImages.splice(index, 1);
+      const updatedNewImages = (prev.newImages || [])
+        .filter((item) => item && item.index !== index)
+        .map((item) =>
+          item.index > index ? { ...item, index: item.index - 1 } : item
+        );
+      return { ...prev, images: updatedImages, newImages: updatedNewImages };
+    });
+  };
+
+  const addImage = (file) => {
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setEditProduct((prev) => ({
+      ...prev,
+      images: [...(prev.images || []), preview],
+      newImages: [
+        ...(prev.newImages || []),
+        { file, index: (prev.images || []).length },
+      ],
+    }));
+  };
+
+  const replaceImage = (index, file) => {
+    if (!file) return;
+    const preview = URL.createObjectURL(file);
+    setEditProduct((prev) => {
+      const updatedImages = [...(prev.images || [])];
+      updatedImages[index] = preview;
+      let updatedNewImages = [...(prev.newImages || [])];
+      const existing = updatedNewImages.findIndex((img) => img.index === index);
+      if (existing !== -1) {
+        updatedNewImages[existing] = { file, index };
+      } else {
+        updatedNewImages.push({ file, index });
+      }
+      return { ...prev, images: updatedImages, newImages: updatedNewImages };
+    });
+  };
+
+  // ================= UPDATE =================
+  const updateProduct = async () => {
+    try {
+      setUpdating(true);
+      const formData = new FormData();
+      formData.append("name", editProduct.name || "");
+      formData.append("brand", editProduct.brand || "");
+      formData.append("category", editProduct.category || "");
+      formData.append("material", editProduct.material || "");
+      formData.append("stock", editProduct.stock || 0);
+
+      // Size aur Weight
+      formData.append("size", editProduct.size || "");
+      formData.append("weight", editProduct.weight || "");
+
+      // 🔥 GST Field Add Ki Gayi Hai
+      formData.append("gst", editProduct.gst || 0);
+
+      formData.append("variantGroup", editProduct.variantGroup || "");
+      formData.append("description", editProduct.description || "");
+      formData.append("pricing", JSON.stringify(editProduct.pricing || []));
+
+      const existingImages = (editProduct.images || []).filter(
+        (img) => typeof img === "string" && img.startsWith("http")
+      );
+      formData.append("existingImages", JSON.stringify(existingImages));
+
+      (editProduct.newImages || []).forEach((item) => {
+        if (!item) return;
+        formData.append("images", item.file);
+        formData.append("replaceIndexes", item.index);
+      });
+
+      const { data } = await axios.put(`${API}/${editProduct._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (data.success) {
+        alert("Product Updated Successfully");
+        setEditProduct(null);
+        fetchProducts();
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      alert(error.response?.data?.message || "Update Failed");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="mt-4 text-gray-600 font-medium">Loading Products...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-white rounded-2xl shadow-md my-8">
-      <div className="flex items-center gap-3 mb-6 pb-4 border-b">
-        <PackagePlus className="w-8 h-8 text-indigo-600" />
-        <h1 className="text-2xl font-bold text-gray-800">Add New Product</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-6 sm:py-8 px-3 sm:px-6">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900">
+              All Products
+            </h1>
+            <p className="text-gray-500 mt-1 text-sm sm:text-base">
+              {products.length} product{products.length !== 1 ? "s" : ""} found
+            </p>
+          </div>
+          <button
+            onClick={fetchProducts}
+            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition font-medium text-sm shadow-sm"
+          >
+            <RefreshCw size={16} />
+            Refresh
+          </button>
+        </div>
+
+        {products.length === 0 ? (
+          <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-12 text-center">
+            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5">
+              <Boxes size={36} className="text-indigo-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800">No Products Found</h2>
+            <p className="text-gray-500 mt-2">Add products to see them here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
+            {products.map((product) => {
+              const expanded = expandedDesc[product._id];
+              const lowestPrice =
+                product.pricing?.length > 0
+                  ? Math.min(...product.pricing.map((p) => Number(p.price) || 0))
+                  : Number(product.price) || 0;
+
+              const matchingVarieties = product.variantGroup
+                ? products.filter(
+                    (p) =>
+                      p.variantGroup?.trim().toLowerCase() ===
+                        product.variantGroup?.trim().toLowerCase() &&
+                      p._id !== product._id
+                  )
+                : [];
+
+              return (
+                <div
+                  key={product._id}
+                  className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col"
+                >
+                  <div className="relative h-48 sm:h-52 bg-gradient-to-br from-gray-50 to-gray-100">
+                    <img
+                      src={product.images?.[0] || "https://via.placeholder.com/500x400?text=No+Image"}
+                      alt={product.name}
+                      className="w-full h-full object-contain p-4"
+                      onError={(e) => {
+                        e.target.src = "https://via.placeholder.com/500x400?text=No+Image";
+                      }}
+                    />
+                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm text-gray-700">
+                      Stock: {product.stock ?? 0}
+                    </span>
+                  </div>
+
+                  {product.images?.length > 1 && (
+                    <div className="flex gap-2 px-4 pt-3 overflow-x-auto scrollbar-hide">
+                      {product.images.map((img, index) => (
+                        <img
+                          key={index}
+                          src={img}
+                          alt=""
+                          className="w-12 h-12 rounded-lg border border-gray-200 object-cover flex-shrink-0"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="p-4 sm:p-5 flex-1 flex flex-col">
+                    <h2 className="font-bold text-lg text-gray-900 line-clamp-2">
+                      {product.name}
+                    </h2>
+
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {product.category && (
+                        <span className="bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                          {product.category}
+                        </span>
+                      )}
+                      {product.brand && (
+                        <span className="bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                          {product.brand}
+                        </span>
+                      )}
+                      {product.variantGroup && (
+                        <span className="bg-purple-50 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
+                          <Layers size={12} />
+                          {product.variantGroup}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-3 text-sm text-gray-600 space-y-0.5">
+                      <p>
+                        <span className="font-medium text-gray-800">Material:</span>{" "}
+                        {product.material || "—"}
+                      </p>
+                      {(product.size || product.weight) && (
+                        <p className="text-xs text-gray-500">
+                          {product.size && <span>Size: {product.size} </span>}
+                          {product.weight && <span>| Weight: {product.weight}</span>}
+                        </p>
+                      )}
+                      {/* 🔥 GST Display Badge */}
+                      {product.gst !== undefined && product.gst !== null && (
+                        <p className="text-xs text-indigo-600 font-medium">
+                          GST: {product.gst}%
+                        </p>
+                      )}
+                      <p className="text-emerald-600 font-bold text-base mt-1">
+                        From ₹{lowestPrice.toLocaleString()}
+                      </p>
+                    </div>
+
+                    {matchingVarieties.length > 0 && (
+                      <button
+                        type="button"
+                        className="w-full mt-3 py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold rounded-xl border border-purple-200 transition flex items-center justify-center gap-1.5"
+                      >
+                        <Layers size={14} />
+                        View More Varieties ({matchingVarieties.length + 1} items)
+                      </button>
+                    )}
+
+                    {product.pricing?.length > 0 && (
+                      <div className="mt-4">
+                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                          Quantity Pricing
+                        </h3>
+                        <div className="border border-gray-100 rounded-xl overflow-hidden">
+                          <table className="w-full text-sm">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="py-2 px-3 text-left text-gray-600 font-medium">Qty</th>
+                                <th className="py-2 px-3 text-right text-gray-600 font-medium">Price</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {product.pricing.map((price, index) => (
+                                <tr key={index} className="border-t border-gray-50">
+                                  <td className="py-2 px-3 text-gray-700">{price.quantity}+</td>
+                                  <td className="py-2 px-3 text-right font-semibold text-emerald-600">
+                                    ₹{Number(price.price).toLocaleString()}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {product.description && (
+                      <div className="mt-3 text-sm text-gray-600 leading-relaxed">
+                        {expanded
+                          ? product.description
+                          : product.description.slice(0, 80)}
+                        {product.description.length > 80 && (
+                          <button
+                            onClick={() => toggleDescription(product._id)}
+                            className="text-indigo-600 ml-1 font-medium hover:underline"
+                          >
+                            {expanded ? "Show Less" : "...Read More"}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex gap-2.5 mt-auto pt-5">
+                      <button
+                        onClick={() =>
+                          setEditProduct({ ...product, newImages: [] })
+                        }
+                        className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
+                      >
+                        <Pencil size={15} />
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => deleteProduct(product._id)}
+                        className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
+                      >
+                        <Trash2 size={15} />
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Product Images Upload */}
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-            <Upload className="w-4 h-4" /> Product Images
-          </label>
-          <div className="flex flex-wrap items-center gap-4">
-            {product.images.map((img, idx) => (
-              <div
-                key={idx}
-                className="relative w-24 h-24 border border-gray-300 rounded-xl overflow-hidden group shadow-sm"
+      {/* ================= EDIT MODAL ================= */}
+      {editProduct && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-5">
+          <div className="bg-white w-full max-w-3xl rounded-2xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-100 px-5 sm:px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl sm:rounded-t-3xl">
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
+                Edit Product
+              </h2>
+              <button
+                onClick={() => setEditProduct(null)}
+                className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition"
               >
-                <img
-                  src={URL.createObjectURL(img)}
-                  alt="preview"
-                  className="w-full h-full object-cover"
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-5 sm:p-6 space-y-6">
+              {/* Images */}
+              <div>
+                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <ImagePlus size={18} />
+                  Product Images
+                </h3>
+                <div className="flex flex-wrap gap-3">
+                  {editProduct.images?.map((img, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={img}
+                        alt=""
+                        className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl object-cover border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => deleteImage(index)}
+                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow"
+                      >
+                        ✕
+                      </button>
+                      <label className="absolute bottom-1 left-1 right-1 bg-indigo-600 text-white text-[10px] sm:text-xs py-1 rounded text-center cursor-pointer opacity-90 hover:opacity-100">
+                        Replace
+                        <input
+                          hidden
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files[0])
+                              replaceImage(index, e.target.files[0]);
+                          }}
+                        />
+                      </label>
+                    </div>
+                  ))}
+
+                  <label className="w-24 h-24 sm:w-28 sm:h-28 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition text-gray-400">
+                    <Plus size={24} />
+                    <span className="text-[10px] mt-1">Add</span>
+                    <input
+                      hidden
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        if (e.target.files[0]) addImage(e.target.files[0]);
+                      }}
+                    />
+                  </label>
+                </div>
+              </div>
+
+              {/* Basic Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                {[
+                  { name: "name", placeholder: "Product Name" },
+                  { name: "brand", placeholder: "Brand" },
+                  { name: "category", placeholder: "Category" },
+                  { name: "material", placeholder: "Material" },
+                  { name: "stock", placeholder: "Stock", type: "number" },
+                  { name: "size", placeholder: "Size (e.g. XL, 10 inch)" },
+                  { name: "weight", placeholder: "Weight (e.g. 500g, 1kg)" },
+                  // 🔥 GST Input Field Add Ki Gayi Hai
+                  { name: "gst", placeholder: "GST Percentage (%)", type: "number" },
+                  { name: "variantGroup", placeholder: "Variant Group (e.g. pliers-water)" },
+                ].map((field) => (
+                  <input
+                    key={field.name}
+                    type={field.type || "text"}
+                    name={field.name}
+                    value={editProduct[field.name] || ""}
+                    onChange={handleEditChange}
+                    placeholder={field.placeholder}
+                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                  />
+                ))}
+              </div>
+
+              {/* Pricing */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-gray-800">
+                    Quantity Wise Pricing
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={addPriceRow}
+                    className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition"
+                  >
+                    <Plus size={14} />
+                    Add Price
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {editProduct.pricing?.map((item, index) => (
+                    <div
+                      key={index}
+                      className="grid grid-cols-12 gap-2 sm:gap-3 items-center"
+                    >
+                      <input
+                        type="number"
+                        value={item.quantity}
+                        placeholder="Qty"
+                        onChange={(e) =>
+                          handlePriceChange(index, "quantity", e.target.value)
+                        }
+                        className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
+                      />
+                      <input
+                        type="number"
+                        value={item.price}
+                        placeholder="Price"
+                        onChange={(e) =>
+                          handlePriceChange(index, "price", e.target.value)
+                        }
+                        className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePriceRow(index)}
+                        className="col-span-2 bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 text-sm transition"
+                      >
+                        <Trash2 size={14} className="mx-auto" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="font-semibold text-gray-800 text-sm mb-2 block">
+                  Description
+                </label>
+                <textarea
+                  rows="4"
+                  name="description"
+                  value={editProduct.description || ""}
+                  onChange={handleEditChange}
+                  placeholder="Product description..."
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition resize-none"
                 />
+              </div>
+
+              {/* Footer Buttons */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => removeImage(idx)}
-                  className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600 transition"
+                  onClick={updateProduct}
+                  disabled={updating}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white py-3 rounded-xl font-semibold transition shadow-sm"
                 >
-                  <X className="w-3 h-3" />
+                  {updating ? "Saving..." : "Save Changes"}
                 </button>
-              </div>
-            ))}
-
-            <label className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 hover:bg-gray-50 transition text-gray-400 hover:text-indigo-600">
-              <Plus className="w-6 h-6 mb-1" />
-              <span className="text-xs font-medium">Add</span>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageUpload}
-                className="hidden"
-              />
-            </label>
-          </div>
-        </div>
-
-        {/* Basic Fields Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <input
-            type="text"
-            name="name"
-            value={product.name}
-            onChange={handleChange}
-            placeholder="Product Name"
-            required
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-          <input
-            type="text"
-            name="brand"
-            value={product.brand}
-            onChange={handleChange}
-            placeholder="Brand"
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-          <input
-            type="text"
-            name="category"
-            value={product.category}
-            onChange={handleChange}
-            placeholder="Category"
-            required
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-          <input
-            type="text"
-            name="material"
-            value={product.material}
-            onChange={handleChange}
-            placeholder="Material"
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-          <input
-            type="number"
-            name="stock"
-            value={product.stock}
-            onChange={handleChange}
-            placeholder="Stock"
-            required
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-          <input
-            type="text"
-            name="size"
-            value={product.size}
-            onChange={handleChange}
-            placeholder="Size (e.g. XL, 10 inch)"
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-          <input
-            type="text"
-            name="weight"
-            value={product.weight}
-            onChange={handleChange}
-            placeholder="Weight (e.g. 500g, 1kg)"
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-          <input
-            type="number"
-            name="gst"
-            value={product.gst}
-            onChange={handleChange}
-            placeholder="GST Percentage (%)"
-            min="0"
-            max="100"
-            step="any"
-            required
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-
-        {/* Variant Group */}
-        <div>
-          <input
-            type="text"
-            name="variantGroup"
-            value={product.variantGroup}
-            onChange={handleChange}
-            placeholder="Variant Group (e.g. pliers-water)"
-            className="w-full md:w-1/2 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          />
-        </div>
-
-        {/* Quantity Wise Pricing Section */}
-        <div className="pt-2">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-base font-semibold text-gray-800">
-              Quantity Wise Pricing
-            </h3>
-            <button
-              type="button"
-              onClick={addPricingRow}
-              className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm px-4 py-2 rounded-xl transition"
-            >
-              <Plus className="w-4 h-4" /> Add Price
-            </button>
-          </div>
-
-          <div className="space-y-3">
-            {pricing.map((row, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <input
-                  type="number"
-                  min="1"
-                  value={row.quantity}
-                  onChange={(e) =>
-                    handlePricingChange(index, "quantity", e.target.value)
-                  }
-                  placeholder="Min Quantity"
-                  required
-                  className="w-1/2 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  value={row.price}
-                  onChange={(e) =>
-                    handlePricingChange(index, "price", e.target.value)
-                  }
-                  placeholder="Price (₹)"
-                  required
-                  className="w-1/2 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-                />
                 <button
                   type="button"
-                  onClick={() => removePricingRow(index)}
-                  disabled={pricing.length === 1}
-                  className="bg-red-500 hover:bg-red-600 disabled:bg-gray-300 text-white p-2.5 rounded-xl transition"
+                  onClick={() => setEditProduct(null)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition"
                 >
-                  <Trash2 className="w-5 h-5" />
+                  Cancel
                 </button>
               </div>
-            ))}
+            </div>
           </div>
         </div>
+      )}
 
-        {/* Description */}
-        <div>
-          <textarea
-            name="description"
-            rows="3"
-            value={product.description}
-            onChange={handleChange}
-            placeholder="Write product description..."
-            className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none"
-          ></textarea>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 disabled:bg-gray-400 cursor-pointer"
-        >
-          {loading ? (
-            "Adding Product..."
-          ) : (
-            <>
-              <Plus className="w-5 h-5" /> Add Product
-            </>
-          )}
-        </button>
-      </form>
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
     </div>
   );
 };
 
-export default AddProduct;
+export default GetAllProducts;
