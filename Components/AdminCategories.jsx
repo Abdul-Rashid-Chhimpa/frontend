@@ -107,36 +107,62 @@ const AdminCategories = () => {
     return Object.values(categoryMap);
   }, [products]);
 
-  
-  // AdminCategories.jsx inside useMemo calculation
+
+  // AdminCategories.jsx inside useMemo
 const monthlyStats = useMemo(() => {
   let totalUnitsSold = 0;
   let totalRevenue = 0;
   let totalCost = 0;
 
-  const currentFilterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
+  // Current selected month target
+  const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
 
   orders.forEach((order) => {
-    // Only process fulfilled/shipped orders
-    const isShippedOrDelivered =
-      order.status === "Shipped" || order.status === "Delivered";
+    // 1. Status Fallback (Agar status defined nahi hai toh assume valid)
+    const status = (order.status || "").toLowerCase();
+    const isValidStatus =
+      status === "shipped" ||
+      status === "delivered" ||
+      order.isPaid ||
+      !order.status; // Safe fallback if status field missing
 
-    const rawDate = order.createdAt || order.date || order.updatedAt;
-    const orderMonth = rawDate ? new Date(rawDate).toISOString().slice(0, 7) : "";
+    // 2. Date Extractor with multiple property fallbacks
+    const rawDate = order.createdAt || order.date || order.orderDate || order.updatedAt;
+    let orderMonth = "";
+    
+    if (rawDate) {
+      const d = new Date(rawDate);
+      if (!isNaN(d.getTime())) {
+        orderMonth = d.toISOString().slice(0, 7);
+      }
+    }
 
-    if (isShippedOrDelivered && orderMonth === currentFilterMonth) {
-      const items = order.items || order.orderItems || [];
+    // 3. Match Month OR Process all if rawDate doesn't exist
+    if (isValidStatus && (!orderMonth || orderMonth === filterMonth)) {
+      // Items list extractor with field fallbacks
+      const itemsList = order.items || order.orderItems || order.products || [];
 
-      items.forEach((item) => {
-        const qty = Number(item.quantity || item.qty || 1);
-        const price = Number(item.price || item.unitPrice || 0);
-        // Cost Price calculation (fallback 70% if cost not specified)
-        const cost = Number(item.costPrice || item.product?.costPrice || price * 0.7);
+      if (Array.isArray(itemsList) && itemsList.length > 0) {
+        itemsList.forEach((item) => {
+          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+          const price = Number(
+            item.price ?? item.unitPrice ?? item.product?.price ?? 0
+          );
+          const cost = Number(
+            item.costPrice ?? item.product?.costPrice ?? price * 0.7
+          );
 
-        totalUnitsSold += qty;
-        totalRevenue += price * qty;
-        totalCost += cost * qty;
-      });
+          totalUnitsSold += qty;
+          totalRevenue += price * qty;
+          totalCost += cost * qty;
+        });
+      } else {
+        // Direct order amount fallback (agar order me items array na ho)
+        const orderTotal = Number(order.totalAmount || order.totalPrice || 0);
+        totalRevenue += orderTotal;
+        totalCost += orderTotal * 0.7;
+        totalUnitsSold += 1;
+      }
     }
   });
 
