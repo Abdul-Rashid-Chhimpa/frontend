@@ -30,11 +30,14 @@ const AdminCategories = () => {
     new Date().toISOString().slice(0, 7)
   );
 
-  // Helper to extract clean string ID from any object/string representation
+  // Clean String Helper
   const getCleanId = (id) => {
     if (!id) return "";
     if (typeof id === "string") return id.trim();
-    if (typeof id === "object" && id._id) return String(id._id).trim();
+    if (typeof id === "object") {
+      if (id._id) return String(id._id).trim();
+      if (id.id) return String(id.id).trim();
+    }
     return String(id).trim();
   };
 
@@ -53,27 +56,32 @@ const AdminCategories = () => {
           ),
       ]);
 
+      // Extract Products List
       const prodData = prodRes.data;
+      let fetchedProds = [];
       if (prodData?.success && Array.isArray(prodData.products)) {
-        setProducts(prodData.products);
+        fetchedProds = prodData.products;
       } else if (Array.isArray(prodData)) {
-        setProducts(prodData);
+        fetchedProds = prodData;
       } else if (Array.isArray(prodData?.data)) {
-        setProducts(prodData.data);
-      } else {
-        setProducts([]);
+        fetchedProds = prodData.data;
       }
+      setProducts(fetchedProds);
+      console.log("DEBUG - Products from API:", fetchedProds);
 
+      // Extract Orders List
       const oData = orderRes.data;
+      let fetchedOrders = [];
       if (oData?.success && Array.isArray(oData.orders)) {
-        setOrders(oData.orders);
+        fetchedOrders = oData.orders;
       } else if (Array.isArray(oData)) {
-        setOrders(oData);
+        fetchedOrders = oData;
       } else if (Array.isArray(oData?.data)) {
-        setOrders(oData.data);
-      } else {
-        setOrders([]);
+        fetchedOrders = oData.data;
       }
+      setOrders(fetchedOrders);
+      console.log("DEBUG - Orders from API:", fetchedOrders);
+
     } catch (err) {
       console.error("Fetch Data Error:", err);
       setMessage({
@@ -89,43 +97,60 @@ const AdminCategories = () => {
     fetchData();
   }, []);
 
-  // Map Sold Units by Product ID (Supports all order statuses except strictly cancelled/returned)
+  // Universal Product Sold Mapping Logic
   const productSoldMap = useMemo(() => {
     const map = {};
 
     orders.forEach((order) => {
-      const status = String(order.status || order.orderStatus || "").toLowerCase();
-      
-      // Exclude cancelled/refunded orders, include all active & completed ones
+      const status = String(order.status || order.orderStatus || order.paymentStatus || "").toLowerCase();
+
+      // Exclude strictly cancelled or refunded orders
       const isCancelled =
-        status.includes("cancel") || status.includes("return") || status.includes("refund");
+        status.includes("cancel") || status.includes("refund") || status.includes("return");
 
       if (!isCancelled) {
+        // Find items list dynamically regardless of backend property name
         const itemsList =
-          order.items || order.orderItems || order.products || order.cartItems || [];
+          order.items ||
+          order.orderItems ||
+          order.products ||
+          order.cartItems ||
+          order.order_items ||
+          [];
 
         itemsList.forEach((item) => {
+          // Find Product ID from all possible nested locations
           const rawId =
             item.product?._id ||
-            item.product ||
+            item.product?.id ||
+            (typeof item.product === "string" ? item.product : null) ||
             item.productId ||
+            item.product_id ||
             item._id ||
             item.id;
-          const cleanId = getCleanId(rawId);
 
-          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+          const cleanId = getCleanId(rawId);
+          const qty = Number(item.quantity ?? item.qty ?? item.count ?? item.units ?? 1);
 
           if (cleanId) {
             map[cleanId] = (map[cleanId] || 0) + qty;
+          }
+
+          // Fallback matching by Product Name if ID is not available
+          const rawName = item.name || item.title || item.product?.name || item.product?.title;
+          if (rawName) {
+            const cleanNameKey = String(rawName).trim().toLowerCase();
+            map[cleanNameKey] = (map[cleanNameKey] || 0) + qty;
           }
         });
       }
     });
 
+    console.log("DEBUG - Generated Product Sold Map:", map);
     return map;
   }, [orders]);
 
-  // Group Products by Category with Real Sold & Remaining Stock Calculation
+  // Group Categories with Stock
   const categoriesWithStock = useMemo(() => {
     const categoryMap = {};
 
@@ -138,13 +163,14 @@ const AdminCategories = () => {
       }
 
       const cleanProdId = getCleanId(prod._id || prod.id);
+      const prodNameKey = String(prod.name || prod.title || "").trim().toLowerCase();
 
       const initialStock = Number(
-        prod.stock ?? prod.countInStock ?? prod.quantity ?? 0
+        prod.stock ?? prod.countInStock ?? prod.quantity ?? prod.totalStock ?? 0
       );
 
-      // Matches against sold units map
-      const soldQty = productSoldMap[cleanProdId] || 0;
+      // Match by ID or Name Key
+      const soldQty = productSoldMap[cleanProdId] || productSoldMap[prodNameKey] || 0;
       const netRemainingStock = Math.max(0, initialStock - soldQty);
 
       if (!categoryMap[catName]) {
@@ -166,7 +192,7 @@ const AdminCategories = () => {
     return Object.values(categoryMap);
   }, [products, productSoldMap]);
 
-  // Monthly Sold Products Extraction for PDF
+  // Monthly Sales for PDF
   const productMonthlySales = useMemo(() => {
     const prodStatsMap = {};
     const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
@@ -174,7 +200,7 @@ const AdminCategories = () => {
     orders.forEach((order) => {
       const status = String(order.status || order.orderStatus || "").toLowerCase();
       const isCancelled =
-        status.includes("cancel") || status.includes("return") || status.includes("refund");
+        status.includes("cancel") || status.includes("refund") || status.includes("return");
 
       const rawDate =
         order.createdAt || order.date || order.orderDate || order.updatedAt;
@@ -227,7 +253,7 @@ const AdminCategories = () => {
     return Object.values(prodStatsMap).sort((a, b) => b.unitsSold - a.unitsSold);
   }, [orders, selectedMonth]);
 
-  // Summary Metrics Calculation
+  // Overall Monthly Analytics
   const monthlyStats = useMemo(() => {
     let totalUnitsSold = 0;
     let totalRevenue = 0;
@@ -246,7 +272,7 @@ const AdminCategories = () => {
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
   }, [productMonthlySales]);
 
-  // PDF Downloader
+  // PDF Generator
   const handleDownloadPDF = () => {
     try {
       setDownloadingPdf(true);
@@ -276,7 +302,7 @@ const AdminCategories = () => {
       doc.text(`Mobile: +91 9876543210`, 40, 118);
       doc.text(`Email: support@pedwallife.com`, 40, 131);
 
-      doc.text(`Report Month: ${selectedMonth}`, 380, 105);
+      doc.text(`Report Period: ${selectedMonth}`, 380, 105);
       doc.text(`Generated On: ${currentTime}`, 380, 118);
       doc.text(`Address: Main Market, New Delhi, India`, 380, 131);
 
@@ -335,7 +361,7 @@ const AdminCategories = () => {
       doc.save(`Sales_Report_${selectedMonth}.pdf`);
     } catch (err) {
       console.error("PDF Export Error:", err);
-      alert("PDF generate karne mein issue aaya.");
+      alert("PDF generate karne me error aaya.");
     } finally {
       setDownloadingPdf(false);
     }
@@ -359,7 +385,7 @@ const AdminCategories = () => {
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-4 text-gray-600 font-medium text-sm">
-            Loading Inventory & Sales Data...
+            Loading Inventory Data...
           </p>
         </div>
       </div>
@@ -369,7 +395,7 @@ const AdminCategories = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
+        {/* Top Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
@@ -377,10 +403,10 @@ const AdminCategories = () => {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                Categories & Stock Reports
+                Categories & Monthly Reports
               </h1>
               <p className="text-xs sm:text-sm text-gray-500">
-                Track Total, Sold & Remaining Stock with PDF Reports
+                Track Total, Sold & Remaining Stock
               </p>
             </div>
           </div>
@@ -401,7 +427,7 @@ const AdminCategories = () => {
               {downloadingPdf ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Generating...</span>
+                  <span>Generating PDF...</span>
                 </>
               ) : (
                 <>
@@ -412,6 +438,14 @@ const AdminCategories = () => {
             </button>
           </div>
         </div>
+
+        {/* Message Alert */}
+        {message.text && (
+          <div className="mb-5 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-700">
+            <AlertTriangle size={18} />
+            {message.text}
+          </div>
+        )}
 
         {/* Search & Month Filter */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
@@ -448,7 +482,7 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* Category Cards */}
+        {/* Categories Card Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayedCategories.length === 0 ? (
             <div className="col-span-full bg-white p-8 rounded-2xl text-center text-gray-400 font-medium border border-gray-200">
@@ -478,7 +512,7 @@ const AdminCategories = () => {
                   </p>
                 </div>
 
-                {/* Dynamic Stock Card Section */}
+                {/* Stock Stats Section */}
                 <div className="pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center bg-slate-50 p-2.5 rounded-xl">
                   {/* Total */}
                   <div>
@@ -515,7 +549,7 @@ const AdminCategories = () => {
           )}
         </div>
 
-        {/* Pagination Load More */}
+        {/* Load More Pagination */}
         {visibleCount < filteredCategories.length && (
           <div className="mt-8 text-center">
             <button
