@@ -13,6 +13,7 @@ import {
   Loader2,
   ChevronDown,
   Package,
+  ShoppingCart,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
@@ -78,18 +79,18 @@ const AdminCategories = () => {
     fetchData();
   }, []);
 
-  // Shipped Orders map for calculation
+  // Map Shipped/Delivered Units by Product ID
   const shippedUnitsMap = useMemo(() => {
     const map = {};
     orders.forEach((order) => {
       const status = (order.status || "").toLowerCase();
-      // Shipped/Delivered order state validation
       const isShipped = status === "shipped" || status === "delivered";
 
       if (isShipped) {
         const itemsList = order.items || order.orderItems || order.products || [];
         itemsList.forEach((item) => {
-          const prodId = item.product?._id || item.product || item._id;
+          const prodId =
+            item.product?._id || item.product || item._id || item.id;
           const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
           if (prodId) {
             map[prodId] = (map[prodId] || 0) + qty;
@@ -100,7 +101,7 @@ const AdminCategories = () => {
     return map;
   }, [orders]);
 
-  // Group Products by Category with Actual Shipped Stock Deduction
+  // Group Products by Category with Total, Sold, and Left Stock Calculation
   const categoriesWithStock = useMemo(() => {
     const categoryMap = {};
 
@@ -122,18 +123,22 @@ const AdminCategories = () => {
         categoryMap[catName] = {
           name: catName,
           productCount: 0,
+          totalStock: 0,
+          soldStock: 0,
           stockLeft: 0,
         };
       }
 
       categoryMap[catName].productCount += 1;
+      categoryMap[catName].totalStock += initialStock;
+      categoryMap[catName].soldStock += soldQty;
       categoryMap[catName].stockLeft += netRemainingStock;
     });
 
     return Object.values(categoryMap);
   }, [products, shippedUnitsMap]);
 
-  // Monthly Product Sales Stats for PDF Report
+  // Monthly Sold Products Data Extraction with Precise Product Name Resolution
   const productMonthlySales = useMemo(() => {
     const prodStatsMap = {};
     const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
@@ -142,7 +147,8 @@ const AdminCategories = () => {
       const status = (order.status || "").toLowerCase();
       const isValid = status === "shipped" || status === "delivered" || order.isPaid;
 
-      const rawDate = order.createdAt || order.date || order.orderDate || order.updatedAt;
+      const rawDate =
+        order.createdAt || order.date || order.orderDate || order.updatedAt;
       let orderMonth = "";
       if (rawDate) {
         const d = new Date(rawDate);
@@ -154,14 +160,26 @@ const AdminCategories = () => {
       if (isValid && (!orderMonth || orderMonth === filterMonth)) {
         const itemsList = order.items || order.orderItems || order.products || [];
         itemsList.forEach((item) => {
-          const name = item.name || item.product?.name || "Standard Item";
-          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
-          const price = Number(item.price ?? item.unitPrice ?? item.product?.price ?? 0);
-          const cost = Number(item.costPrice ?? item.product?.costPrice ?? price * 0.7);
+          // Dynamic product name extraction to eliminate "Standard Item" fallback
+          const productName =
+            item.name ||
+            item.title ||
+            item.product?.name ||
+            item.product?.title ||
+            item.productName ||
+            `Product #${item.product?._id || item._id || "ID"}`;
 
-          if (!prodStatsMap[name]) {
-            prodStatsMap[name] = {
-              name,
+          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+          const price = Number(
+            item.price ?? item.unitPrice ?? item.product?.price ?? 0
+          );
+          const cost = Number(
+            item.costPrice ?? item.product?.costPrice ?? price * 0.7
+          );
+
+          if (!prodStatsMap[productName]) {
+            prodStatsMap[productName] = {
+              name: productName,
               unitsSold: 0,
               costPrice: cost,
               revenue: 0,
@@ -169,9 +187,9 @@ const AdminCategories = () => {
             };
           }
 
-          prodStatsMap[name].unitsSold += qty;
-          prodStatsMap[name].revenue += price * qty;
-          prodStatsMap[name].profit += (price - cost) * qty;
+          prodStatsMap[productName].unitsSold += qty;
+          prodStatsMap[productName].revenue += price * qty;
+          prodStatsMap[productName].profit += (price - cost) * qty;
         });
       }
     });
@@ -179,7 +197,7 @@ const AdminCategories = () => {
     return Object.values(prodStatsMap).sort((a, b) => b.unitsSold - a.unitsSold);
   }, [orders, selectedMonth]);
 
-  // Overall Monthly Analytics Calculation
+  // Overall Monthly Stats
   const monthlyStats = useMemo(() => {
     let totalUnitsSold = 0;
     let totalRevenue = 0;
@@ -198,17 +216,17 @@ const AdminCategories = () => {
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
   }, [productMonthlySales]);
 
-  // Optimized PDF Generator Function
+  // PDF Export Function
   const handleDownloadPDF = () => {
     try {
       setDownloadingPdf(true);
       const doc = new jsPDF("p", "pt", "a4");
 
-      // Header Gradient Box background
+      // Header Linear Gradient Representation
       doc.setFillColor(79, 70, 229);
       doc.rect(0, 0, 595, 80, "F");
 
-      // Company Branding Text
+      // Company Title & Subtitle
       doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(255, 255, 255);
@@ -216,12 +234,12 @@ const AdminCategories = () => {
 
       doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.text("Official Inventory & Sales Analysis Report", 40, 58);
+      doc.text("Official Inventory & Monthly Sales Report", 40, 58);
 
-      // Business Details Info Panel
+      // Business Info Details
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(9);
-      
+
       const currentTime = new Date().toLocaleString("en-IN", {
         dateStyle: "medium",
         timeStyle: "short",
@@ -231,15 +249,14 @@ const AdminCategories = () => {
       doc.text(`Mobile: +91 9876543210`, 40, 118);
       doc.text(`Email: support@pedwallife.com`, 40, 131);
 
-      doc.text(`Report Month: ${selectedMonth}`, 380, 105);
+      doc.text(`Report Period: ${selectedMonth}`, 380, 105);
       doc.text(`Generated On: ${currentTime}`, 380, 118);
       doc.text(`Address: Main Market, New Delhi, India`, 380, 131);
 
-      // Horizontal Line Divider
       doc.setDrawColor(226, 232, 240);
       doc.line(40, 145, 555, 145);
 
-      // Top Selling / Sold Items Table
+      // Sold Products Table with Actual Names
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 41, 59);
@@ -256,28 +273,35 @@ const AdminCategories = () => {
 
       autoTable(doc, {
         startY: 175,
-        head: [["S.No", "Product Name", "Units Sold", "Cost Price", "Revenue", "Profit"]],
-        body: tableData.length > 0 ? tableData : [["-", "No Sales Found This Month", "-", "-", "-", "-"]],
+        head: [
+          ["S.No", "Product Name", "Units Sold", "Cost Price", "Revenue", "Profit"],
+        ],
+        body:
+          tableData.length > 0
+            ? tableData
+            : [["-", "No Sales Recorded For This Month", "-", "-", "-", "-"]],
         theme: "striped",
         headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
         styles: { fontSize: 9, cellPadding: 5 },
       });
 
-      // Overall Summary Section
+      // Overall Summary
       const finalY = doc.lastAutoTable.finalY + 25;
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
-      doc.text("Monthly Summary Overview", 40, finalY);
+      doc.text("Monthly Performance Summary", 40, finalY);
 
       autoTable(doc, {
         startY: finalY + 10,
-        head: [["Total Units Sold", "Total Revenue", "Net Profit", "Profit Margin"]],
-        body: [[
-          `${monthlyStats.totalUnitsSold} Pcs`,
-          `Rs. ${monthlyStats.totalRevenue.toLocaleString("en-IN")}`,
-          `Rs. ${monthlyStats.netProfit.toLocaleString("en-IN")}`,
-          `${monthlyStats.profitMargin}%`
-        ]],
+        head: [["Total Sold Units", "Total Revenue", "Net Profit", "Profit Margin"]],
+        body: [
+          [
+            `${monthlyStats.totalUnitsSold} Pcs`,
+            `Rs. ${monthlyStats.totalRevenue.toLocaleString("en-IN")}`,
+            `Rs. ${monthlyStats.netProfit.toLocaleString("en-IN")}`,
+            `${monthlyStats.profitMargin}%`,
+          ],
+        ],
         theme: "grid",
         headStyles: { fillColor: [30, 41, 59] },
         styles: { fontSize: 9, cellPadding: 6, halign: "center" },
@@ -286,7 +310,7 @@ const AdminCategories = () => {
       doc.save(`Sales_Report_${selectedMonth}.pdf`);
     } catch (err) {
       console.error("PDF Export Error:", err);
-      alert("PDF generate karne mein problem aayi.");
+      alert("PDF generate karne me error aaya.");
     } finally {
       setDownloadingPdf(false);
     }
@@ -331,7 +355,7 @@ const AdminCategories = () => {
                 Categories & Monthly Reports
               </h1>
               <p className="text-xs sm:text-sm text-gray-500">
-                Track Stock, Monthly Sales & Generate Simple PDF Reports
+                Track Stock, Sold Quantities & Generate Monthly PDF Reports
               </p>
             </div>
           </div>
@@ -372,7 +396,7 @@ const AdminCategories = () => {
           </div>
         )}
 
-        {/* Search & Filter Header */}
+        {/* Search & Month Filters */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:w-80">
             <Search
@@ -407,7 +431,7 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* Key Analytics Grid */}
+        {/* Analytics Highlights */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <p className="text-xs text-gray-500 uppercase font-medium">
@@ -443,7 +467,7 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* Categories Grid List (Initially Max 6 Cards) */}
+        {/* Categories Card Grid with Total, Sold (Red), and Remaining Stock (Green) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayedCategories.length === 0 ? (
             <div className="col-span-full bg-white p-8 rounded-2xl text-center text-gray-400 font-medium border border-gray-200">
@@ -456,7 +480,7 @@ const AdminCategories = () => {
                 className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
               >
                 <div>
-                  <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center justify-between gap-2 mb-3">
                     <h3 className="font-bold text-gray-800 text-lg truncate">
                       {cat.name}
                     </h3>
@@ -464,24 +488,42 @@ const AdminCategories = () => {
                       Active
                     </span>
                   </div>
+
+                  <p className="text-xs text-gray-500 font-medium mb-3">
+                    Products Count: <span className="font-bold text-gray-700">{cat.productCount} items</span>
+                  </p>
                 </div>
 
-                <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                {/* Detailed Stock Statistics Breakdown */}
+                <div className="pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center bg-slate-50 p-2.5 rounded-xl">
+                  {/* Initial / Total Stock */}
                   <div>
-                    <p className="text-xs text-gray-400 font-medium">
-                      Products Type
+                    <p className="text-[10px] text-gray-400 uppercase font-semibold flex items-center justify-center gap-0.5">
+                      <Package size={10} /> Total
                     </p>
-                    <p className="text-sm font-bold text-gray-700">
-                      {cat.productCount} items
+                    <p className="font-bold text-xs text-gray-700 mt-0.5">
+                      {cat.totalStock}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-400 font-medium flex items-center justify-end gap-1">
-                      <Package size={12} /> Remaining Stock
+
+                  {/* Sold Stock (Highlighted in Red) */}
+                  <div className="border-x border-gray-200 px-1">
+                    <p className="text-[10px] text-red-500 uppercase font-semibold flex items-center justify-center gap-0.5">
+                      <ShoppingCart size={10} /> Sold
                     </p>
-                    <span className="font-bold text-sm text-emerald-600">
-                      {cat.stockLeft} in stock
-                    </span>
+                    <p className="font-bold text-xs text-red-600 mt-0.5">
+                      -{cat.soldStock}
+                    </p>
+                  </div>
+
+                  {/* Remaining Stock (Highlighted in Green) */}
+                  <div>
+                    <p className="text-[10px] text-emerald-600 uppercase font-semibold flex items-center justify-center gap-0.5">
+                      <Package size={10} /> Remaining
+                    </p>
+                    <p className="font-bold text-xs text-emerald-600 mt-0.5">
+                      {cat.stockLeft}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -489,7 +531,7 @@ const AdminCategories = () => {
           )}
         </div>
 
-        {/* Load More Button */}
+        {/* Load More Pagination */}
         {visibleCount < filteredCategories.length && (
           <div className="mt-8 text-center">
             <button
