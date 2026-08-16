@@ -174,7 +174,7 @@ const GetAllProducts = () => {
     setEditProduct(null);
   };
 
-  // ================= UPDATE PRODUCT =================
+ // ================= UPDATE PRODUCT =================
   const updateProduct = async () => {
     if (!editProduct.pricing || editProduct.pricing.length === 0) {
       alert("At least one pricing option is required.");
@@ -234,11 +234,10 @@ const GetAllProducts = () => {
     } catch (error) {
       console.log(error);
       alert(error.response?.data?.message || "Update Failed");
-    } font-medium
+    } finally {
       setUpdating(false);
     }
   };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
