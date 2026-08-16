@@ -30,7 +30,6 @@ const AdminCategories = () => {
     new Date().toISOString().slice(0, 7)
   );
 
-  // Clean String Helper
   const getCleanId = (id) => {
     if (!id) return "";
     if (typeof id === "string") return id.trim();
@@ -41,7 +40,6 @@ const AdminCategories = () => {
     return String(id).trim();
   };
 
-  // Fetch Products & Orders Data
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -56,7 +54,6 @@ const AdminCategories = () => {
           ),
       ]);
 
-      // Extract Products List
       const prodData = prodRes.data;
       let fetchedProds = [];
       if (prodData?.success && Array.isArray(prodData.products)) {
@@ -67,9 +64,7 @@ const AdminCategories = () => {
         fetchedProds = prodData.data;
       }
       setProducts(fetchedProds);
-      console.log("DEBUG - Products from API:", fetchedProds);
 
-      // Extract Orders List
       const oData = orderRes.data;
       let fetchedOrders = [];
       if (oData?.success && Array.isArray(oData.orders)) {
@@ -80,8 +75,6 @@ const AdminCategories = () => {
         fetchedOrders = oData.data;
       }
       setOrders(fetchedOrders);
-      console.log("DEBUG - Orders from API:", fetchedOrders);
-
     } catch (err) {
       console.error("Fetch Data Error:", err);
       setMessage({
@@ -97,19 +90,19 @@ const AdminCategories = () => {
     fetchData();
   }, []);
 
-  // Universal Product Sold Mapping Logic
+  // Map Sold Stock Per Product ID
   const productSoldMap = useMemo(() => {
     const map = {};
 
     orders.forEach((order) => {
-      const status = String(order.status || order.orderStatus || order.paymentStatus || "").toLowerCase();
+      const status = String(
+        order.status || order.orderStatus || order.paymentStatus || ""
+      ).toLowerCase();
 
-      // Exclude strictly cancelled or refunded orders
       const isCancelled =
         status.includes("cancel") || status.includes("refund") || status.includes("return");
 
       if (!isCancelled) {
-        // Find items list dynamically regardless of backend property name
         const itemsList =
           order.items ||
           order.orderItems ||
@@ -119,7 +112,6 @@ const AdminCategories = () => {
           [];
 
         itemsList.forEach((item) => {
-          // Find Product ID from all possible nested locations
           const rawId =
             item.product?._id ||
             item.product?.id ||
@@ -136,7 +128,6 @@ const AdminCategories = () => {
             map[cleanId] = (map[cleanId] || 0) + qty;
           }
 
-          // Fallback matching by Product Name if ID is not available
           const rawName = item.name || item.title || item.product?.name || item.product?.title;
           if (rawName) {
             const cleanNameKey = String(rawName).trim().toLowerCase();
@@ -146,11 +137,10 @@ const AdminCategories = () => {
       }
     });
 
-    console.log("DEBUG - Generated Product Sold Map:", map);
     return map;
   }, [orders]);
 
-  // Group Categories with Stock
+  // Group Stock by Category
   const categoriesWithStock = useMemo(() => {
     const categoryMap = {};
 
@@ -169,7 +159,6 @@ const AdminCategories = () => {
         prod.stock ?? prod.countInStock ?? prod.quantity ?? prod.totalStock ?? 0
       );
 
-      // Match by ID or Name Key
       const soldQty = productSoldMap[cleanProdId] || productSoldMap[prodNameKey] || 0;
       const netRemainingStock = Math.max(0, initialStock - soldQty);
 
@@ -192,7 +181,7 @@ const AdminCategories = () => {
     return Object.values(categoryMap);
   }, [products, productSoldMap]);
 
-  // Monthly Sales for PDF
+  // Monthly Sales & Revenue Calculations
   const productMonthlySales = useMemo(() => {
     const prodStatsMap = {};
     const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
@@ -202,8 +191,7 @@ const AdminCategories = () => {
       const isCancelled =
         status.includes("cancel") || status.includes("refund") || status.includes("return");
 
-      const rawDate =
-        order.createdAt || order.date || order.orderDate || order.updatedAt;
+      const rawDate = order.createdAt || order.date || order.orderDate || order.updatedAt;
       let orderMonth = "";
       if (rawDate) {
         const d = new Date(rawDate);
@@ -212,7 +200,10 @@ const AdminCategories = () => {
         }
       }
 
-      if (!isCancelled && (!orderMonth || orderMonth === filterMonth)) {
+      // Safe match logic for month filtering
+      const isMonthMatched = !filterMonth || !orderMonth || orderMonth === filterMonth;
+
+      if (!isCancelled && isMonthMatched) {
         const itemsList =
           order.items || order.orderItems || order.products || order.cartItems || [];
 
@@ -227,7 +218,7 @@ const AdminCategories = () => {
 
           const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
           const price = Number(
-            item.price ?? item.unitPrice ?? item.product?.price ?? 0
+            item.price ?? item.unitPrice ?? item.product?.price ?? order.totalPrice ?? 0
           );
           const cost = Number(
             item.costPrice ?? item.product?.costPrice ?? price * 0.7
@@ -253,7 +244,7 @@ const AdminCategories = () => {
     return Object.values(prodStatsMap).sort((a, b) => b.unitsSold - a.unitsSold);
   }, [orders, selectedMonth]);
 
-  // Overall Monthly Analytics
+  // Total Summary Metrics for Top Bar Cards
   const monthlyStats = useMemo(() => {
     let totalUnitsSold = 0;
     let totalRevenue = 0;
@@ -395,7 +386,7 @@ const AdminCategories = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Top Header */}
+        {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
@@ -482,7 +473,43 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* Categories Card Grid */}
+        {/* Top Summary Cards (Units Sold, Revenue, Profit & Margin) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase font-medium">
+              Units Sold ({selectedMonth})
+            </p>
+            <p className="text-2xl font-bold text-gray-800 mt-1">
+              {monthlyStats.totalUnitsSold} Pcs
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase font-medium">
+              Monthly Revenue
+            </p>
+            <p className="text-2xl font-bold text-indigo-600 mt-1">
+              ₹{monthlyStats.totalRevenue.toLocaleString("en-IN")}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase font-medium">
+              Net Profit
+            </p>
+            <p className="text-2xl font-bold text-emerald-600 mt-1">
+              ₹{monthlyStats.netProfit.toLocaleString("en-IN")}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase font-medium flex items-center gap-1">
+              <TrendingUp size={14} /> Profit Margin
+            </p>
+            <p className="text-2xl font-bold text-purple-600 mt-1">
+              {monthlyStats.profitMargin}%
+            </p>
+          </div>
+        </div>
+
+        {/* Category Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayedCategories.length === 0 ? (
             <div className="col-span-full bg-white p-8 rounded-2xl text-center text-gray-400 font-medium border border-gray-200">
