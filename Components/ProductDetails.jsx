@@ -1,6 +1,20 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useContext, useEffect, useState, useRef, useMemo } from "react";
-import { Package, ArrowLeft, ShoppingCart } from "lucide-react";
+import {
+  Package,
+  ArrowLeft,
+  ShoppingCart,
+  MapPin,
+  CheckCircle2,
+  XCircle,
+  Truck,
+  ShieldCheck,
+  RotateCcw,
+  Layers,
+  Percent,
+  Scale,
+  Ruler,
+} from "lucide-react";
 import { CartContext } from "../Components/Context";
 import axios from "axios";
 
@@ -17,6 +31,11 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
 
+  // Delivery Pincode Checker States
+  const [pincode, setPincode] = useState("");
+  const [deliveryStatus, setDeliveryStatus] = useState(null); // null | { success: boolean, message: string }
+  const [checkingPincode, setCheckingPincode] = useState(false);
+
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
 
@@ -24,9 +43,9 @@ const ProductDetails = () => {
   useEffect(() => {
     let isMounted = true;
 
-    // Reset view states when product ID changes
     setSelectedImage(0);
     setQuantity(1);
+    setDeliveryStatus(null);
 
     if (location.state?.product) {
       setProduct(location.state.product);
@@ -39,7 +58,6 @@ const ProductDetails = () => {
         setLoading(true);
         setError(false);
 
-        // Fetch single product
         try {
           const { data } = await axios.get(
             `https://backend-3-axez.onrender.com/api/products/${id}`
@@ -53,7 +71,6 @@ const ProductDetails = () => {
           // Fallback to bulk list search if direct ID fails
         }
 
-        // Fallback fetch
         const res = await axios.get(
           "https://backend-3-axez.onrender.com/api/products"
         );
@@ -77,12 +94,12 @@ const ProductDetails = () => {
     return () => {
       isMounted = false;
     };
-  }, [id]); // Removed 'product' dependency to prevent re-fetch loops
+  }, [id]);
 
   // ================= PRICING TIERS (Memoized) =================
   const pricingTiers = useMemo(() => {
     if (!product) return [{ minQty: 1, price: 0 }];
-    
+
     if (product.pricing && product.pricing.length > 0) {
       return [...product.pricing]
         .map((tier) => ({
@@ -100,7 +117,6 @@ const ProductDetails = () => {
     ];
   }, [product]);
 
-  // Pricing & Stock values
   const maxStock = product?.stock ?? 1;
 
   const unitPrice = useMemo(() => {
@@ -116,6 +132,14 @@ const ProductDetails = () => {
   }, [quantity, pricingTiers]);
 
   const totalPrice = unitPrice * quantity;
+
+  // GST Calculation
+  const gstAmount = useMemo(() => {
+    const gstPercent = Number(product?.gst) || 0;
+    return (totalPrice * gstPercent) / 100;
+  }, [totalPrice, product]);
+
+  const grandTotal = totalPrice + gstAmount;
 
   // ================= AUTO SLIDE =================
   const imagesList = useMemo(() => {
@@ -143,6 +167,36 @@ const ProductDetails = () => {
     }
   }, [quantity]);
 
+  // ================= CHECK PINCODE DELIVERY =================
+  const handleCheckDelivery = (e) => {
+    e.preventDefault();
+    if (!pincode || pincode.trim().length !== 6) {
+      setDeliveryStatus({
+        success: false,
+        message: "Please enter a valid 6-digit pincode.",
+      });
+      return;
+    }
+
+    setCheckingPincode(true);
+    // Standard Pincode service check simulation
+    setTimeout(() => {
+      // Example validation logic
+      if (/^[1-9][0-9]{5}$/.test(pincode)) {
+        setDeliveryStatus({
+          success: true,
+          message: "Delivery available! Estimated delivery in 3-5 business days.",
+        });
+      } else {
+        setDeliveryStatus({
+          success: false,
+          message: "Delivery not available for this location.",
+        });
+      }
+      setCheckingPincode(false);
+    }, 600);
+  };
+
   // ================= HANDLERS =================
   const handleQuantityChange = (value) => {
     let qty = Number(value);
@@ -165,28 +219,25 @@ const ProductDetails = () => {
     });
   };
 
-  
   const quickQtys = useMemo(() => {
     return [1, 5, 10, 25, 50, 100, 250, 500, maxStock].filter(
       (q, i, arr) => q <= maxStock && arr.indexOf(q) === i
     );
   }, [maxStock]);
 
-  // ================= LOADING STATE =================
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
         <div className="text-center">
           <div className="w-12 h-12 sm:w-14 sm:h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="mt-4 text-gray-600 font-medium text-sm sm:text-base">
-            Loading product...
+            Loading product details...
           </p>
         </div>
       </div>
     );
   }
 
-  // ================= NOT FOUND STATE =================
   if (error || !product) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
@@ -267,6 +318,22 @@ const ProductDetails = () => {
                   ))}
                 </div>
               )}
+
+              {/* TRUST BADGES & FEATURES */}
+              <div className="grid grid-cols-3 gap-2 mt-6 pt-6 border-t border-gray-200/80 text-center">
+                <div className="flex flex-col items-center">
+                  <Truck size={20} className="text-indigo-600 mb-1" />
+                  <span className="text-[11px] font-medium text-gray-700">Fast Delivery</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <ShieldCheck size={20} className="text-emerald-600 mb-1" />
+                  <span className="text-[11px] font-medium text-gray-700">100% Authentic</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <RotateCcw size={20} className="text-purple-600 mb-1" />
+                  <span className="text-[11px] font-medium text-gray-700">Easy Returns</span>
+                </div>
+              </div>
             </div>
 
             {/* RIGHT - DETAILS */}
@@ -276,39 +343,109 @@ const ProductDetails = () => {
                   {product.name}
                 </h1>
 
-                <div className="space-y-1.5 sm:space-y-2 text-gray-600 mb-5 sm:mb-6 text-sm sm:text-base">
-                  <p>
-                    <span className="font-semibold text-gray-800">Brand:</span>{" "}
-                    {product.brand || "N/A"}
-                  </p>
+                {/* SPECIFICATIONS & BADGES */}
+                <div className="space-y-2 text-gray-600 mb-5 sm:mb-6 text-sm sm:text-base">
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {product.category && (
+                      <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                        {product.category}
+                      </span>
+                    )}
+                    {product.brand && (
+                      <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                        {product.brand}
+                      </span>
+                    )}
+                    {product.variantGroup && (
+                      <span className="bg-purple-50 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <Layers size={12} />
+                        Group: {product.variantGroup}
+                      </span>
+                    )}
+                  </div>
+
                   <p>
                     <span className="font-semibold text-gray-800">Material:</span>{" "}
                     {product.material || "N/A"}
                   </p>
-                  <p>
-                    <span className="font-semibold text-gray-800">Category:</span>{" "}
-                    {product.category || product.name}
-                  </p>
-                  <p>
-                    <span className="font-semibold text-gray-800">Stock:</span>{" "}
+
+                  {(product.size || product.weight) && (
+                    <div className="flex flex-wrap gap-4 pt-1 text-xs sm:text-sm text-gray-700">
+                      {product.size && (
+                        <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
+                          <Ruler size={14} className="text-gray-500" /> Size: {product.size}
+                        </span>
+                      )}
+                      {product.weight && (
+                        <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
+                          <Scale size={14} className="text-gray-500" /> Weight: {product.weight}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="pt-1">
+                    <span className="font-semibold text-gray-800">Availability:</span>{" "}
                     <span
                       className={
                         product.stock > 0
-                          ? "text-emerald-600 font-medium"
-                          : "text-red-600 font-medium"
+                          ? "text-emerald-600 font-semibold"
+                          : "text-red-600 font-semibold"
                       }
                     >
                       {product.stock > 0
-                        ? `${product.stock} available`
+                        ? `${product.stock} units in stock`
                         : "Out of Stock"}
                     </span>
                   </p>
                 </div>
 
+                {/* DELIVERY PINCODE CHECKER */}
+                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <MapPin size={18} className="text-indigo-600" />
+                    <h3 className="font-semibold text-gray-800 text-sm sm:text-base">
+                      Check Delivery & Serviceability
+                    </h3>
+                  </div>
+                  <form onSubmit={handleCheckDelivery} className="flex gap-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="Enter 6-digit Pincode"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={checkingPincode}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium px-4 py-2 rounded-xl text-sm transition"
+                    >
+                      {checkingPincode ? "Checking..." : "Check"}
+                    </button>
+                  </form>
+
+                  {deliveryStatus && (
+                    <div
+                      className={`mt-3 flex items-center gap-2 text-xs sm:text-sm font-medium ${
+                        deliveryStatus.success ? "text-emerald-700" : "text-red-600"
+                      }`}
+                    >
+                      {deliveryStatus.success ? (
+                        <CheckCircle2 size={16} />
+                      ) : (
+                        <XCircle size={16} />
+                      )}
+                      <span>{deliveryStatus.message}</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* PRICING TIERS */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
-                    Price Chart
+                    Quantity Wise Pricing
                   </h3>
 
                   <div
@@ -347,12 +484,6 @@ const ProductDetails = () => {
                       })}
                     </div>
                   </div>
-
-                  <p className="text-[11px] sm:text-xs text-gray-400 mt-2">
-                    {pricingTiers.length > 3
-                      ? "Active price auto scrolls into view"
-                      : "Price auto updates with quantity"}
-                  </p>
                 </div>
 
                 {/* QUANTITY SELECTOR */}
@@ -376,9 +507,6 @@ const ProductDetails = () => {
                       className="w-full border-2 border-gray-200 focus:border-indigo-500 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-semibold text-center outline-none transition"
                       placeholder="Enter quantity"
                     />
-                    <p className="text-[11px] sm:text-xs text-gray-400 mt-1 text-center">
-                      Type any quantity (Max {maxStock})
-                    </p>
                   </div>
 
                   <div className="mb-3 sm:mb-4">
@@ -390,10 +518,6 @@ const ProductDetails = () => {
                       onChange={(e) => handleQuantityChange(e.target.value)}
                       className="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
                     />
-                    <div className="flex justify-between text-[11px] sm:text-xs text-gray-400 mt-1">
-                      <span>1</span>
-                      <span>{maxStock}</span>
-                    </div>
                   </div>
 
                   <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -413,19 +537,30 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* TOTAL PRICE */}
-                <div className="mb-6 sm:mb-8 p-3.5 sm:p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl sm:rounded-2xl border border-indigo-100">
-                  <div className="flex justify-between items-center gap-3">
-                    <div className="min-w-0">
-                      <p className="text-gray-700 font-medium text-sm sm:text-base">
-                        Total Price
-                      </p>
-                      <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
-                        ₹{unitPrice} × {quantity} units
-                      </p>
+                {/* TOTAL PRICE BREAKDOWN (WITH GST) */}
+                <div className="mb-6 sm:mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 space-y-2">
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
+                    <span>
+                      Unit Price (₹{unitPrice} × {quantity})
+                    </span>
+                    <span className="font-medium">₹{totalPrice.toLocaleString()}</span>
+                  </div>
+
+                  {product.gst > 0 && (
+                    <div className="flex justify-between items-center text-xs sm:text-sm text-indigo-700">
+                      <span className="flex items-center gap-1">
+                        <Percent size={13} /> GST ({product.gst}%)
+                      </span>
+                      <span className="font-medium">+ ₹{gstAmount.toLocaleString()}</span>
                     </div>
-                    <span className="text-xl sm:text-2xl md:text-3xl font-extrabold text-indigo-700 whitespace-nowrap">
-                      ₹{totalPrice.toLocaleString()}
+                  )}
+
+                  <div className="border-t border-indigo-200/60 pt-2 flex justify-between items-center">
+                    <span className="text-gray-800 font-bold text-sm sm:text-base">
+                      Grand Total
+                    </span>
+                    <span className="text-xl sm:text-2xl font-extrabold text-indigo-700">
+                      ₹{grandTotal.toLocaleString()}
                     </span>
                   </div>
                 </div>
@@ -436,7 +571,7 @@ const ProductDetails = () => {
                     <h3 className="font-semibold text-gray-800 mb-1.5 sm:mb-2 text-base sm:text-lg">
                       Description
                     </h3>
-                    <p className="text-gray-600 leading-relaxed text-sm sm:text-base">
+                    <p className="text-gray-600 leading-relaxed text-sm sm:text-base whitespace-pre-line">
                       {product.description}
                     </p>
                   </div>
