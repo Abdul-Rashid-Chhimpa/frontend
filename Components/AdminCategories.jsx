@@ -11,6 +11,8 @@ import {
   Download,
   Calendar,
   Loader2,
+  ChevronDown,
+  Package,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
@@ -22,6 +24,7 @@ const AdminCategories = () => {
   const [downloadingPdf, setDownloadingPdf] = useState(false);
   const [search, setSearch] = useState("");
   const [message, setMessage] = useState({ type: "", text: "" });
+  const [visibleCount, setVisibleCount] = useState(6);
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
@@ -41,7 +44,6 @@ const AdminCategories = () => {
           ),
       ]);
 
-      // Handle Products Data
       const prodData = prodRes.data;
       if (prodData?.success && Array.isArray(prodData.products)) {
         setProducts(prodData.products);
@@ -53,7 +55,6 @@ const AdminCategories = () => {
         setProducts([]);
       }
 
-      // Handle Orders Data
       const oData = orderRes.data;
       if (oData?.success && Array.isArray(oData.orders)) {
         setOrders(oData.orders);
@@ -77,7 +78,29 @@ const AdminCategories = () => {
     fetchData();
   }, []);
 
-  // Group Products by Category
+  // Shipped Orders map for calculation
+  const shippedUnitsMap = useMemo(() => {
+    const map = {};
+    orders.forEach((order) => {
+      const status = (order.status || "").toLowerCase();
+      // Shipped/Delivered order state validation
+      const isShipped = status === "shipped" || status === "delivered";
+
+      if (isShipped) {
+        const itemsList = order.items || order.orderItems || order.products || [];
+        itemsList.forEach((item) => {
+          const prodId = item.product?._id || item.product || item._id;
+          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+          if (prodId) {
+            map[prodId] = (map[prodId] || 0) + qty;
+          }
+        });
+      }
+    });
+    return map;
+  }, [orders]);
+
+  // Group Products by Category with Actual Shipped Stock Deduction
   const categoriesWithStock = useMemo(() => {
     const categoryMap = {};
 
@@ -89,9 +112,11 @@ const AdminCategories = () => {
         catName = prod.category.name.trim();
       }
 
-      const stockVal = Number(
+      const initialStock = Number(
         prod.stock ?? prod.countInStock ?? prod.quantity ?? 0
       );
+      const soldQty = shippedUnitsMap[prod._id] || 0;
+      const netRemainingStock = Math.max(0, initialStock - soldQty);
 
       if (!categoryMap[catName]) {
         categoryMap[catName] = {
@@ -102,68 +127,68 @@ const AdminCategories = () => {
       }
 
       categoryMap[catName].productCount += 1;
-      categoryMap[catName].stockLeft += stockVal;
+      categoryMap[catName].stockLeft += netRemainingStock;
     });
 
     return Object.values(categoryMap);
-  }, [products]);
+  }, [products, shippedUnitsMap]);
 
-  // Monthly Stats Calculation
+  // Monthly Product Sales Stats for PDF Report
+  const productMonthlySales = useMemo(() => {
+    const prodStatsMap = {};
+    const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
+
+    orders.forEach((order) => {
+      const status = (order.status || "").toLowerCase();
+      const isValid = status === "shipped" || status === "delivered" || order.isPaid;
+
+      const rawDate = order.createdAt || order.date || order.orderDate || order.updatedAt;
+      let orderMonth = "";
+      if (rawDate) {
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          orderMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        }
+      }
+
+      if (isValid && (!orderMonth || orderMonth === filterMonth)) {
+        const itemsList = order.items || order.orderItems || order.products || [];
+        itemsList.forEach((item) => {
+          const name = item.name || item.product?.name || "Standard Item";
+          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+          const price = Number(item.price ?? item.unitPrice ?? item.product?.price ?? 0);
+          const cost = Number(item.costPrice ?? item.product?.costPrice ?? price * 0.7);
+
+          if (!prodStatsMap[name]) {
+            prodStatsMap[name] = {
+              name,
+              unitsSold: 0,
+              costPrice: cost,
+              revenue: 0,
+              profit: 0,
+            };
+          }
+
+          prodStatsMap[name].unitsSold += qty;
+          prodStatsMap[name].revenue += price * qty;
+          prodStatsMap[name].profit += (price - cost) * qty;
+        });
+      }
+    });
+
+    return Object.values(prodStatsMap).sort((a, b) => b.unitsSold - a.unitsSold);
+  }, [orders, selectedMonth]);
+
+  // Overall Monthly Analytics Calculation
   const monthlyStats = useMemo(() => {
     let totalUnitsSold = 0;
     let totalRevenue = 0;
     let totalCost = 0;
 
-    const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
-
-    orders.forEach((order) => {
-      const status = (order.status || "").toLowerCase();
-      const isValidStatus =
-        status === "shipped" ||
-        status === "delivered" ||
-        order.isPaid ||
-        !order.status;
-
-      const rawDate =
-        order.createdAt || order.date || order.orderDate || order.updatedAt;
-      let orderMonth = "";
-
-      if (rawDate) {
-        const d = new Date(rawDate);
-        if (!isNaN(d.getTime())) {
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, "0");
-          orderMonth = `${year}-${month}`;
-        }
-      }
-
-      if (isValidStatus && (!orderMonth || orderMonth === filterMonth)) {
-        const itemsList =
-          order.items || order.orderItems || order.products || [];
-
-        if (Array.isArray(itemsList) && itemsList.length > 0) {
-          itemsList.forEach((item) => {
-            const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
-            const price = Number(
-              item.price ?? item.unitPrice ?? item.product?.price ?? 0
-            );
-            const cost = Number(
-              item.costPrice ?? item.product?.costPrice ?? price * 0.7
-            );
-
-            totalUnitsSold += qty;
-            totalRevenue += price * qty;
-            totalCost += cost * qty;
-          });
-        } else {
-          const orderTotal = Number(
-            order.totalAmount || order.totalPrice || order.total || 0
-          );
-          totalRevenue += orderTotal;
-          totalCost += orderTotal * 0.7;
-          totalUnitsSold += 1;
-        }
-      }
+    productMonthlySales.forEach((p) => {
+      totalUnitsSold += p.unitsSold;
+      totalRevenue += p.revenue;
+      totalCost += p.revenue - p.profit;
     });
 
     const netProfit = totalRevenue - totalCost;
@@ -171,68 +196,97 @@ const AdminCategories = () => {
       totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
 
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
-  }, [orders, selectedMonth]);
+  }, [productMonthlySales]);
 
-  // Clean Direct PDF Generation (No CSS/HTML2Canvas errors)
+  // Optimized PDF Generator Function
   const handleDownloadPDF = () => {
     try {
       setDownloadingPdf(true);
       const doc = new jsPDF("p", "pt", "a4");
 
-      // Title & Header
-      doc.setFontSize(18);
+      // Header Gradient Box background
+      doc.setFillColor(79, 70, 229);
+      doc.rect(0, 0, 595, 80, "F");
+
+      // Company Branding Text
+      doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
-      doc.setTextColor(30, 41, 59);
-      doc.text("ADMIN STORE REPORT", 40, 45);
+      doc.setTextColor(255, 255, 255);
+      doc.text("PEDWAL LIFE CREATION", 40, 42);
 
-      doc.setFontSize(10);
+      doc.setFontSize(9);
       doc.setFont("helvetica", "normal");
-      doc.setTextColor(100, 116, 139);
-      doc.text(`Monthly Report Period: ${selectedMonth}`, 40, 62);
-      doc.text(`Generated On: ${new Date().toLocaleDateString()}`, 40, 76);
+      doc.text("Official Inventory & Sales Analysis Report", 40, 58);
 
-      // Key Analytics Summary Box
-      autoTable(doc, {
-        startY: 90,
-        head: [["Metric", "Value"]],
-        body: [
-          ["Units Sold", `${monthlyStats.totalUnitsSold} Pcs`],
-          ["Monthly Revenue", `Rs. ${monthlyStats.totalRevenue.toLocaleString("en-IN")}`],
-          ["Net Profit", `Rs. ${monthlyStats.netProfit.toLocaleString("en-IN")}`],
-          ["Profit Margin", `${monthlyStats.profitMargin}%`],
-        ],
-        theme: "striped",
-        headStyles: { fillColor: [79, 70, 229] },
-        styles: { fontSize: 10, cellPadding: 6 },
+      // Business Details Info Panel
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(9);
+      
+      const currentTime = new Date().toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
       });
 
-      // Categories Breakdown Table
-      doc.setFontSize(14);
+      doc.text(`GSTIN: 07AAAAA0000A1Z5`, 40, 105);
+      doc.text(`Mobile: +91 9876543210`, 40, 118);
+      doc.text(`Email: support@pedwallife.com`, 40, 131);
+
+      doc.text(`Report Month: ${selectedMonth}`, 380, 105);
+      doc.text(`Generated On: ${currentTime}`, 380, 118);
+      doc.text(`Address: Main Market, New Delhi, India`, 380, 131);
+
+      // Horizontal Line Divider
+      doc.setDrawColor(226, 232, 240);
+      doc.line(40, 145, 555, 145);
+
+      // Top Selling / Sold Items Table
+      doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 41, 59);
-      doc.text("Category Breakdown", 40, doc.lastAutoTable.finalY + 30);
+      doc.text("Monthly Sold Products Breakdown", 40, 165);
 
-      const tableData = filteredCategories.map((cat, index) => [
+      const tableData = productMonthlySales.map((item, index) => [
         index + 1,
-        cat.name,
-        `${cat.productCount} items`,
-        `${cat.stockLeft} in stock`,
-        "Active",
+        item.name,
+        `${item.unitsSold} Pcs`,
+        `Rs. ${item.costPrice.toLocaleString("en-IN")}`,
+        `Rs. ${item.revenue.toLocaleString("en-IN")}`,
+        `Rs. ${item.profit.toLocaleString("en-IN")}`,
       ]);
 
       autoTable(doc, {
-        startY: doc.lastAutoTable.finalY + 40,
-        head: [["S.No", "Category Name", "Product Count", "Stock Left", "Status"]],
-        body: tableData,
-        theme: "grid",
-        headStyles: { fillColor: [30, 41, 59] },
-        styles: { fontSize: 10, cellPadding: 6 },
+        startY: 175,
+        head: [["S.No", "Product Name", "Units Sold", "Cost Price", "Revenue", "Profit"]],
+        body: tableData.length > 0 ? tableData : [["-", "No Sales Found This Month", "-", "-", "-", "-"]],
+        theme: "striped",
+        headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
+        styles: { fontSize: 9, cellPadding: 5 },
       });
 
-      doc.save(`Category_Sales_Report_${selectedMonth}.pdf`);
+      // Overall Summary Section
+      const finalY = doc.lastAutoTable.finalY + 25;
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.text("Monthly Summary Overview", 40, finalY);
+
+      autoTable(doc, {
+        startY: finalY + 10,
+        head: [["Total Units Sold", "Total Revenue", "Net Profit", "Profit Margin"]],
+        body: [[
+          `${monthlyStats.totalUnitsSold} Pcs`,
+          `Rs. ${monthlyStats.totalRevenue.toLocaleString("en-IN")}`,
+          `Rs. ${monthlyStats.netProfit.toLocaleString("en-IN")}`,
+          `${monthlyStats.profitMargin}%`
+        ]],
+        theme: "grid",
+        headStyles: { fillColor: [30, 41, 59] },
+        styles: { fontSize: 9, cellPadding: 6, halign: "center" },
+      });
+
+      doc.save(`Sales_Report_${selectedMonth}.pdf`);
     } catch (err) {
       console.error("PDF Export Error:", err);
-      alert("PDF Generate karne me problem aayi.");
+      alert("PDF generate karne mein problem aayi.");
     } finally {
       setDownloadingPdf(false);
     }
@@ -245,6 +299,10 @@ const AdminCategories = () => {
       cat.name.toLowerCase().includes(q)
     );
   }, [categoriesWithStock, search]);
+
+  const displayedCategories = useMemo(() => {
+    return filteredCategories.slice(0, visibleCount);
+  }, [filteredCategories, visibleCount]);
 
   if (loading) {
     return (
@@ -314,7 +372,7 @@ const AdminCategories = () => {
           </div>
         )}
 
-        {/* Search & Stats Header */}
+        {/* Search & Filter Header */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:w-80">
             <Search
@@ -325,7 +383,10 @@ const AdminCategories = () => {
               type="text"
               placeholder="Search category name..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setVisibleCount(6);
+              }}
               className="w-full pl-10 pr-4 py-2 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
             />
           </div>
@@ -382,17 +443,17 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* Categories Grid List */}
+        {/* Categories Grid List (Initially Max 6 Cards) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredCategories.length === 0 ? (
+          {displayedCategories.length === 0 ? (
             <div className="col-span-full bg-white p-8 rounded-2xl text-center text-gray-400 font-medium border border-gray-200">
               No categories found matching "{search}".
             </div>
           ) : (
-            filteredCategories.map((cat, idx) => (
+            displayedCategories.map((cat, idx) => (
               <div
                 key={idx}
-                className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm"
+                className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm hover:shadow-md transition"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2">
@@ -415,8 +476,8 @@ const AdminCategories = () => {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-400 font-medium">
-                      Stock Left
+                    <p className="text-xs text-gray-400 font-medium flex items-center justify-end gap-1">
+                      <Package size={12} /> Remaining Stock
                     </p>
                     <span className="font-bold text-sm text-emerald-600">
                       {cat.stockLeft} in stock
@@ -427,6 +488,19 @@ const AdminCategories = () => {
             ))
           )}
         </div>
+
+        {/* Load More Button */}
+        {visibleCount < filteredCategories.length && (
+          <div className="mt-8 text-center">
+            <button
+              onClick={() => setVisibleCount((prev) => prev + 6)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-white border border-gray-300 text-sm font-semibold text-gray-700 hover:bg-gray-100 shadow-sm transition"
+            >
+              <span>Load More</span>
+              <ChevronDown size={16} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
