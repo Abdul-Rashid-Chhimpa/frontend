@@ -1,5 +1,5 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useContext, useEffect, useState, useRef } from "react";
+import { useContext, useEffect, useState, useRef, useMemo } from "react";
 import { Package, ArrowLeft, ShoppingCart } from "lucide-react";
 import { CartContext } from "../Components/Context";
 import axios from "axios";
@@ -15,66 +15,119 @@ const ProductDetails = () => {
   const [error, setError] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [isPaused, setIsPaused] = useState(false); // Auto-slide pause state
+  const [isPaused, setIsPaused] = useState(false);
 
-  // Scroll container + active card refs
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
 
   // ================= FETCH PRODUCT =================
   useEffect(() => {
-    if (product) {
-      setSelectedImage(0);
-      setQuantity(1);
+    let isMounted = true;
+
+    // Reset view states when product ID changes
+    setSelectedImage(0);
+    setQuantity(1);
+
+    if (location.state?.product) {
+      setProduct(location.state.product);
+      setLoading(false);
       return;
     }
 
     const fetchProduct = async () => {
       try {
         setLoading(true);
+        setError(false);
+
+        // Fetch single product
         try {
           const { data } = await axios.get(
             `https://backend-3-axez.onrender.com/api/products/${id}`
           );
-          if (data.success && data.product) {
+          if (isMounted && data.success && data.product) {
             setProduct(data.product);
-            setSelectedImage(0);
-            setQuantity(1);
+            setLoading(false);
             return;
           }
-        } catch (e) {}
+        } catch (e) {
+          // Fallback to bulk list search if direct ID fails
+        }
 
+        // Fallback fetch
         const res = await axios.get(
           "https://backend-3-axez.onrender.com/api/products"
         );
+        if (!isMounted) return;
+
         const found = res.data.products?.find((p) => p._id === id);
         if (found) {
           setProduct(found);
-          setSelectedImage(0);
-          setQuantity(1);
         } else {
           setError(true);
         }
       } catch (err) {
-        console.error(err);
-        setError(true);
+        if (isMounted) setError(true);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchProduct();
-  }, [id, product]);
 
-  // ================= AUTO SLIDE / RANDOM IMAGE CHANGING =================
-  const imagesList = product?.images?.length > 0 ? product.images : ["/no-image.png"];
+    return () => {
+      isMounted = false;
+    };
+  }, [id]); // Removed 'product' dependency to prevent re-fetch loops
+
+  // ================= PRICING TIERS (Memoized) =================
+  const pricingTiers = useMemo(() => {
+    if (!product) return [{ minQty: 1, price: 0 }];
+    
+    if (product.pricing && product.pricing.length > 0) {
+      return [...product.pricing]
+        .map((tier) => ({
+          minQty: Number(tier.quantity || tier.minQty || 1),
+          price: Number(tier.price) || 0,
+        }))
+        .sort((a, b) => a.minQty - b.minQty);
+    }
+
+    return [
+      {
+        minQty: 1,
+        price: Number(product.price) || 0,
+      },
+    ];
+  }, [product]);
+
+  // Pricing & Stock values
+  const maxStock = product?.stock ?? 1;
+
+  const unitPrice = useMemo(() => {
+    let applicablePrice = pricingTiers[0]?.price || 0;
+    for (let i = 0; i < pricingTiers.length; i++) {
+      if (quantity >= pricingTiers[i].minQty) {
+        applicablePrice = pricingTiers[i].price;
+      } else {
+        break;
+      }
+    }
+    return applicablePrice;
+  }, [quantity, pricingTiers]);
+
+  const totalPrice = unitPrice * quantity;
+
+  // ================= AUTO SLIDE =================
+  const imagesList = useMemo(() => {
+    return product?.images?.length > 0 ? product.images : ["/no-image.png"];
+  }, [product]);
 
   useEffect(() => {
     if (imagesList.length <= 1 || isPaused) return;
 
     const interval = setInterval(() => {
       setSelectedImage((prevIndex) => (prevIndex + 1) % imagesList.length);
-    }, 3500); // Har 3.5 seconds mein automatic image slide hoga
+    }, 3500);
 
     return () => clearInterval(interval);
   }, [imagesList.length, isPaused]);
@@ -90,7 +143,35 @@ const ProductDetails = () => {
     }
   }, [quantity]);
 
-  // ================= LOADING =================
+  // ================= HANDLERS =================
+  const handleQuantityChange = (value) => {
+    let qty = Number(value);
+    if (isNaN(qty) || qty < 1) qty = 1;
+    if (qty > maxStock) qty = maxStock;
+    setQuantity(qty);
+  };
+
+  const handleAddToCart = () => {
+    if (!product) return;
+    addToCart({
+      ...product,
+      quantity: quantity,
+      price: unitPrice,
+      selectedOption: {
+        quantity: quantity,
+        price: unitPrice,
+        label: `${quantity} units`,
+      },
+    });
+  };
+
+  const quickQtys = useMemo(() => {
+    return [1, 5, 10, 25, 50, 100, 250, 500, maxStock].filter(
+      (q, i, arr) => q <= maxStock && arr.indexOf(q) === i
+    );
+  }, [maxStock]);
+
+  // ================= LOADING STATE =================
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
@@ -104,7 +185,7 @@ const ProductDetails = () => {
     );
   }
 
-  // ================= NOT FOUND =================
+  // ================= NOT FOUND STATE =================
   if (error || !product) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
@@ -126,68 +207,9 @@ const ProductDetails = () => {
     );
   }
 
-  // ================= PRICING TIERS (sorted) =================
-  const pricingTiers =
-    product.pricing && product.pricing.length > 0
-      ? [...product.pricing]
-          .map((tier) => ({
-            minQty: Number(tier.quantity || tier.minQty || 1),
-            price: Number(tier.price) || 0,
-          }))
-          .sort((a, b) => a.minQty - b.minQty)
-      : [
-          {
-            minQty: 1,
-            price: Number(product.price) || 0,
-          },
-        ];
-
-  // ================= AUTO PRICE BASED ON QUANTITY =================
-  const getUnitPrice = (qty) => {
-    let applicablePrice = pricingTiers[0].price;
-    for (let i = 0; i < pricingTiers.length; i++) {
-      if (qty >= pricingTiers[i].minQty) {
-        applicablePrice = pricingTiers[i].price;
-      } else {
-        break;
-      }
-    }
-    return applicablePrice;
-  };
-
-  const unitPrice = getUnitPrice(quantity);
-  const totalPrice = unitPrice * quantity;
-  const maxStock = product.stock || 1;
-
-  // ================= HANDLERS =================
-  const handleQuantityChange = (value) => {
-    let qty = Number(value);
-    if (isNaN(qty) || qty < 1) qty = 1;
-    if (qty > maxStock) qty = maxStock;
-    setQuantity(qty);
-  };
-
-  const handleAddToCart = () => {
-    addToCart({
-      ...product,
-      quantity: quantity,
-      price: unitPrice,
-      selectedOption: {
-        quantity: quantity,
-        price: unitPrice,
-        label: `${quantity} units`,
-      },
-    });
-  };
-
-  const quickQtys = [1, 5, 10, 25, 50, 100, 250, 500, maxStock].filter(
-    (q, i, arr) => q <= maxStock && arr.indexOf(q) === i
-  );
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
       <div className="max-w-6xl mx-auto">
-        {/* Back Button */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium mb-4 sm:mb-6 transition text-sm sm:text-base"
@@ -198,13 +220,12 @@ const ProductDetails = () => {
 
         <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-            {/* ================= LEFT - IMAGE GALLERY ================= */}
-            <div 
+            {/* LEFT - GALLERY */}
+            <div
               className="p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100"
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
             >
-              {/* Main Image Box (Padding removed & object-contain tuned) */}
               <div className="relative bg-white rounded-xl sm:rounded-2xl border border-gray-100 overflow-hidden mb-4 sm:mb-5 flex items-center justify-center h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[460px] p-1">
                 <img
                   src={imagesList[selectedImage]}
@@ -221,16 +242,12 @@ const ProductDetails = () => {
                 )}
               </div>
 
-              {/* Thumbnails (Hover Effects & Ring Shadows Removed) */}
               {imagesList.length > 1 && (
                 <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {imagesList.map((img, index) => (
                     <button
                       key={index}
-                      onClick={() => {
-                        setSelectedImage(index);
-                        setIsPaused(true); // User click par auto-slide temporary pause hoga
-                      }}
+                      onClick={() => setSelectedImage(index)}
                       className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl overflow-hidden border transition-all duration-150 ${
                         selectedImage === index
                           ? "border-indigo-600 opacity-100"
@@ -251,14 +268,13 @@ const ProductDetails = () => {
               )}
             </div>
 
-            {/* ================= RIGHT - DETAILS ================= */}
+            {/* RIGHT - DETAILS */}
             <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col">
               <div className="flex-1">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-3 sm:mb-4 leading-snug sm:leading-tight">
                   {product.name}
                 </h1>
 
-                {/* Basic Info */}
                 <div className="space-y-1.5 sm:space-y-2 text-gray-600 mb-5 sm:mb-6 text-sm sm:text-base">
                   <p>
                     <span className="font-semibold text-gray-800">Brand:</span>{" "}
@@ -288,7 +304,7 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* ========== PRICING TIERS ========== */}
+                {/* PRICING TIERS */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Price Chart
@@ -338,7 +354,7 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* ========== QUANTITY SELECTOR ========== */}
+                {/* QUANTITY SELECTOR */}
                 <div className="mb-5 sm:mb-6">
                   <div className="flex items-center justify-between mb-2.5 sm:mb-3">
                     <p className="text-sm font-medium text-gray-700">
@@ -349,7 +365,6 @@ const ProductDetails = () => {
                     </span>
                   </div>
 
-                  {/* Number Input */}
                   <div className="mb-3 sm:mb-4">
                     <input
                       type="number"
@@ -365,7 +380,6 @@ const ProductDetails = () => {
                     </p>
                   </div>
 
-                  {/* Slider */}
                   <div className="mb-3 sm:mb-4">
                     <input
                       type="range"
@@ -381,7 +395,6 @@ const ProductDetails = () => {
                     </div>
                   </div>
 
-                  {/* Quick Select Buttons */}
                   <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {quickQtys.map((q) => (
                       <button
@@ -399,7 +412,7 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* ========== TOTAL PRICE ========== */}
+                {/* TOTAL PRICE */}
                 <div className="mb-6 sm:mb-8 p-3.5 sm:p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl sm:rounded-2xl border border-indigo-100">
                   <div className="flex justify-between items-center gap-3">
                     <div className="min-w-0">
@@ -416,7 +429,7 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* Description */}
+                {/* DESCRIPTION */}
                 {product.description && (
                   <div className="mb-5 sm:mb-6">
                     <h3 className="font-semibold text-gray-800 mb-1.5 sm:mb-2 text-base sm:text-lg">
@@ -429,7 +442,7 @@ const ProductDetails = () => {
                 )}
               </div>
 
-              {/* ========== ACTION BUTTONS ========== */}
+              {/* ACTION BUTTONS */}
               <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mt-auto pt-3 sm:pt-4">
                 <button
                   disabled={product.stock === 0}
@@ -450,36 +463,6 @@ const ProductDetails = () => {
           </div>
         </div>
       </div>
-
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-
-        .price-scroll::-webkit-scrollbar {
-          height: 6px;
-        }
-        .price-scroll::-webkit-scrollbar-track {
-          background: #f1f5f9;
-          border-radius: 10px;
-        }
-        .price-scroll::-webkit-scrollbar-thumb {
-          background: #c7d2fe;
-          border-radius: 10px;
-        }
-        .price-scroll::-webkit-scrollbar-thumb:hover {
-          background: #818cf8;
-        }
-
-        input[type=number]::-webkit-inner-spin-button,
-        input[type=number]::-webkit-outer-spin-button {
-          opacity: 1;
-        }
-      `}</style>
     </div>
   );
 };
