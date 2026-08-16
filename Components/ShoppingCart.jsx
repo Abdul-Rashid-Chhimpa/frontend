@@ -35,6 +35,7 @@ const ShoppingCart = () => {
     return cart.reduce((total, item) => total + Number(item.quantity || 1), 0);
   }, [cart]);
 
+  // 🔥 DYNAMIC SUBTOTAL CALCULATION
   const subTotal = useMemo(() => {
     return cart.reduce((total, item) => {
       const price = Number(item.price || 0);
@@ -43,8 +44,20 @@ const ShoppingCart = () => {
     }, 0);
   }, [cart]);
 
-  const gst = useMemo(() => Math.round(subTotal * 0.18), [subTotal]);
-  const grandTotal = useMemo(() => subTotal + gst, [subTotal, gst]);
+  // 🔥 DYNAMIC ITEM-LEVEL GST CALCULATION
+  const gst = useMemo(() => {
+    return cart.reduce((totalGst, item) => {
+      const price = Number(item.price || 0);
+      const qty = Number(item.quantity || 1);
+      // Agar backend product me gst dynamic h to wo lega, warna default 18%
+      const gstRate = item.gst !== undefined && item.gst !== "" ? Number(item.gst) : 18;
+      const itemSubtotal = price * qty;
+      const itemGst = (itemSubtotal * gstRate) / 100;
+      return totalGst + itemGst;
+    }, 0);
+  }, [cart]);
+
+  const grandTotal = useMemo(() => Math.round(subTotal + gst), [subTotal, gst]);
 
   const getItemId = (item) => item._id || item.id;
 
@@ -94,19 +107,27 @@ const ShoppingCart = () => {
         customerName: user.name,
         customerEmail: user.email || "N/A",
         customerPhone: user.phone || "N/A",
-        items: cart.map((item) => ({
-          id: String(getItemId(item)),
-          title: item.name || item.title,
-          brand: item.brand || "N/A",
-          image: getImage(item),
-          price: Number(item.price),
-          quantity: Number(item.quantity || 1),
-          lineTotal: Number(item.price || 0) * Number(item.quantity || 1),
-          selectedOption: item.selectedOption || null,
-        })),
+        items: cart.map((item) => {
+          const gstRate = item.gst !== undefined && item.gst !== "" ? Number(item.gst) : 18;
+          const lineTotal = Number(item.price || 0) * Number(item.quantity || 1);
+          const itemGst = (lineTotal * gstRate) / 100;
+
+          return {
+            id: String(getItemId(item)),
+            title: item.name || item.title,
+            brand: item.brand || "N/A",
+            image: getImage(item),
+            price: Number(item.price),
+            quantity: Number(item.quantity || 1),
+            gstRate: gstRate, // 🔥 Dynamic GST Rate saved in Order Item
+            gstAmount: Math.round(itemGst),
+            lineTotal: lineTotal,
+            selectedOption: item.selectedOption || null,
+          };
+        }),
         totalItems,
         subTotal,
-        gst,
+        gst: Math.round(gst), // Dynamic GST Total
         totalAmount: Number(grandTotal),
       };
 
@@ -273,6 +294,7 @@ const ShoppingCart = () => {
                   <th className="p-3">Brand</th>
                   <th className="p-3 text-center">Qty</th>
                   <th className="p-3 text-right">Price</th>
+                  <th className="p-3 text-center">GST %</th>
                   <th className="p-3 text-right rounded-r-lg">Total</th>
                 </tr>
               </thead>
@@ -286,6 +308,9 @@ const ShoppingCart = () => {
                     <td className="p-3 text-center">{item.quantity}</td>
                     <td className="p-3 text-right">
                       ₹{item.price.toLocaleString()}
+                    </td>
+                    <td className="p-3 text-center text-xs font-semibold text-indigo-600">
+                      {item.gstRate}%
                     </td>
                     <td className="p-3 text-right font-semibold">
                       ₹{item.lineTotal.toLocaleString()}
@@ -304,7 +329,7 @@ const ShoppingCart = () => {
                 <span>₹{placedOrder.subTotal.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-xs text-gray-600">
-                <span>GST (18%)</span>
+                <span>GST Total</span>
                 <span>₹{placedOrder.gst.toLocaleString()}</span>
               </div>
               <div className="flex justify-between text-sm sm:text-base font-bold text-gray-900 border-t border-gray-200 pt-2">
@@ -388,6 +413,7 @@ const ShoppingCart = () => {
               const unitPrice = Number(item.price || 0);
               const qty = Number(item.quantity || 1);
               const lineTotal = unitPrice * qty;
+              const itemGstRate = item.gst !== undefined && item.gst !== "" ? Number(item.gst) : 18;
 
               return (
                 <div
@@ -417,10 +443,14 @@ const ShoppingCart = () => {
                       </p>
                     )}
 
-                    <div className="mt-2">
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
                       <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full">
                         <Package size={12} />
                         {optionLabel}
+                      </span>
+                      {/* 🔥 GST RATE TAG */}
+                      <span className="inline-flex items-center text-[11px] font-medium bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
+                        GST: {itemGstRate}%
                       </span>
                     </div>
 
@@ -494,10 +524,11 @@ const ShoppingCart = () => {
                   </span>
                 </div>
 
+                {/* 🔥 DYNAMIC GST CALCULATION DISPLAY */}
                 <div className="flex justify-between text-gray-600">
-                  <span>GST (18%)</span>
+                  <span>Estimated GST</span>
                   <span className="font-semibold text-gray-900">
-                    ₹{gst.toLocaleString()}
+                    ₹{Math.round(gst).toLocaleString()}
                   </span>
                 </div>
               </div>
