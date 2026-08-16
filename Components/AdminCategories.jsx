@@ -13,7 +13,6 @@ import {
   TrendingUp,
   Download,
   Calendar,
-  IndianRupee,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
@@ -28,9 +27,9 @@ const AdminCategories = () => {
     new Date().toISOString().slice(0, 7)
   );
 
-  const reportRef = useRef();
+  const reportRef = useRef(null);
 
-  // 1. Fetch Products & Orders Data
+  // Fetch Products & Orders Data
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -41,21 +40,21 @@ const AdminCategories = () => {
         axios.get(`${API_BASE}/orders`).catch(() => ({ data: [] })),
       ]);
 
-      // Products setup
+      // Handle Products Data
       const prodData = prodRes.data;
-      if (prodData.success && Array.isArray(prodData.products)) {
+      if (prodData?.success && Array.isArray(prodData.products)) {
         setProducts(prodData.products);
       } else if (Array.isArray(prodData)) {
         setProducts(prodData);
-      } else if (prodData.data && Array.isArray(prodData.data)) {
+      } else if (Array.isArray(prodData?.data)) {
         setProducts(prodData.data);
       } else {
         setProducts([]);
       }
 
-      // Orders setup
+      // Handle Orders Data
       const oData = orderRes.data;
-      if (oData.success && Array.isArray(oData.orders)) {
+      if (oData?.success && Array.isArray(oData.orders)) {
         setOrders(oData.orders);
       } else if (Array.isArray(oData)) {
         setOrders(oData);
@@ -77,7 +76,7 @@ const AdminCategories = () => {
     fetchData();
   }, []);
 
-  // 2. Group Products by Category
+  // Group Products by Category
   const categoriesWithStock = useMemo(() => {
     const categoryMap = {};
 
@@ -108,20 +107,23 @@ const AdminCategories = () => {
     return Object.values(categoryMap);
   }, [products]);
 
-  // 3. Calculate Monthly Sales, Revenue & Profit Margin
+  // Calculate Monthly Sales & Profit
   const monthlyStats = useMemo(() => {
     let totalUnitsSold = 0;
     let totalRevenue = 0;
     let totalCost = 0;
 
     orders.forEach((order) => {
-      const orderDate = new Date(order.createdAt || order.date).toISOString().slice(0, 7);
+      const dateStr = order.createdAt || order.date;
+      if (!dateStr) return;
+      
+      const orderDate = new Date(dateStr).toISOString().slice(0, 7);
       if (orderDate === selectedMonth) {
         const items = order.orderItems || order.items || [];
         items.forEach((item) => {
           const qty = Number(item.quantity || item.qty || 1);
           const price = Number(item.price || item.product?.price || 0);
-          const cost = Number(item.costPrice || item.product?.costPrice || price * 0.7); // Fallback cost 70%
+          const cost = Number(item.costPrice || item.product?.costPrice || price * 0.7);
 
           totalUnitsSold += qty;
           totalRevenue += price * qty;
@@ -136,20 +138,24 @@ const AdminCategories = () => {
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
   }, [orders, selectedMonth]);
 
-  // 4. Download PDF Function
+  // PDF Export
   const handleDownloadPDF = async () => {
     const element = reportRef.current;
     if (!element) return;
 
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
+    try {
+      const canvas = await html2canvas(element, { scale: 2 });
+      const imgData = canvas.toDataURL("image/png");
 
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
 
-    pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`Sales_Report_${selectedMonth}.pdf`);
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`Sales_Report_${selectedMonth}.pdf`);
+    } catch (error) {
+      console.error("PDF Download Error:", error);
+    }
   };
 
   const filteredCategories = useMemo(() => {
@@ -170,7 +176,7 @@ const AdminCategories = () => {
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-4 text-gray-600 font-medium text-sm">
-            Fetching analytics & stock data...
+            Loading Inventory & Sales Data...
           </p>
         </div>
       </div>
@@ -180,7 +186,7 @@ const AdminCategories = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-3 sm:p-4 md:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Top Header */}
+        {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
@@ -188,10 +194,10 @@ const AdminCategories = () => {
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800">
-                Categories, Stock & Sales Report
+                Categories & Monthly Reports
               </h1>
               <p className="text-xs sm:text-sm text-gray-500">
-                Live Inventory Management & Monthly Profit Margins
+                Track Stock, Monthly Sales & Generate Profit PDF Reports
               </p>
             </div>
           </div>
@@ -214,9 +220,16 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* PDF printable report area */}
+        {message.text && (
+          <div className="mb-5 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-700">
+            <AlertTriangle size={18} />
+            {message.text}
+          </div>
+        )}
+
+        {/* PDF Container */}
         <div ref={reportRef} className="p-2 bg-transparent rounded-2xl">
-          {/* Logo & Report Header for PDF */}
+          {/* Logo Section for Report */}
           <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-6 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl">
@@ -224,7 +237,7 @@ const AdminCategories = () => {
               </div>
               <div>
                 <h2 className="font-extrabold text-gray-800 text-lg">ADMIN STORE REPORT</h2>
-                <p className="text-xs text-gray-400">Monthly Performance & Profit Margins</p>
+                <p className="text-xs text-gray-400">Monthly Profit & Inventory Analytics</p>
               </div>
             </div>
 
@@ -239,7 +252,7 @@ const AdminCategories = () => {
             </div>
           </div>
 
-          {/* Monthly Sales & Profit Analytics Card */}
+          {/* Monthly Sales Cards */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
             <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
               <p className="text-xs text-gray-500 uppercase font-medium">Units Sold ({selectedMonth})</p>
@@ -269,29 +282,7 @@ const AdminCategories = () => {
             </div>
           </div>
 
-          {/* Inventory Stats */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-5 sm:mb-6">
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase font-medium">Categories Found</p>
-              <p className="text-2xl font-extrabold text-gray-800 mt-1">
-                {categoriesWithStock.length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-              <p className="text-xs text-gray-500 uppercase font-medium">Total Products</p>
-              <p className="text-2xl font-extrabold text-purple-600 mt-1">
-                {products.length}
-              </p>
-            </div>
-            <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm col-span-2 sm:col-span-1">
-              <p className="text-xs text-gray-500 uppercase font-medium">Total Items Stock</p>
-              <p className="text-2xl font-extrabold text-indigo-600 mt-1">
-                {totalStockInInventory}
-              </p>
-            </div>
-          </div>
-
-          {/* Categories Breakdown */}
+          {/* Categories Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCategories.map((cat, idx) => (
               <div
