@@ -182,7 +182,7 @@ const AddProduct = () => {
     } catch (err) {
       console.log(err);
       alert(err.response?.data?.message || "Product Add Failed");
-    } font-medium {
+    } {
       setLoading(false);
     }
   };
