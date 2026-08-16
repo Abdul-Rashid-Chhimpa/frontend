@@ -8,6 +8,8 @@ import {
   CheckCircle,
   Upload,
   X,
+  Ruler,
+  Weight,
 } from "lucide-react";
 
 const AddProduct = () => {
@@ -24,7 +26,9 @@ const AddProduct = () => {
     category: "",
     stock: "",
     description: "",
-    variantGroup: "", // ← NEW
+    variantGroup: "",
+    size: "", // ← OPTIONAL
+    weight: "", // ← OPTIONAL
   });
 
   const [priceList, setPriceList] = useState([{ quantity: "", price: "" }]);
@@ -120,7 +124,9 @@ const AddProduct = () => {
       formData.append("material", product.material);
       formData.append("stock", product.stock);
       formData.append("description", product.description);
-      formData.append("variantGroup", product.variantGroup || ""); // ← NEW
+      formData.append("variantGroup", product.variantGroup || "");
+      formData.append("size", product.size || ""); // ← OPTIONAL
+      formData.append("weight", product.weight || ""); // ← OPTIONAL
       formData.append("pricing", JSON.stringify(validPricing));
 
       const res = await axios.post(
@@ -143,6 +149,8 @@ const AddProduct = () => {
           stock: "",
           description: "",
           variantGroup: "",
+          size: "",
+          weight: "",
         });
         setPriceList([{ quantity: "", price: "" }]);
         setTimeout(() => setSuccess(false), 3000);
@@ -150,7 +158,7 @@ const AddProduct = () => {
     } catch (err) {
       console.log(err);
       alert(err.response?.data?.message || "Product Add Failed");
-    } finally {
+    } font-medium finally {
       setLoading(false);
     }
   };
@@ -292,7 +300,39 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* ========== VARIANT GROUP (NEW) ========== */}
+            {/* ========== SIZE & WEIGHT (OPTIONAL) ========== */}
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                Size & Weight <span className="text-xs font-normal text-gray-500">(Optional)</span>
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="size"
+                    value={product.size}
+                    onChange={handleChange}
+                    placeholder="Size (e.g. 10 inch, XL, 250mm)"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pl-10 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                  />
+                  <Ruler size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="weight"
+                    value={product.weight}
+                    onChange={handleChange}
+                    placeholder="Weight (e.g. 500g, 1.5 kg)"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pl-10 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                  />
+                  <Weight size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                </div>
+              </div>
+            </div>
+
+            {/* ========== VARIANT GROUP ========== */}
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
                 Variant Group (Optional)
