@@ -13,6 +13,8 @@ import {
   Percent,
   Truck,
   CreditCard,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 
 const GetAllProducts = () => {
@@ -24,7 +26,6 @@ const GetAllProducts = () => {
 
   const API = "https://backend-3-axez.onrender.com/api/products";
 
-  // Available payment method options
   const AVAILABLE_PAYMENT_METHODS = [
     "Cash on Delivery",
     "UPI / Online Payment",
@@ -201,7 +202,6 @@ const GetAllProducts = () => {
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(formattedPricing));
 
-      // Added Delivery and Payment details to payload
       formData.append("deliveryCharge", Number(editProduct.deliveryCharge) || 0);
       formData.append("deliveryTime", editProduct.deliveryTime || "");
       formData.append(
@@ -234,7 +234,7 @@ const GetAllProducts = () => {
     } catch (error) {
       console.log(error);
       alert(error.response?.data?.message || "Update Failed");
-    } finally {
+    } font-medium
       setUpdating(false);
     }
   };
@@ -374,19 +374,40 @@ const GetAllProducts = () => {
                       </p>
                     </div>
 
-                    {/* Delivery & Payment Info Display */}
-                    <div className="mt-3 pt-3 border-t border-gray-100 text-xs text-gray-600 space-y-1">
-                      <p className="flex items-center gap-1.5 font-medium text-gray-700">
-                        <Truck size={14} className="text-indigo-500" />
-                        Delivery: {product.deliveryCharge ? `₹${product.deliveryCharge}` : "Free"}{" "}
-                        {product.deliveryTime && `(${product.deliveryTime})`}
-                      </p>
-                      {product.paymentMethods?.length > 0 && (
-                        <p className="flex items-center gap-1.5 text-gray-500">
-                          <CreditCard size={14} className="text-emerald-500" />
-                          {product.paymentMethods.join(", ")}
-                        </p>
-                      )}
+                    {/* UPDATED: Delivery & Payment Details Always Visible */}
+                    <div className="mt-3 pt-3 border-t border-gray-100 text-xs space-y-2 bg-slate-50 p-2.5 rounded-xl">
+                      {/* Delivery Status & Fee */}
+                      <div className="flex items-start gap-1.5 text-gray-700">
+                        <Truck size={15} className="text-indigo-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold text-gray-900">Delivery: </span>
+                          {product.deliveryCharge === 0 || product.deliveryCharge === "0" ? (
+                            <span className="text-emerald-600 font-bold">Free Delivery</span>
+                          ) : product.deliveryCharge ? (
+                            <span className="font-medium text-gray-800">₹{product.deliveryCharge} Charge</span>
+                          ) : (
+                            <span className="text-gray-400 italic">Not Specified</span>
+                          )}
+                          {product.deliveryTime && (
+                            <span className="text-gray-500 font-normal"> ({product.deliveryTime})</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Payment Methods */}
+                      <div className="flex items-start gap-1.5 text-gray-700">
+                        <CreditCard size={15} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-semibold text-gray-900">Payment: </span>
+                          {product.paymentMethods && product.paymentMethods.length > 0 ? (
+                            <span className="text-gray-700 font-medium">
+                              {product.paymentMethods.join(", ")}
+                            </span>
+                          ) : (
+                            <span className="text-amber-600 italic font-medium">No methods specified</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
                     {matchingVarieties.length > 0 && (
