@@ -1,6 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import { PackagePlus, ImagePlus, Plus, Trash2, CheckCircle, Upload, X, Ruler, Weight, Percent } from "lucide-react";rom "lucide-react";
+import { PackagePlus, ImagePlus, Plus, Trash2, CheckCircle, Upload, X, Ruler, Weight, Percent } from "lucide-react";
 
 const AddProduct = () => {
   const [images, setImages] = useState([]);
