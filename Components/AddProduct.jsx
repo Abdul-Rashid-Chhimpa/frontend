@@ -163,7 +163,7 @@ const AddProduct = () => {
     } catch (err) {
       console.log(err);
       alert(err.response?.data?.message || "Product Add Failed");
-    } fontally {
+    } finally {
       setLoading(false);
     }
   };
