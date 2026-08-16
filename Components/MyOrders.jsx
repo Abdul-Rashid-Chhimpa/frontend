@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import toast from "react-hot-toast";
 import {
   Package,
   Hash,
@@ -10,12 +11,24 @@ import {
   XCircle,
   Calendar,
   ShoppingBag,
+  Download,
+  Trash2,
 } from "lucide-react";
 
 const MyOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState(null);
   const user = JSON.parse(localStorage.getItem("user"));
+
+  const companyDetails = {
+    name: "ApexStore Retail Pvt. Ltd.",
+    address: "123 Business Hub, Tech Park, Sector 62",
+    cityStateZip: "Noida, Uttar Pradesh - 201301",
+    gstin: "09AAACA123411ZP",
+    email: "support@apexstore.com",
+    phone: "+91 98765 43210",
+  };
 
   useEffect(() => {
     fetchOrders();
@@ -34,9 +47,154 @@ const MyOrders = () => {
       }
     } catch (error) {
       console.log(error);
+      toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
     }
+  };
+
+  // ORDER DELETE HANDLER
+  const handleDeleteOrder = async (orderId) => {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to permanently delete this order?"
+    );
+    if (!confirmDelete) return;
+
+    try {
+      setDeletingId(orderId);
+      const { data } = await axios.delete(
+        `https://backend-3-axez.onrender.com/api/orders/delete/${orderId}`
+      );
+
+      if (data.success || data.message) {
+        toast.success("Order deleted permanently");
+        setOrders((prev) => prev.filter((item) => item._id !== orderId));
+      } else {
+        toast.error(data.message || "Failed to delete order");
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(error.response?.data?.message || "Server Error: Unable to delete");
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  // INVOICE PRINT / DOWNLOAD PDF HANDLER
+  const handleDownloadInvoice = (order) => {
+    if (order.status !== "Delivered") {
+      toast.error("Invoice download is available only after order is Delivered!");
+      return;
+    }
+
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast.error("Popup blocked! Please allow popups to download invoice.");
+      return;
+    }
+
+    const itemsHtml = order.items
+      ?.map(
+        (item) => `
+        <tr>
+          <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.title}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₹${Number(item.price || 0).toLocaleString()}</td>
+          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">₹${(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString()}</td>
+        </tr>
+      `
+      )
+      .join("");
+
+    const orderDate = order.createdAt
+      ? new Date(order.createdAt).toLocaleDateString("en-IN", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })
+      : "N/A";
+
+    const subTotal = order.subTotal || order.totalAmount || 0;
+    const gst = order.gst || 0;
+    const grandTotal = order.totalAmount || 0;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Invoice #${order._id}</title>
+          <style>
+            body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 20px; color: #333; }
+            .invoice-box { max-width: 800px; margin: auto; border: 1px solid #eee; padding: 30px; border-radius: 10px; }
+            .flex-between { display: flex; justify-content: space-between; align-items: flex-start; }
+            .header-title { font-size: 24px; font-weight: bold; color: #4F46E5; margin: 0; }
+            .badge { background: #DEF7EC; color: #03543F; font-size: 12px; font-weight: bold; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
+            table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+            th { background: #F9FAFB; padding: 10px; text-align: left; font-size: 12px; text-transform: uppercase; color: #6B7280; }
+            .totals { width: 250px; margin-left: auto; margin-top: 20px; font-size: 14px; }
+            .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
+            .grand-total { font-size: 16px; font-weight: bold; border-top: 1px solid #ddd; padding-top: 8px; color: #059669; }
+          </style>
+        </head>
+        <body>
+          <div class="invoice-box">
+            <div class="flex-between">
+              <div>
+                <h2 class="header-title">${companyDetails.name}</h2>
+                <p style="font-size: 12px; color: #666; margin: 4px 0;">${companyDetails.address}</p>
+                <p style="font-size: 12px; color: #666; margin: 0;">${companyDetails.cityStateZip}</p>
+                <p style="font-size: 12px; color: #666; margin-top: 4px;">GSTIN: <strong>${companyDetails.gstin}</strong></p>
+              </div>
+              <div style="text-align: right;">
+                <span class="badge">TAX INVOICE</span>
+                <h3 style="font-size: 14px; margin: 8px 0 2px 0;">Invoice #${order._id}</h3>
+                <p style="font-size: 12px; color: #666; margin: 0;">Date: ${orderDate}</p>
+              </div>
+            </div>
+            
+            <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+
+            <div class="flex-between" style="font-size: 12px; background: #F9FAFB; padding: 12px; border-radius: 8px;">
+              <div>
+                <strong style="color: #9CA3AF; text-transform: uppercase;">Customer Info:</strong>
+                <p style="margin: 4px 0 0 0; font-weight: bold; font-size: 14px;">${user?.name || "Customer"}</p>
+                <p style="margin: 2px 0 0 0; color: #4B5563;">${user?.email || "N/A"}</p>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th style="text-align: center;">Qty</th>
+                  <th style="text-align: right;">Price</th>
+                  <th style="text-align: right;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsHtml}
+              </tbody>
+            </table>
+
+            <div class="totals">
+              <div><span>Subtotal:</span> <span>₹${Number(subTotal).toLocaleString()}</span></div>
+              <div><span>GST (18%):</span> <span>₹${Number(gst).toLocaleString()}</span></div>
+              <div class="grand-total"><span>Grand Total:</span> <span>₹${Number(grandTotal).toLocaleString()}</span></div>
+            </div>
+
+            <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #9CA3AF; border-top: 1px solid #eee; padding-top: 10px;">
+              Thank you for shopping with ${companyDetails.name}!
+            </div>
+          </div>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
   };
 
   const getStatusStyle = (status) => {
@@ -125,6 +283,7 @@ const MyOrders = () => {
           <div className="space-y-5 sm:space-y-6">
             {orders.map((order) => {
               const statusStyle = getStatusStyle(order.status);
+              const isDelivered = order.status === "Delivered";
 
               return (
                 <div
@@ -168,16 +327,28 @@ const MyOrders = () => {
                       </div>
 
                       {/* Status Badge */}
-                      <div
-                        className={`inline-flex items-center gap-1.5 self-start sm:self-center px-3 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
-                      >
-                        {statusStyle.icon}
-                        {order.status}
+                      <div className="flex items-center gap-2 self-start sm:self-center">
+                        <div
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
+                        >
+                          {statusStyle.icon}
+                          {order.status}
+                        </div>
+
+                        {/* Delete Order Button */}
+                        <button
+                          onClick={() => handleDeleteOrder(order._id)}
+                          disabled={deletingId === order._id}
+                          title="Delete Order Permanently"
+                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg transition disabled:opacity-50"
+                        >
+                          <Trash2 size={17} />
+                        </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Items */}
+                  {/* Items List */}
                   <div className="px-4 sm:px-6 py-4 space-y-3">
                     {order.items?.map((item, index) => (
                       <div
@@ -228,9 +399,9 @@ const MyOrders = () => {
                     ))}
                   </div>
 
-                  {/* Footer Summary */}
-                  {(order.subTotal || order.gst) && (
-                    <div className="px-4 sm:px-6 py-3 bg-gray-50 border-t border-gray-100 flex flex-wrap gap-4 text-xs sm:text-sm text-gray-600">
+                  {/* Footer Action Bar */}
+                  <div className="px-4 sm:px-6 py-3 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-gray-600">
+                    <div className="flex flex-wrap gap-4">
                       {order.subTotal && (
                         <span>
                           Subtotal:{" "}
@@ -247,12 +418,31 @@ const MyOrders = () => {
                           </strong>
                         </span>
                       )}
-                      <span className="ml-auto font-bold text-emerald-600">
+                      <span className="font-bold text-emerald-600">
                         Grand Total: ₹
                         {Number(order.totalAmount || 0).toLocaleString()}
                       </span>
                     </div>
-                  )}
+
+                    {/* Bill Download Button (Active only when Delivered) */}
+                    <button
+                      onClick={() => handleDownloadInvoice(order)}
+                      disabled={!isDelivered}
+                      title={
+                        isDelivered
+                          ? "Download Tax Invoice PDF"
+                          : "Invoice available after order delivery"
+                      }
+                      className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
+                        isDelivered
+                          ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow hover:shadow-md cursor-pointer"
+                          : "bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300"
+                      }`}
+                    >
+                      <Download size={15} />
+                      {isDelivered ? "Download Invoice" : "Bill (Locked)"}
+                    </button>
+                  </div>
                 </div>
               );
             })}
