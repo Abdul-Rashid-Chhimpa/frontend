@@ -1,8 +1,7 @@
-import { useContext, useMemo, useState, useRef } from "react";
+import { useContext, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
-import html2pdf from "html2pdf.js";
 import {
   ShoppingBag,
   Trash2,
@@ -10,7 +9,6 @@ import {
   Minus,
   ArrowLeft,
   Package,
-  Download,
   Printer,
   CheckCircle2,
 } from "lucide-react";
@@ -22,9 +20,7 @@ const ShoppingCart = () => {
     useContext(CartContext);
 
   const [loading, setLoading] = useState(false);
-  const [downloading, setDownloading] = useState(false);
   const [placedOrder, setPlacedOrder] = useState(null);
-  const invoiceRef = useRef();
 
   const companyDetails = {
     name: "ApexStore Retail Pvt. Ltd.",
@@ -72,34 +68,9 @@ const ShoppingCart = () => {
 
   const continueShopping = () => navigate("/");
 
-  // Dynamic PDF Download Fix
-  const downloadInvoicePDF = async () => {
-    const element = invoiceRef.current;
-    if (!element) return;
-
-    try {
-      setDownloading(true);
-      const opt = {
-        margin: [10, 10, 10, 10],
-        filename: `Invoice_${placedOrder?.orderId || "ApexStore"}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          allowTaint: true,
-        },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      };
-
-      await html2pdf().set(opt).from(element).save();
-      toast.success("Invoice Downloaded Successfully");
-    } catch (err) {
-      console.error("PDF Download Error:", err);
-      toast.error("Download failed. Try using Print option.");
-    } finally {
-      setDownloading(false);
-    }
+  // NATIVE PRINT / DOWNLOAD PDF HANDLER
+  const handlePrintOrDownload = () => {
+    window.print();
   };
 
   const checkoutHandler = async () => {
@@ -173,26 +144,41 @@ const ShoppingCart = () => {
   if (placedOrder) {
     return (
       <div className="min-h-screen bg-gray-100 py-6 px-3 sm:px-6">
+        {/* Print Styles CSS inject */}
+        <style>{`
+          @media print {
+            body * {
+              visibility: hidden;
+            }
+            #printable-invoice, #printable-invoice * {
+              visibility: visible;
+            }
+            #printable-invoice {
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+              box-shadow: none !important;
+              border: none !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+          }
+        `}</style>
+
         {/* Action Header */}
-        <div className="max-w-4xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="max-w-4xl mx-auto mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
           <div className="flex items-center gap-2 text-emerald-600 font-bold text-base sm:text-lg">
             <CheckCircle2 size={22} />
             Order Placed Successfully!
           </div>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <button
-              onClick={downloadInvoicePDF}
-              disabled={downloading}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition shadow"
+              onClick={handlePrintOrDownload}
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition shadow"
             >
-              <Download size={16} />
-              {downloading ? "Generating..." : "Download Invoice"}
-            </button>
-            <button
-              onClick={() => window.print()}
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-900 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold transition shadow"
-            >
-              <Printer size={16} /> Print
+              <Printer size={16} /> Save / Download PDF (Print)
             </button>
             <button
               onClick={continueShopping}
@@ -203,9 +189,9 @@ const ShoppingCart = () => {
           </div>
         </div>
 
-        {/* PRINTABLE/DOWNLOADABLE INVOICE CANVAS */}
+        {/* INVOICE CONTAINER */}
         <div
-          ref={invoiceRef}
+          id="printable-invoice"
           className="max-w-4xl mx-auto bg-white p-4 sm:p-8 rounded-2xl border border-gray-200 shadow-xl overflow-hidden"
         >
           {/* Company Branding & Invoice Info */}
@@ -278,8 +264,8 @@ const ShoppingCart = () => {
             </div>
           </div>
 
-          {/* Desktop Table View */}
-          <div className="hidden sm:block overflow-x-auto my-6">
+          {/* Table View */}
+          <div className="overflow-x-auto my-6">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-100 text-gray-700 text-xs font-semibold uppercase">
@@ -310,31 +296,6 @@ const ShoppingCart = () => {
             </table>
           </div>
 
-          {/* Mobile Card List View */}
-          <div className="block sm:hidden space-y-3 my-6">
-            {placedOrder.items.map((item, idx) => (
-              <div
-                key={idx}
-                className="p-3 bg-gray-50 rounded-xl border border-gray-100 space-y-1"
-              >
-                <div className="flex justify-between items-start gap-2">
-                  <span className="font-bold text-xs text-gray-900">
-                    {item.title}
-                  </span>
-                  <span className="font-bold text-xs text-indigo-600">
-                    ₹{item.lineTotal.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[11px] text-gray-500">
-                  <span>Brand: {item.brand}</span>
-                  <span>
-                    {item.quantity} x ₹{item.price.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-
           {/* Subtotal & Totals */}
           <div className="flex justify-end border-t border-gray-200 pt-4">
             <div className="w-full sm:w-64 space-y-2">
@@ -355,7 +316,7 @@ const ShoppingCart = () => {
             </div>
           </div>
 
-          {/* Invoice Footer */}
+          {/* Footer Note */}
           <div className="mt-8 pt-4 border-t border-gray-100 text-center">
             <p className="text-[10px] sm:text-xs text-gray-400">
               Thank you for shopping with {companyDetails.name}! Computer generated invoice.
@@ -366,7 +327,7 @@ const ShoppingCart = () => {
     );
   }
 
-  // EMPTY CART VIEW
+  // CART VIEW & EMPTY CART
   if (cart.length === 0) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-12 px-4">
@@ -394,7 +355,6 @@ const ShoppingCart = () => {
     );
   }
 
-  // CART VIEW
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-8 px-3 sm:px-6">
       <div className="max-w-7xl mx-auto">
