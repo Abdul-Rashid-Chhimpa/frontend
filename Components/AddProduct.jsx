@@ -10,6 +10,7 @@ import {
   X,
   Ruler,
   Weight,
+  ReceiptPercent,
 } from "lucide-react";
 
 const AddProduct = () => {
@@ -27,8 +28,9 @@ const AddProduct = () => {
     stock: "",
     description: "",
     variantGroup: "",
-    size: "", // ← OPTIONAL
-    weight: "", // ← OPTIONAL
+    size: "",
+    weight: "",
+    gstPercent: "18", // Default 18% GST (changeable)
   });
 
   const [priceList, setPriceList] = useState([{ quantity: "", price: "" }]);
@@ -92,6 +94,18 @@ const AddProduct = () => {
     setPriceList(data);
   };
 
+  // Helper function to calculate total price inclusive of GST
+  const calculateGSTDetails = (basePrice) => {
+    const priceNum = parseFloat(basePrice) || 0;
+    const gstRate = parseFloat(product.gstPercent) || 0;
+    const gstAmount = (priceNum * gstRate) / 100;
+    const totalPrice = priceNum + gstAmount;
+    return {
+      gstAmount: gstAmount.toFixed(2),
+      totalPrice: totalPrice.toFixed(2),
+    };
+  };
+
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -101,9 +115,17 @@ const AddProduct = () => {
       return;
     }
 
-    const validPricing = priceList.filter(
-      (item) => item.quantity !== "" && item.price !== ""
-    );
+    const validPricing = priceList
+      .filter((item) => item.quantity !== "" && item.price !== "")
+      .map((item) => {
+        const { gstAmount, totalPrice } = calculateGSTDetails(item.price);
+        return {
+          quantity: Number(item.quantity),
+          price: Number(item.price), // Base Price
+          gstAmount: Number(gstAmount),
+          totalPrice: Number(totalPrice), // Price Inclusive of GST
+        };
+      });
 
     if (validPricing.length === 0) {
       alert("Please add at least one pricing option");
@@ -125,8 +147,9 @@ const AddProduct = () => {
       formData.append("stock", product.stock);
       formData.append("description", product.description);
       formData.append("variantGroup", product.variantGroup || "");
-      formData.append("size", product.size || ""); // ← OPTIONAL
-      formData.append("weight", product.weight || ""); // ← OPTIONAL
+      formData.append("size", product.size || "");
+      formData.append("weight", product.weight || "");
+      formData.append("gstPercent", product.gstPercent || "0"); // GST Percentage send
       formData.append("pricing", JSON.stringify(validPricing));
 
       const res = await axios.post(
@@ -151,6 +174,7 @@ const AddProduct = () => {
           variantGroup: "",
           size: "",
           weight: "",
+          gstPercent: "18",
         });
         setPriceList([{ quantity: "", price: "" }]);
         setTimeout(() => setSuccess(false), 3000);
@@ -158,7 +182,7 @@ const AddProduct = () => {
     } catch (err) {
       console.log(err);
       alert(err.response?.data?.message || "Product Add Failed");
-    } finally {
+    } font-medium {
       setLoading(false);
     }
   };
@@ -332,6 +356,31 @@ const AddProduct = () => {
               </div>
             </div>
 
+            {/* ========== GST RATE SELECTION ========== */}
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <ReceiptPercent size={18} />
+                GST Rate (%)
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <select
+                  name="gstPercent"
+                  value={product.gstPercent}
+                  onChange={handleChange}
+                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition bg-white"
+                >
+                  <option value="0">0% (GST Exempted)</option>
+                  <option value="5">5% GST</option>
+                  <option value="12">12% GST</option>
+                  <option value="18">18% GST</option>
+                  <option value="28">28% GST</option>
+                </select>
+                <div className="flex items-center text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
+                  Select GST slab to automatically compute total price inclusive of tax.
+                </div>
+              </div>
+            </div>
+
             {/* ========== VARIANT GROUP ========== */}
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
@@ -345,18 +394,13 @@ const AddProduct = () => {
                 placeholder="e.g. pliers-water, wrench-adj, spanner-set"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
               />
-              <p className="text-xs text-gray-500 mt-2">
-                Same group name wale products ek family banenge. Example:{" "}
-                <span className="font-medium text-indigo-600">pliers-water</span>{" "}
-                — is naam se multiple pliers add karo to unpe “View Varieties” button dikhega.
-              </p>
             </div>
 
-            {/* ========== PRICING ========== */}
+            {/* ========== PRICING WITH GST COMPUTATION ========== */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-base sm:text-lg font-bold text-gray-800">
-                  Quantity Wise Pricing
+                  Quantity Wise Pricing (Excl. vs Incl. GST)
                 </h2>
                 <button
                   type="button"
@@ -367,39 +411,68 @@ const AddProduct = () => {
                   Add Row
                 </button>
               </div>
-              <div className="space-y-2.5">
-                {priceList.map((item, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-12 gap-2 sm:gap-3 items-center"
-                  >
-                    <input
-                      type="number"
-                      placeholder="Quantity"
-                      value={item.quantity}
-                      onChange={(e) =>
-                        handlePriceChange(index, "quantity", e.target.value)
-                      }
-                      className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
-                    />
-                    <input
-                      type="number"
-                      placeholder="Price"
-                      value={item.price}
-                      onChange={(e) =>
-                        handlePriceChange(index, "price", e.target.value)
-                      }
-                      className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removePriceRow(index)}
-                      className="col-span-2 bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 transition flex items-center justify-center"
+
+              <div className="space-y-3">
+                {priceList.map((item, index) => {
+                  const { gstAmount, totalPrice } = calculateGSTDetails(item.price);
+                  return (
+                    <div
+                      key={index}
+                      className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 sm:space-y-0 sm:grid sm:grid-cols-12 sm:gap-3 items-center"
                     >
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                ))}
+                      <div className="col-span-3">
+                        <label className="text-[11px] font-medium text-gray-500 block mb-1">
+                          Min Quantity
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="Qty"
+                          value={item.quantity}
+                          onChange={(e) =>
+                            handlePriceChange(index, "quantity", e.target.value)
+                          }
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div className="col-span-4">
+                        <label className="text-[11px] font-medium text-gray-500 block mb-1">
+                          Base Price (Excl. GST) ₹
+                        </label>
+                        <input
+                          type="number"
+                          placeholder="Base Price"
+                          value={item.price}
+                          onChange={(e) =>
+                            handlePriceChange(index, "price", e.target.value)
+                          }
+                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div className="col-span-4 text-xs font-medium text-gray-600 bg-white p-2 rounded-lg border border-gray-200">
+                        <p className="flex justify-between">
+                          <span>GST ({product.gstPercent}%):</span>
+                          <span className="text-gray-900 font-semibold">₹{gstAmount}</span>
+                        </p>
+                        <p className="flex justify-between text-indigo-700 font-bold mt-1">
+                          <span>Total (Incl. GST):</span>
+                          <span>₹{totalPrice}</span>
+                        </p>
+                      </div>
+
+                      <div className="col-span-1 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => removePriceRow(index)}
+                          className="bg-red-500 hover:bg-red-600 text-white rounded-lg p-2.5 transition flex items-center justify-center w-full"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -409,7 +482,7 @@ const AddProduct = () => {
                 Description
               </h2>
               <textarea
-                rows={5}
+                rows={4}
                 name="description"
                 value={product.description}
                 onChange={handleChange}
