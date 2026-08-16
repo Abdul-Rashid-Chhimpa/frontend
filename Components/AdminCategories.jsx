@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo } from "react";
 import axios from "axios";
-import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   Tags,
   Search,
@@ -25,8 +25,6 @@ const AdminCategories = () => {
   const [selectedMonth, setSelectedMonth] = useState(
     new Date().toISOString().slice(0, 7)
   );
-
-  const reportRef = useRef(null);
 
   // Fetch Products & Orders Data
   const fetchData = async () => {
@@ -110,7 +108,7 @@ const AdminCategories = () => {
     return Object.values(categoryMap);
   }, [products]);
 
-  // Robust Monthly Stats Calculation
+  // Monthly Stats Calculation
   const monthlyStats = useMemo(() => {
     let totalUnitsSold = 0;
     let totalRevenue = 0;
@@ -175,71 +173,66 @@ const AdminCategories = () => {
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
   }, [orders, selectedMonth]);
 
-  // PDF Download Handler with OKLCH Color Parsing Fix
-  const handleDownloadPDF = async () => {
-    const element = reportRef.current;
-    if (!element) return;
-
+  // Clean Direct PDF Generation (No CSS/HTML2Canvas errors)
+  const handleDownloadPDF = () => {
     try {
       setDownloadingPdf(true);
+      const doc = new jsPDF("p", "pt", "a4");
 
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-        backgroundColor: "#ffffff",
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-        onclone: (clonedDoc) => {
-          // Fix Tailwind CSS v4 oklch colors parsing issue in html2canvas
-          const allElements = clonedDoc.querySelectorAll("*");
-          allElements.forEach((el) => {
-            const style = window.getComputedStyle(el);
-            
-            // Convert background oklch colors to fallback standard colors
-            if (style.backgroundColor && style.backgroundColor.includes("oklch")) {
-              el.style.backgroundColor = "#ffffff";
-            }
-            // Convert text oklch colors to fallback rgb/hex colors
-            if (style.color && style.color.includes("oklch")) {
-              el.style.color = "#1e293b";
-            }
-            // Convert border oklch colors to fallback rgb/hex colors
-            if (style.borderColor && style.borderColor.includes("oklch")) {
-              el.style.borderColor = "#e2e8f0";
-            }
-          });
-        },
+      // Title & Header
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text("ADMIN STORE REPORT", 40, 45);
+
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Monthly Report Period: ${selectedMonth}`, 40, 62);
+      doc.text(`Generated On: ${new Date().toLocaleDateString()}`, 40, 76);
+
+      // Key Analytics Summary Box
+      autoTable(doc, {
+        startY: 90,
+        head: [["Metric", "Value"]],
+        body: [
+          ["Units Sold", `${monthlyStats.totalUnitsSold} Pcs`],
+          ["Monthly Revenue", `Rs. ${monthlyStats.totalRevenue.toLocaleString("en-IN")}`],
+          ["Net Profit", `Rs. ${monthlyStats.netProfit.toLocaleString("en-IN")}`],
+          ["Profit Margin", `${monthlyStats.profitMargin}%`],
+        ],
+        theme: "striped",
+        headStyles: { fillColor: [79, 70, 229] },
+        styles: { fontSize: 10, cellPadding: 6 },
       });
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.95);
-      const pdf = new jsPDF("p", "mm", "a4");
+      // Categories Breakdown Table
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(30, 41, 59);
+      doc.text("Category Breakdown", 40, doc.lastAutoTable.finalY + 30);
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const tableData = filteredCategories.map((cat, index) => [
+        index + 1,
+        cat.name,
+        `${cat.productCount} items`,
+        `${cat.stockLeft} in stock`,
+        "Active",
+      ]);
 
-      let heightLeft = imgHeight;
-      let position = 0;
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 40,
+        head: [["S.No", "Category Name", "Product Count", "Stock Left", "Status"]],
+        body: tableData,
+        theme: "grid",
+        headStyles: { fillColor: [30, 41, 59] },
+        styles: { fontSize: 10, cellPadding: 6 },
+      });
 
-      // First page
-      pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
-
-      // Multi-page handling
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-      }
-
-      pdf.save(`Category_Sales_Report_${selectedMonth}.pdf`);
-    } catch (error) {
-      console.error("PDF Generation Detailed Error:", error);
-      alert(`PDF Error: ${error.message || "Failed to render PDF"}`);
+      doc.save(`Category_Sales_Report_${selectedMonth}.pdf`);
+    } catch (err) {
+      console.error("PDF Export Error:", err);
+      alert("PDF Generate karne me problem aayi.");
     } finally {
       setDownloadingPdf(false);
     }
@@ -267,20 +260,20 @@ const AdminCategories = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-3 sm:p-4 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Top Bar Header */}
+        {/* Top Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg">
-              <Tags className="text-white w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
+              <Tags size={24} />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-800">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
                 Categories & Monthly Reports
               </h1>
               <p className="text-xs sm:text-sm text-gray-500">
-                Track Stock, Monthly Sales & Generate Profit PDF Reports
+                Track Stock, Monthly Sales & Generate Simple PDF Reports
               </p>
             </div>
           </div>
@@ -288,7 +281,7 @@ const AdminCategories = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={fetchData}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-indigo-50 transition shadow-sm"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white border border-gray-200 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition shadow-sm"
             >
               <RefreshCw size={16} />
               <span>Refresh</span>
@@ -296,7 +289,7 @@ const AdminCategories = () => {
             <button
               onClick={handleDownloadPDF}
               disabled={downloadingPdf}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition shadow-md"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 transition shadow-md"
             >
               {downloadingPdf ? (
                 <>
@@ -313,7 +306,7 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* Error / Warning Alert */}
+        {/* Error Alert */}
         {message.text && (
           <div className="mb-5 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-700">
             <AlertTriangle size={18} />
@@ -321,7 +314,7 @@ const AdminCategories = () => {
           </div>
         )}
 
-        {/* Search Bar & Category Controls */}
+        {/* Search & Stats Header */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:w-80">
             <Search
@@ -337,44 +330,8 @@ const AdminCategories = () => {
             />
           </div>
 
-          <div className="text-xs text-gray-500 font-semibold bg-white px-4 py-2 rounded-xl border border-gray-100 shadow-sm w-full sm:w-auto text-center sm:text-right">
-            Total Categories: {filteredCategories.length}
-          </div>
-        </div>
-
-        {/* Printable Report PDF Section Container */}
-        <div
-          ref={reportRef}
-          className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100"
-          style={{ backgroundColor: "#ffffff", color: "#1e293b" }}
-        >
-          {/* Header Banner Inside PDF */}
-          <div
-            className="p-5 rounded-2xl border border-gray-200 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
-            style={{ backgroundColor: "#f8fafc" }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="w-10 h-10 rounded-xl text-white flex items-center justify-center font-black text-xl"
-                style={{ backgroundColor: "#4f46e5" }}
-              >
-                A
-              </div>
-              <div>
-                <h2 className="font-extrabold text-gray-800 text-lg">
-                  ADMIN STORE REPORT
-                </h2>
-                <p className="text-xs text-gray-400">
-                  Monthly Profit & Inventory Analytics
-                </p>
-              </div>
-            </div>
-
-            {/* Month Picker */}
-            <div
-              className="flex items-center gap-2 border border-gray-200 px-3 py-1.5 rounded-xl"
-              style={{ backgroundColor: "#ffffff" }}
-            >
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 border border-gray-200 px-3 py-1.5 rounded-xl bg-white shadow-sm">
               <Calendar size={16} className="text-gray-500" />
               <input
                 type="month"
@@ -383,120 +340,92 @@ const AdminCategories = () => {
                 className="bg-transparent text-sm font-bold text-gray-700 outline-none cursor-pointer"
               />
             </div>
-          </div>
-
-          {/* Key Analytics Cards Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-            <div
-              className="rounded-xl p-4 border border-gray-200 shadow-sm"
-              style={{ backgroundColor: "#f8fafc" }}
-            >
-              <p className="text-xs text-gray-500 uppercase font-medium">
-                Units Sold ({selectedMonth})
-              </p>
-              <p className="text-2xl font-extrabold text-gray-800 mt-1">
-                {monthlyStats.totalUnitsSold} Pcs
-              </p>
-            </div>
-            <div
-              className="rounded-xl p-4 border border-gray-200 shadow-sm"
-              style={{ backgroundColor: "#f8fafc" }}
-            >
-              <p className="text-xs text-gray-500 uppercase font-medium">
-                Monthly Revenue
-              </p>
-              <p
-                className="text-2xl font-extrabold mt-1"
-                style={{ color: "#4f46e5" }}
-              >
-                ₹{monthlyStats.totalRevenue.toLocaleString("en-IN")}
-              </p>
-            </div>
-            <div
-              className="rounded-xl p-4 border border-gray-200 shadow-sm"
-              style={{ backgroundColor: "#f8fafc" }}
-            >
-              <p className="text-xs text-gray-500 uppercase font-medium">
-                Net Profit
-              </p>
-              <p
-                className="text-2xl font-extrabold mt-1"
-                style={{ color: "#059669" }}
-              >
-                ₹{monthlyStats.netProfit.toLocaleString("en-IN")}
-              </p>
-            </div>
-            <div
-              className="rounded-xl p-4 border border-gray-200 shadow-sm"
-              style={{ backgroundColor: "#f8fafc" }}
-            >
-              <p className="text-xs text-gray-500 uppercase font-medium flex items-center gap-1">
-                <TrendingUp size={14} /> Profit Margin
-              </p>
-              <p
-                className="text-2xl font-extrabold mt-1"
-                style={{ color: "#7c3aed" }}
-              >
-                {monthlyStats.profitMargin}%
-              </p>
+            <div className="text-xs text-gray-500 font-semibold bg-white px-4 py-2.5 rounded-xl border border-gray-200 shadow-sm">
+              Total: {filteredCategories.length}
             </div>
           </div>
+        </div>
 
-          {/* Categories Grid List */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredCategories.length === 0 ? (
+        {/* Key Analytics Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase font-medium">
+              Units Sold ({selectedMonth})
+            </p>
+            <p className="text-2xl font-bold text-gray-800 mt-1">
+              {monthlyStats.totalUnitsSold} Pcs
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase font-medium">
+              Monthly Revenue
+            </p>
+            <p className="text-2xl font-bold text-indigo-600 mt-1">
+              ₹{monthlyStats.totalRevenue.toLocaleString("en-IN")}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase font-medium">
+              Net Profit
+            </p>
+            <p className="text-2xl font-bold text-emerald-600 mt-1">
+              ₹{monthlyStats.netProfit.toLocaleString("en-IN")}
+            </p>
+          </div>
+          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-xs text-gray-500 uppercase font-medium flex items-center gap-1">
+              <TrendingUp size={14} /> Profit Margin
+            </p>
+            <p className="text-2xl font-bold text-purple-600 mt-1">
+              {monthlyStats.profitMargin}%
+            </p>
+          </div>
+        </div>
+
+        {/* Categories Grid List */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredCategories.length === 0 ? (
+            <div className="col-span-full bg-white p-8 rounded-2xl text-center text-gray-400 font-medium border border-gray-200">
+              No categories found matching "{search}".
+            </div>
+          ) : (
+            filteredCategories.map((cat, idx) => (
               <div
-                className="col-span-full p-8 rounded-2xl text-center text-gray-400 font-medium"
-                style={{ backgroundColor: "#f8fafc" }}
+                key={idx}
+                className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-between shadow-sm"
               >
-                No categories found matching "{search}".
-              </div>
-            ) : (
-              filteredCategories.map((cat, idx) => (
-                <div
-                  key={idx}
-                  className="rounded-2xl border border-gray-200 p-4 sm:p-5 flex flex-col justify-between"
-                  style={{ backgroundColor: "#f8fafc" }}
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2">
-                      <h3 className="font-bold text-gray-800 text-lg truncate">
-                        {cat.name}
-                      </h3>
-                      <span
-                        className="px-2.5 py-0.5 rounded-full text-xs font-semibold"
-                        style={{ backgroundColor: "#e0e7ff", color: "#4338ca" }}
-                      >
-                        Active
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-5 pt-3 border-t border-gray-200 flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-gray-400 font-medium">
-                        Products Type
-                      </p>
-                      <p className="text-sm font-bold text-gray-700">
-                        {cat.productCount} items
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-xs text-gray-400 font-medium">
-                        Stock Left
-                      </p>
-                      <span
-                        className="font-bold text-sm"
-                        style={{ color: "#059669" }}
-                      >
-                        {cat.stockLeft} in stock
-                      </span>
-                    </div>
+                <div>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-bold text-gray-800 text-lg truncate">
+                      {cat.name}
+                    </h3>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                      Active
+                    </span>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
+
+                <div className="mt-5 pt-3 border-t border-gray-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs text-gray-400 font-medium">
+                      Products Type
+                    </p>
+                    <p className="text-sm font-bold text-gray-700">
+                      {cat.productCount} items
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-gray-400 font-medium">
+                      Stock Left
+                    </p>
+                    <span className="font-bold text-sm text-emerald-600">
+                      {cat.stockLeft} in stock
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
     </div>
