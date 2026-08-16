@@ -1,17 +1,6 @@
 import { useState } from "react";
 import axios from "axios";
-import {
-  PackagePlus,
-  ImagePlus,
-  Plus,
-  Trash2,
-  CheckCircle,
-  Upload,
-  X,
-  Ruler,
-  Weight,
-  ReceiptPercent,
-} from "lucide-react";
+import { PackagePlus, ImagePlus, Plus, Trash2, CheckCircle, Upload, X, Ruler, Weight, Percent } from "lucide-react";rom "lucide-react";
 
 const AddProduct = () => {
   const [images, setImages] = useState([]);
@@ -359,7 +348,7 @@ const AddProduct = () => {
             {/* ========== GST RATE SELECTION ========== */}
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                <ReceiptPercent size={18} />
+               <Percent size={16} />
                 GST Rate (%)
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
