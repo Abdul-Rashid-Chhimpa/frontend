@@ -70,7 +70,7 @@ const AdminOrders = () => {
     }
   };
 
-  // Delete Order Handler
+  // Delete Order Handler (Fixed Typo)
   const handleDeleteOrder = async () => {
     if (!orderToDelete) return;
     try {
@@ -373,7 +373,7 @@ const AdminOrders = () => {
         {/* Delete Confirmation Modal */}
         {orderToDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100">
               <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-4">
                 <AlertTriangle size={24} />
               </div>
