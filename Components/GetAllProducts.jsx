@@ -22,7 +22,7 @@ const GetAllProducts = () => {
 
   const API = "https://backend-3-axez.onrender.com/api/products";
 
-  // ================= FETCH =================
+  // ================= FETCH PRODUCTS =================
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -40,7 +40,7 @@ const GetAllProducts = () => {
     fetchProducts();
   }, []);
 
-  // ================= DELETE =================
+  // ================= DELETE PRODUCT =================
   const deleteProduct = async (id) => {
     if (!window.confirm("Delete this product?")) return;
     try {
@@ -55,7 +55,7 @@ const GetAllProducts = () => {
     }
   };
 
-  // ================= EDIT HANDLERS =================
+  // ================= EDIT FORM HANDLERS =================
   const handleEditChange = (e) => {
     const { name, value } = e.target;
     setEditProduct((prev) => ({ ...prev, [name]: value }));
@@ -85,13 +85,12 @@ const GetAllProducts = () => {
     setExpandedDesc((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // ================= IMAGE HANDLERS =================
+  // ================= IMAGE HANDLING =================
   const deleteImage = (index) => {
     setEditProduct((prev) => {
       const updatedImages = [...(prev.images || [])];
       const removedImage = updatedImages.splice(index, 1)[0];
 
-      // Revoke preview object URL if local
       if (removedImage && removedImage.startsWith("blob:")) {
         URL.revokeObjectURL(removedImage);
       }
@@ -124,12 +123,11 @@ const GetAllProducts = () => {
     const preview = URL.createObjectURL(file);
     setEditProduct((prev) => {
       const updatedImages = [...(prev.images || [])];
-      
-      // Revoke old object URL if it was local preview
+
       if (updatedImages[index] && updatedImages[index].startsWith("blob:")) {
         URL.revokeObjectURL(updatedImages[index]);
       }
-      
+
       updatedImages[index] = preview;
       let updatedNewImages = [...(prev.newImages || [])];
       const existing = updatedNewImages.findIndex((img) => img.index === index);
@@ -145,7 +143,6 @@ const GetAllProducts = () => {
   };
 
   const closeEditModal = () => {
-    // Revoke all local preview Blob URLs to avoid memory leaks
     if (editProduct?.images) {
       editProduct.images.forEach((img) => {
         if (typeof img === "string" && img.startsWith("blob:")) {
@@ -156,30 +153,41 @@ const GetAllProducts = () => {
     setEditProduct(null);
   };
 
-  // ================= UPDATE =================
+  // ================= UPDATE PRODUCT =================
   const updateProduct = async () => {
+    // Validate pricing according to Mongoose schema
+    if (!editProduct.pricing || editProduct.pricing.length === 0) {
+      alert("At least one pricing option is required.");
+      return;
+    }
+
+    // Format pricing array to match Schema requirements (Numbers >= 1 and >= 0)
+    const formattedPricing = editProduct.pricing.map((p) => ({
+      quantity: Number(p.quantity) || 1,
+      price: Number(p.price) || 0,
+    }));
+
     try {
       setUpdating(true);
       const formData = new FormData();
+
       formData.append("name", editProduct.name || "");
       formData.append("brand", editProduct.brand || "");
       formData.append("category", editProduct.category || "");
       formData.append("material", editProduct.material || "");
-      formData.append("stock", editProduct.stock ?? 0);
+      formData.append("stock", Number(editProduct.stock) || 0);
       formData.append("size", editProduct.size || "");
       formData.append("weight", editProduct.weight || "");
-      formData.append("gst", editProduct.gst ?? 0);
+      formData.append("gst", Number(editProduct.gst) || 0);
       formData.append("variantGroup", editProduct.variantGroup || "");
       formData.append("description", editProduct.description || "");
-      formData.append("pricing", JSON.stringify(editProduct.pricing || []));
+      formData.append("pricing", JSON.stringify(formattedPricing));
 
-      // Filter only persistent HTTP images
       const existingImages = (editProduct.images || []).filter(
         (img) => typeof img === "string" && img.startsWith("http")
       );
       formData.append("existingImages", JSON.stringify(existingImages));
 
-      // Append newly uploaded files
       (editProduct.newImages || []).forEach((item) => {
         if (!item || !item.file) return;
         formData.append("images", item.file);
@@ -252,7 +260,7 @@ const GetAllProducts = () => {
               const lowestPrice =
                 product.pricing?.length > 0
                   ? Math.min(...product.pricing.map((p) => Number(p.price) || 0))
-                  : Number(product.price) || 0;
+                  : 0;
 
               const matchingVarieties = product.variantGroup
                 ? products.filter(
@@ -499,7 +507,7 @@ const GetAllProducts = () => {
                   { name: "size", placeholder: "Size (e.g. XL, 10 inch)" },
                   { name: "weight", placeholder: "Weight (e.g. 500g, 1kg)" },
                   { name: "gst", placeholder: "GST Percentage (%)", type: "number" },
-                  { name: "variantGroup", placeholder: "Variant Group (e.g. pliers-water)" },
+                  { name: "variantGroup", placeholder: "Variant Group" },
                 ].map((field) => (
                   <input
                     key={field.name}
@@ -513,11 +521,11 @@ const GetAllProducts = () => {
                 ))}
               </div>
 
-              {/* Pricing */}
+              {/* Quantity Wise Pricing */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-gray-800">
-                    Quantity Wise Pricing
+                    Quantity Wise Pricing *
                   </h3>
                   <button
                     type="button"
@@ -537,8 +545,9 @@ const GetAllProducts = () => {
                     >
                       <input
                         type="number"
+                        min="1"
                         value={item.quantity ?? ""}
-                        placeholder="Qty"
+                        placeholder="Min Qty (min 1)"
                         onChange={(e) =>
                           handlePriceChange(index, "quantity", e.target.value)
                         }
@@ -546,8 +555,9 @@ const GetAllProducts = () => {
                       />
                       <input
                         type="number"
+                        min="0"
                         value={item.price ?? ""}
-                        placeholder="Price"
+                        placeholder="Price (₹)"
                         onChange={(e) =>
                           handlePriceChange(index, "price", e.target.value)
                         }
@@ -580,7 +590,7 @@ const GetAllProducts = () => {
                 />
               </div>
 
-              {/* Footer Buttons */}
+              {/* Footer Actions */}
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
                 <button
                   type="button"
