@@ -175,55 +175,62 @@ const AdminCategories = () => {
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
   }, [orders, selectedMonth]);
 
-  // FIXED robust PDF Export Function
-  const handleDownloadPDF = async () => {
-    const element = reportRef.current;
-    if (!element) return;
+  // 1. PDF Download Function with CORS & Cloning Fix
+const handleDownloadPDF = async () => {
+  const element = reportRef.current;
+  if (!element) return;
 
-    try {
-      setDownloadingPdf(true);
+  try {
+    setDownloadingPdf(true);
 
-      const canvas = await html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: "#ffffff",
-        scrollX: 0,
-        scrollY: -window.scrollY, // Fix blank canvas issue caused by scrolling
-      });
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      allowTaint: false,
+      logging: false,
+      backgroundColor: "#ffffff",
+      windowWidth: element.scrollWidth,
+      windowHeight: element.scrollHeight,
+      onclone: (clonedDoc) => {
+        // PDF capture ke waqt display ensure karne ke liye
+        const clonedElement = clonedDoc.querySelector("[ref='reportRef']") || clonedDoc.body;
+        if (clonedElement) {
+          clonedElement.style.display = "block";
+        }
+      },
+    });
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.98);
-      const pdf = new jsPDF("p", "mm", "a4");
+    const imgData = canvas.toDataURL("image/jpeg", 0.95);
+    const pdf = new jsPDF("p", "mm", "a4");
 
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    const pdfHeight = pdf.internal.pageSize.getHeight();
+    const imgWidth = pdfWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      let heightLeft = imgHeight;
-      let position = 0;
+    let heightLeft = imgHeight;
+    let position = 0;
 
-      // First Page
+    // First page
+    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+    heightLeft -= pdfHeight;
+
+    // Loop for multi-page document
+    while (heightLeft > 0) {
+      position = heightLeft - imgHeight;
+      pdf.addPage();
       pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
-
-      // Multi-page layout if content overflows
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
-      }
-
-      pdf.save(`Category_Sales_Report_${selectedMonth}.pdf`);
-    } catch (error) {
-      console.error("PDF Download Error:", error);
-      alert("PDF generate karne me problem aayi. Please refresh and try again.");
-    } finally {
-      setDownloadingPdf(false);
     }
-  };
 
+    pdf.save(`Category_Sales_Report_${selectedMonth}.pdf`);
+  } catch (error) {
+    console.error("PDF Generation Detailed Error:", error);
+    alert(`PDF Error: ${error.message || "Failed to render PDF"}`);
+  } finally {
+    setDownloadingPdf(false);
+  }
+};
   const filteredCategories = useMemo(() => {
     const q = search.toLowerCase().trim();
     if (!q) return categoriesWithStock;
