@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { CartContext } from "./Context";
 
+
 const ShoppingCart = () => {
   const navigate = useNavigate();
   const {
