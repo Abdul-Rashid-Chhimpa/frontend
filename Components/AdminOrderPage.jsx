@@ -82,7 +82,7 @@ const AdminOrders = () => {
     } catch (error) {
       console.error("Delete Order Error:", error);
       alert(error.response?.data?.message || "Failed to delete order");
-    } fontally {
+    } finally {
       setDeletingId(null);
     }
   };
