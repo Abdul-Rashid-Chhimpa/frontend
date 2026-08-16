@@ -138,10 +138,12 @@ const GetAllProducts = () => {
       formData.append("category", editProduct.category || "");
       formData.append("material", editProduct.material || "");
       formData.append("stock", editProduct.stock || 0);
-      
-      // 🔥 FIX 1: Variant Group backend update me send kar rahe hain
+
+      // 🔥 Size aur Weight ko FormData mein add kiya
+      formData.append("size", editProduct.size || "");
+      formData.append("weight", editProduct.weight || "");
+
       formData.append("variantGroup", editProduct.variantGroup || "");
-      
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(editProduct.pricing || []));
 
@@ -175,7 +177,6 @@ const GetAllProducts = () => {
     }
   };
 
-  // ================= LOADING =================
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
@@ -190,7 +191,6 @@ const GetAllProducts = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-6 sm:py-8 px-3 sm:px-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900">
@@ -209,7 +209,6 @@ const GetAllProducts = () => {
           </button>
         </div>
 
-        {/* Empty */}
         {products.length === 0 ? (
           <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-12 text-center">
             <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5">
@@ -227,7 +226,6 @@ const GetAllProducts = () => {
                   ? Math.min(...product.pricing.map((p) => Number(p.price) || 0))
                   : Number(product.price) || 0;
 
-              // 🔥 FIX 2: Check kar rahe hain ki group me 2 ya usse zyada products hain ya nahi
               const matchingVarieties = product.variantGroup
                 ? products.filter(
                     (p) =>
@@ -242,7 +240,6 @@ const GetAllProducts = () => {
                   key={product._id}
                   className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col"
                 >
-                  {/* Image */}
                   <div className="relative h-48 sm:h-52 bg-gradient-to-br from-gray-50 to-gray-100">
                     <img
                       src={product.images?.[0] || "https://via.placeholder.com/500x400?text=No+Image"}
@@ -257,7 +254,6 @@ const GetAllProducts = () => {
                     </span>
                   </div>
 
-                  {/* Thumbnails */}
                   {product.images?.length > 1 && (
                     <div className="flex gap-2 px-4 pt-3 overflow-x-auto scrollbar-hide">
                       {product.images.map((img, index) => (
@@ -271,7 +267,6 @@ const GetAllProducts = () => {
                     </div>
                   )}
 
-                  {/* Content */}
                   <div className="p-4 sm:p-5 flex-1 flex flex-col">
                     <h2 className="font-bold text-lg text-gray-900 line-clamp-2">
                       {product.name}
@@ -288,7 +283,6 @@ const GetAllProducts = () => {
                           {product.brand}
                         </span>
                       )}
-                      {/* Variant Group Badge */}
                       {product.variantGroup && (
                         <span className="bg-purple-50 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
                           <Layers size={12} />
@@ -302,12 +296,18 @@ const GetAllProducts = () => {
                         <span className="font-medium text-gray-800">Material:</span>{" "}
                         {product.material || "—"}
                       </p>
+                      {/* Optional: Card mein Size/Weight show karne ke liye */}
+                      {(product.size || product.weight) && (
+                        <p className="text-xs text-gray-500">
+                          {product.size && <span>Size: {product.size} </span>}
+                          {product.weight && <span>| Weight: {product.weight}</span>}
+                        </p>
+                      )}
                       <p className="text-emerald-600 font-bold text-base mt-1">
                         From ₹{lowestPrice.toLocaleString()}
                       </p>
                     </div>
 
-                    {/* 🔥 FIX 3: View More Varieties Button */}
                     {matchingVarieties.length > 0 && (
                       <button
                         type="button"
@@ -318,7 +318,6 @@ const GetAllProducts = () => {
                       </button>
                     )}
 
-                    {/* Pricing Table */}
                     {product.pricing?.length > 0 && (
                       <div className="mt-4">
                         <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
@@ -347,7 +346,6 @@ const GetAllProducts = () => {
                       </div>
                     )}
 
-                    {/* Description */}
                     {product.description && (
                       <div className="mt-3 text-sm text-gray-600 leading-relaxed">
                         {expanded
@@ -364,7 +362,6 @@ const GetAllProducts = () => {
                       </div>
                     )}
 
-                    {/* Actions */}
                     <div className="flex gap-2.5 mt-auto pt-5">
                       <button
                         onClick={() =>
@@ -395,7 +392,6 @@ const GetAllProducts = () => {
       {editProduct && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-5">
           <div className="bg-white w-full max-w-3xl rounded-2xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="sticky top-0 bg-white border-b border-gray-100 px-5 sm:px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl sm:rounded-t-3xl">
               <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
                 Edit Product
@@ -468,7 +464,9 @@ const GetAllProducts = () => {
                   { name: "category", placeholder: "Category" },
                   { name: "material", placeholder: "Material" },
                   { name: "stock", placeholder: "Stock", type: "number" },
-                  // 🔥 FIX 4: Variant group ka input field add kar diya
+                  // 🔥 Size aur Weight ke inputs yaha add kiye gaye hain
+                  { name: "size", placeholder: "Size (e.g. XL, 10 inch)" },
+                  { name: "weight", placeholder: "Weight (e.g. 500g, 1kg)" },
                   { name: "variantGroup", placeholder: "Variant Group (e.g. pliers-water)" },
                 ].map((field) => (
                   <input
