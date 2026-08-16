@@ -62,8 +62,8 @@ const GetAllProducts = () => {
   };
 
   const handlePriceChange = (index, field, value) => {
-    const updatedPricing = [...(editProduct.pricing || [])];
-    updatedPricing[index][field] = value;
+    const updatedPricing = editProduct.pricing ? [...editProduct.pricing] : [];
+    updatedPricing[index] = { ...updatedPricing[index], [field]: value };
     setEditProduct((prev) => ({ ...prev, pricing: updatedPricing }));
   };
 
@@ -89,12 +89,19 @@ const GetAllProducts = () => {
   const deleteImage = (index) => {
     setEditProduct((prev) => {
       const updatedImages = [...(prev.images || [])];
-      updatedImages.splice(index, 1);
+      const removedImage = updatedImages.splice(index, 1)[0];
+
+      // Revoke preview object URL if local
+      if (removedImage && removedImage.startsWith("blob:")) {
+        URL.revokeObjectURL(removedImage);
+      }
+
       const updatedNewImages = (prev.newImages || [])
         .filter((item) => item && item.index !== index)
         .map((item) =>
           item.index > index ? { ...item, index: item.index - 1 } : item
         );
+
       return { ...prev, images: updatedImages, newImages: updatedNewImages };
     });
   };
@@ -117,16 +124,36 @@ const GetAllProducts = () => {
     const preview = URL.createObjectURL(file);
     setEditProduct((prev) => {
       const updatedImages = [...(prev.images || [])];
+      
+      // Revoke old object URL if it was local preview
+      if (updatedImages[index] && updatedImages[index].startsWith("blob:")) {
+        URL.revokeObjectURL(updatedImages[index]);
+      }
+      
       updatedImages[index] = preview;
       let updatedNewImages = [...(prev.newImages || [])];
       const existing = updatedNewImages.findIndex((img) => img.index === index);
+
       if (existing !== -1) {
         updatedNewImages[existing] = { file, index };
       } else {
         updatedNewImages.push({ file, index });
       }
+
       return { ...prev, images: updatedImages, newImages: updatedNewImages };
     });
+  };
+
+  const closeEditModal = () => {
+    // Revoke all local preview Blob URLs to avoid memory leaks
+    if (editProduct?.images) {
+      editProduct.images.forEach((img) => {
+        if (typeof img === "string" && img.startsWith("blob:")) {
+          URL.revokeObjectURL(img);
+        }
+      });
+    }
+    setEditProduct(null);
   };
 
   // ================= UPDATE =================
@@ -138,26 +165,23 @@ const GetAllProducts = () => {
       formData.append("brand", editProduct.brand || "");
       formData.append("category", editProduct.category || "");
       formData.append("material", editProduct.material || "");
-      formData.append("stock", editProduct.stock || 0);
-
-      // Size aur Weight
+      formData.append("stock", editProduct.stock ?? 0);
       formData.append("size", editProduct.size || "");
       formData.append("weight", editProduct.weight || "");
-
-      // 🔥 GST Field Add Ki Gayi Hai
-      formData.append("gst", editProduct.gst || 0);
-
+      formData.append("gst", editProduct.gst ?? 0);
       formData.append("variantGroup", editProduct.variantGroup || "");
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(editProduct.pricing || []));
 
+      // Filter only persistent HTTP images
       const existingImages = (editProduct.images || []).filter(
         (img) => typeof img === "string" && img.startsWith("http")
       );
       formData.append("existingImages", JSON.stringify(existingImages));
 
+      // Append newly uploaded files
       (editProduct.newImages || []).forEach((item) => {
-        if (!item) return;
+        if (!item || !item.file) return;
         formData.append("images", item.file);
         formData.append("replaceIndexes", item.index);
       });
@@ -168,10 +192,10 @@ const GetAllProducts = () => {
 
       if (data.success) {
         alert("Product Updated Successfully");
-        setEditProduct(null);
+        closeEditModal();
         fetchProducts();
       } else {
-        alert(data.message);
+        alert(data.message || "Update failed");
       }
     } catch (error) {
       console.log(error);
@@ -306,7 +330,6 @@ const GetAllProducts = () => {
                           {product.weight && <span>| Weight: {product.weight}</span>}
                         </p>
                       )}
-                      {/* 🔥 GST Display Badge */}
                       {product.gst !== undefined && product.gst !== null && (
                         <p className="text-xs text-indigo-600 font-medium">
                           GST: {product.gst}%
@@ -406,7 +429,7 @@ const GetAllProducts = () => {
                 Edit Product
               </h2>
               <button
-                onClick={() => setEditProduct(null)}
+                onClick={closeEditModal}
                 className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition"
               >
                 <X size={20} />
@@ -475,7 +498,6 @@ const GetAllProducts = () => {
                   { name: "stock", placeholder: "Stock", type: "number" },
                   { name: "size", placeholder: "Size (e.g. XL, 10 inch)" },
                   { name: "weight", placeholder: "Weight (e.g. 500g, 1kg)" },
-                  // 🔥 GST Input Field Add Ki Gayi Hai
                   { name: "gst", placeholder: "GST Percentage (%)", type: "number" },
                   { name: "variantGroup", placeholder: "Variant Group (e.g. pliers-water)" },
                 ].map((field) => (
@@ -483,7 +505,7 @@ const GetAllProducts = () => {
                     key={field.name}
                     type={field.type || "text"}
                     name={field.name}
-                    value={editProduct[field.name] || ""}
+                    value={editProduct[field.name] ?? ""}
                     onChange={handleEditChange}
                     placeholder={field.placeholder}
                     className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
@@ -515,7 +537,7 @@ const GetAllProducts = () => {
                     >
                       <input
                         type="number"
-                        value={item.quantity}
+                        value={item.quantity ?? ""}
                         placeholder="Qty"
                         onChange={(e) =>
                           handlePriceChange(index, "quantity", e.target.value)
@@ -524,7 +546,7 @@ const GetAllProducts = () => {
                       />
                       <input
                         type="number"
-                        value={item.price}
+                        value={item.price ?? ""}
                         placeholder="Price"
                         onChange={(e) =>
                           handlePriceChange(index, "price", e.target.value)
@@ -570,7 +592,7 @@ const GetAllProducts = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEditProduct(null)}
+                  onClick={closeEditModal}
                   className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition"
                 >
                   Cancel
