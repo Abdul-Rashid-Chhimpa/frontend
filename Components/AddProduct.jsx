@@ -1,508 +1,254 @@
-import { useState } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import { PackagePlus, ImagePlus, Plus, Trash2, CheckCircle, Upload, X, Ruler, Weight, Percent } from "lucide-react";
 
-const AddProduct = () => {
-  const [images, setImages] = useState([]);
-  const [imageFiles, setImageFiles] = useState([]);
-  const [selectedImage, setSelectedImage] = useState("");
-  const [success, setSuccess] = useState(false);
+const AddProduct=()=> {
   const [loading, setLoading] = useState(false);
-
   const [product, setProduct] = useState({
-    name: "",
-    brand: "",
-    material: "",
+    title: "",
+    description: "",
+    price: "",
+    discountPrice: "",
     category: "",
     stock: "",
-    description: "",
-    variantGroup: "",
-    size: "",
+    gst: "", // GST percentage number
+    dimensions: "",
     weight: "",
-    gstPercent: "18", // Default 18% GST (changeable)
+    images: []
   });
 
-  const [priceList, setPriceList] = useState([{ quantity: "", price: "" }]);
-
-  // ================= IMAGE HANDLERS =================
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    const updatedFiles = [...imageFiles, ...files].slice(0, 10);
-    setImageFiles(updatedFiles);
-    const previews = updatedFiles.map((file) => URL.createObjectURL(file));
-    setImages(previews);
-    if (previews.length > 0 && !selectedImage) {
-      setSelectedImage(previews[0]);
-    }
-  };
-
-  const deleteImage = (index) => {
-    const newImages = images.filter((_, i) => i !== index);
-    const newFiles = imageFiles.filter((_, i) => i !== index);
-    setImages(newImages);
-    setImageFiles(newFiles);
-    if (newImages.length > 0) {
-      setSelectedImage(newImages[0]);
-    } else {
-      setSelectedImage("");
-    }
-  };
-
-  const replaceImage = (index, file) => {
-    if (!file) return;
-    const preview = URL.createObjectURL(file);
-    const newImages = [...images];
-    newImages[index] = preview;
-    const newFiles = [...imageFiles];
-    newFiles[index] = file;
-    setImages(newImages);
-    setImageFiles(newFiles);
-    if (selectedImage === images[index]) {
-      setSelectedImage(preview);
-    }
-  };
-
-  // ================= FORM HANDLERS =================
   const handleChange = (e) => {
-    setProduct({ ...product, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setProduct((prev) => ({ ...prev, [name]: value }));
   };
 
-  const addPriceRow = () => {
-    setPriceList([...priceList, { quantity: "", price: "" }]);
+  const handleImageUpload = (e) => {
+    const files = Array.from(e.target.files);
+    setProduct((prev) => ({
+      ...prev,
+      images: [...prev.images, ...files]
+    }));
   };
 
-  const removePriceRow = (index) => {
-    const data = [...priceList];
-    data.splice(index, 1);
-    setPriceList(data.length ? data : [{ quantity: "", price: "" }]);
+  const removeImage = (index) => {
+    setProduct((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
   };
 
-  const handlePriceChange = (index, field, value) => {
-    const data = [...priceList];
-    data[index][field] = value;
-    setPriceList(data);
-  };
-
-  // Helper function to calculate total price inclusive of GST
-  const calculateGSTDetails = (basePrice) => {
-    const priceNum = parseFloat(basePrice) || 0;
-    const gstRate = parseFloat(product.gstPercent) || 0;
-    const gstAmount = (priceNum * gstRate) / 100;
-    const totalPrice = priceNum + gstAmount;
-    return {
-      gstAmount: gstAmount.toFixed(2),
-      totalPrice: totalPrice.toFixed(2),
-    };
-  };
-
-  // ================= SUBMIT =================
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (imageFiles.length === 0) {
-      alert("Please upload at least one product image");
-      return;
-    }
-
-    const validPricing = priceList
-      .filter((item) => item.quantity !== "" && item.price !== "")
-      .map((item) => {
-        const { gstAmount, totalPrice } = calculateGSTDetails(item.price);
-        return {
-          quantity: Number(item.quantity),
-          price: Number(item.price), // Base Price
-          gstAmount: Number(gstAmount),
-          totalPrice: Number(totalPrice), // Price Inclusive of GST
-        };
-      });
-
-    if (validPricing.length === 0) {
-      alert("Please add at least one pricing option");
-      return;
-    }
-
+    setLoading(true);
     try {
-      setLoading(true);
-      const formData = new FormData();
-
-      imageFiles.forEach((file) => {
-        formData.append("images", file);
-      });
-
-      formData.append("name", product.name);
-      formData.append("brand", product.brand);
-      formData.append("category", product.category);
-      formData.append("material", product.material);
-      formData.append("stock", product.stock);
-      formData.append("description", product.description);
-      formData.append("variantGroup", product.variantGroup || "");
-      formData.append("size", product.size || "");
-      formData.append("weight", product.weight || "");
-      formData.append("gstPercent", product.gstPercent || "0"); // GST Percentage send
-      formData.append("pricing", JSON.stringify(validPricing));
-
-      const res = await axios.post(
-        "https://backend-3-axez.onrender.com/api/products/add-product",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
-
-      if (res.data.success) {
-        alert("Product Added Successfully");
-        setSuccess(true);
-        setImages([]);
-        setImageFiles([]);
-        setSelectedImage("");
-        setProduct({
-          name: "",
-          brand: "",
-          category: "",
-          material: "",
-          stock: "",
-          description: "",
-          variantGroup: "",
-          size: "",
-          weight: "",
-          gstPercent: "18",
-        });
-        setPriceList([{ quantity: "", price: "" }]);
-        setTimeout(() => setSuccess(false), 3000);
-      }
+      // Add your submit API call logic here
+      console.log("Submitting Product:", product);
     } catch (err) {
       console.log(err);
       alert(err.response?.data?.message || "Product Add Failed");
-    } {
+    } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-6 sm:py-8 px-3 sm:px-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header Card */}
-        <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-6">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-              <PackagePlus size={24} />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold">
-                Add New Product
-              </h1>
-              <p className="text-white/80 text-sm sm:text-base mt-0.5">
-                Upload, manage and publish your products
-              </p>
-            </div>
+    <div className="max-w-4xl mx-auto p-6 bg-white rounded-xl shadow-md my-8">
+      <div className="flex items-center gap-3 mb-6 pb-4 border-b">
+        <PackagePlus className="w-8 h-8 text-indigo-600" />
+        <h1 className="text-2xl font-bold text-gray-800">Add New Product</h1>
+      </div>
+
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Basic Details */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Product Title</label>
+            <input
+              type="text"
+              name="title"
+              value={product.title}
+              onChange={handleChange}
+              placeholder="Enter product title"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Category</label>
+            <input
+              type="text"
+              name="category"
+              value={product.category}
+              onChange={handleChange}
+              placeholder="Enter category"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
           </div>
         </div>
 
-        {/* Form Card */}
-        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
-          {success && (
-            <div className="mx-4 sm:mx-6 mt-5 flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium">
-              <CheckCircle size={18} />
-              Product Added Successfully
+        {/* Pricing & Stock */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Price (₹)</label>
+            <input
+              type="number"
+              name="price"
+              value={product.price}
+              onChange={handleChange}
+              placeholder="0.00"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Discount Price (₹)</label>
+            <input
+              type="number"
+              name="discountPrice"
+              value={product.discountPrice}
+              onChange={handleChange}
+              placeholder="0.00"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700">Stock Quantity</label>
+            <input
+              type="number"
+              name="stock"
+              value={product.stock}
+              onChange={handleChange}
+              placeholder="Enter quantity"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+        </div>
+
+        {/* GST Rate (Only Input Number Field) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <Percent className="w-4 h-4 text-gray-500" /> GST Rate (%)
+            </label>
+            <input
+              type="number"
+              name="gst"
+              value={product.gst}
+              onChange={handleChange}
+              placeholder="e.g. 18"
+              min="0"
+              max="100"
+              step="any"
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <Ruler className="w-4 h-4 text-gray-500" /> Dimensions
+            </label>
+            <input
+              type="text"
+              name="dimensions"
+              value={product.dimensions}
+              onChange={handleChange}
+              placeholder="L x W x H cm"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+              <Weight className="w-4 h-4 text-gray-500" /> Weight (kg)
+            </label>
+            <input
+              type="text"
+              name="weight"
+              value={product.weight}
+              onChange={handleChange}
+              placeholder="e.g. 0.5 kg"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Description */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-700">Description</label>
+          <textarea
+            name="description"
+            rows="4"
+            value={product.description}
+            onChange={handleChange}
+            placeholder="Write product description..."
+            required
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+          ></textarea>
+        </div>
+
+        {/* Image Upload Section */}
+        <div className="flex flex-col gap-2">
+          <label className="text-sm font-medium text-gray-700">Product Images</label>
+          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer hover:border-indigo-500 transition-colors">
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+              className="hidden"
+              id="image-upload"
+            />
+            <label htmlFor="image-upload" className="cursor-pointer flex flex-col items-center">
+              <Upload className="w-10 h-10 text-gray-400 mb-2" />
+              <span className="text-sm text-gray-600">Click to upload product images</span>
+            </label>
+          </div>
+
+          {/* Image Previews */}
+          {product.images.length > 0 && (
+            <div className="flex flex-wrap gap-4 mt-4">
+              {product.images.map((img, idx) => (
+                <div key={idx} className="relative w-24 h-24 border rounded-lg overflow-hidden group">
+                  <img
+                    src={URL.createObjectURL(img)}
+                    alt="preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(idx)}
+                    className="absolute top-1 right-1 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+              ))}
             </div>
           )}
-
-          <form onSubmit={handleSubmit} className="p-4 sm:p-6 md:p-8 space-y-7">
-            {/* ========== IMAGES ========== */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
-                  <ImagePlus size={18} />
-                  Product Images
-                </h2>
-                <span className="text-xs sm:text-sm text-gray-500 bg-gray-100 px-2.5 py-1 rounded-full">
-                  {images.length}/10
-                </span>
-              </div>
-
-              <label className="flex flex-col items-center justify-center w-full h-32 sm:h-36 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group">
-                <Upload
-                  size={28}
-                  className="text-gray-400 group-hover:text-indigo-500 mb-2"
-                />
-                <span className="text-sm text-gray-500 group-hover:text-indigo-600 font-medium">
-                  Click to upload images
-                </span>
-                <span className="text-xs text-gray-400 mt-1">
-                  PNG, JPG up to 10 files
-                </span>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
-              </label>
-
-              {selectedImage && (
-                <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
-                  <img
-                    src={selectedImage}
-                    alt="Preview"
-                    className="w-full h-[240px] sm:h-[320px] md:h-[380px] object-contain p-3"
-                  />
-                </div>
-              )}
-
-              {images.length > 0 && (
-                <div className="flex flex-wrap gap-3 mt-4">
-                  {images.map((img, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={img}
-                        alt=""
-                        onClick={() => setSelectedImage(img)}
-                        className={`w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 object-cover cursor-pointer transition ${
-                          selectedImage === img
-                            ? "border-indigo-600 ring-2 ring-indigo-200"
-                            : "border-gray-200 hover:border-indigo-300"
-                        }`}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => deleteImage(index)}
-                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs shadow"
-                      >
-                        <X size={12} />
-                      </button>
-                      <label className="absolute bottom-0.5 left-0.5 right-0.5 bg-indigo-600 text-white text-[9px] sm:text-[10px] py-0.5 rounded text-center cursor-pointer opacity-0 group-hover:opacity-100 transition">
-                        Edit
-                        <input
-                          hidden
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) =>
-                            replaceImage(index, e.target.files[0])
-                          }
-                        />
-                      </label>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* ========== BASIC INFO ========== */}
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
-                Product Information
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                {[
-                  { name: "name", placeholder: "Product Name *", required: true },
-                  { name: "category", placeholder: "Category *", required: true },
-                  { name: "brand", placeholder: "Brand" },
-                  { name: "material", placeholder: "Material" },
-                  { name: "stock", placeholder: "Stock", type: "number" },
-                ].map((field) => (
-                  <input
-                    key={field.name}
-                    type={field.type || "text"}
-                    name={field.name}
-                    value={product[field.name]}
-                    onChange={handleChange}
-                    placeholder={field.placeholder}
-                    required={field.required}
-                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* ========== SIZE & WEIGHT (OPTIONAL) ========== */}
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                Size & Weight <span className="text-xs font-normal text-gray-500">(Optional)</span>
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="size"
-                    value={product.size}
-                    onChange={handleChange}
-                    placeholder="Size (e.g. 10 inch, XL, 250mm)"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pl-10 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
-                  />
-                  <Ruler size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
-                </div>
-
-                <div className="relative">
-                  <input
-                    type="text"
-                    name="weight"
-                    value={product.weight}
-                    onChange={handleChange}
-                    placeholder="Weight (e.g. 500g, 1.5 kg)"
-                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pl-10 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
-                  />
-                  <Weight size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
-                </div>
-              </div>
-            </div>
-
-            {/* ========== GST RATE SELECTION ========== */}
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-               <Percent size={16} />
-                GST Rate (%)
-              </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <select
-                  name="gstPercent"
-                  value={product.gstPercent}
-                  onChange={handleChange}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition bg-white"
-                >
-                  <option value="0">0% (GST Exempted)</option>
-                  <option value="5">5% GST</option>
-                  <option value="12">12% GST</option>
-                  <option value="18">18% GST</option>
-                  <option value="28">28% GST</option>
-                </select>
-                <div className="flex items-center text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3 border border-gray-100">
-                  Select GST slab to automatically compute total price inclusive of tax.
-                </div>
-              </div>
-            </div>
-
-            {/* ========== VARIANT GROUP ========== */}
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
-                Variant Group (Optional)
-              </h2>
-              <input
-                type="text"
-                name="variantGroup"
-                value={product.variantGroup}
-                onChange={handleChange}
-                placeholder="e.g. pliers-water, wrench-adj, spanner-set"
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
-              />
-            </div>
-
-            {/* ========== PRICING WITH GST COMPUTATION ========== */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base sm:text-lg font-bold text-gray-800">
-                  Quantity Wise Pricing (Excl. vs Incl. GST)
-                </h2>
-                <button
-                  type="button"
-                  onClick={addPriceRow}
-                  className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition"
-                >
-                  <Plus size={14} />
-                  Add Row
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {priceList.map((item, index) => {
-                  const { gstAmount, totalPrice } = calculateGSTDetails(item.price);
-                  return (
-                    <div
-                      key={index}
-                      className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 sm:space-y-0 sm:grid sm:grid-cols-12 sm:gap-3 items-center"
-                    >
-                      <div className="col-span-3">
-                        <label className="text-[11px] font-medium text-gray-500 block mb-1">
-                          Min Quantity
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="Qty"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            handlePriceChange(index, "quantity", e.target.value)
-                          }
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-indigo-500"
-                        />
-                      </div>
-
-                      <div className="col-span-4">
-                        <label className="text-[11px] font-medium text-gray-500 block mb-1">
-                          Base Price (Excl. GST) ₹
-                        </label>
-                        <input
-                          type="number"
-                          placeholder="Base Price"
-                          value={item.price}
-                          onChange={(e) =>
-                            handlePriceChange(index, "price", e.target.value)
-                          }
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-indigo-500"
-                        />
-                      </div>
-
-                      <div className="col-span-4 text-xs font-medium text-gray-600 bg-white p-2 rounded-lg border border-gray-200">
-                        <p className="flex justify-between">
-                          <span>GST ({product.gstPercent}%):</span>
-                          <span className="text-gray-900 font-semibold">₹{gstAmount}</span>
-                        </p>
-                        <p className="flex justify-between text-indigo-700 font-bold mt-1">
-                          <span>Total (Incl. GST):</span>
-                          <span>₹{totalPrice}</span>
-                        </p>
-                      </div>
-
-                      <div className="col-span-1 flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => removePriceRow(index)}
-                          className="bg-red-500 hover:bg-red-600 text-white rounded-lg p-2.5 transition flex items-center justify-center w-full"
-                        >
-                          <Trash2 size={15} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* ========== DESCRIPTION ========== */}
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
-                Description
-              </h2>
-              <textarea
-                rows={4}
-                name="description"
-                value={product.description}
-                onChange={handleChange}
-                placeholder="Write product description..."
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition resize-none"
-              />
-            </div>
-
-            {/* ========== SUBMIT ========== */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 hover:from-indigo-700 hover:via-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-400 text-white py-3.5 sm:py-4 rounded-xl text-base sm:text-lg font-semibold shadow-lg transition"
-            >
-              {loading ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  Uploading...
-                </>
-              ) : (
-                <>
-                  <PackagePlus size={20} />
-                  Add Product
-                </>
-              )}
-            </button>
-          </form>
         </div>
-      </div>
+
+        {/* Submit Button */}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400"
+        >
+          {loading ? (
+            "Adding Product..."
+          ) : (
+            <>
+              <Plus className="w-5 h-5" /> Add Product
+            </>
+          )}
+        </button>
+      </form>
     </div>
   );
-};
+}
 
 export default AddProduct;
