@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 import {
   PackagePlus,
   Plus,
@@ -46,7 +47,7 @@ const AddProduct = () => {
   };
 
   const removePricingRow = (index) => {
-    if (pricing.length === 1) return; // At least one pricing row required
+    if (pricing.length === 1) return;
     setPricing((prev) => prev.filter((_, i) => i !== index));
   };
 
@@ -69,6 +70,13 @@ const AddProduct = () => {
   // Submit Handler sending FormData to Node/Express Backend
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Basic Validation Check
+    if (product.images.length === 0) {
+      alert("Kripya kam se kam ek product image upload karein!");
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -77,32 +85,56 @@ const AddProduct = () => {
       formData.append("brand", product.brand);
       formData.append("category", product.category);
       formData.append("material", product.material);
-      formData.append("stock", product.stock);
+      formData.append("stock", Number(product.stock));
       formData.append("size", product.size);
       formData.append("weight", product.weight);
-      formData.append("gst", product.gst);
+      formData.append("gst", Number(product.gst));
       formData.append("variantGroup", product.variantGroup);
       formData.append("description", product.description);
 
-      // JSON stringify dynamic pricing list for backend
-      formData.append("pricing", JSON.stringify(pricing));
+      // Clean pricing data before stringify
+      const formattedPricing = pricing.map((item) => ({
+        quantity: Number(item.quantity),
+        price: Number(item.price),
+      }));
+
+      formData.append("pricing", JSON.stringify(formattedPricing));
 
       // Append image files
       product.images.forEach((img) => {
         formData.append("images", img);
       });
 
-      console.log("Submitting Product Form Data...");
-
-      /* API Call Example:
-      const res = await axios.post("/api/add-product", formData, {
-        headers: { "Content-Type": "multipart/form-data" }
+      // UPDATE YOUR BACKEND API URL HERE
+      const response = await axios.post("http://localhost:5000/api/products/add", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
       });
-      alert(res.data.message);
-      */
+
+      alert(response.data?.message || "Product Safaltapoorvak Add Ho Gaya!");
+
+      // Reset Form on Success
+      setProduct({
+        name: "",
+        brand: "",
+        category: "",
+        material: "",
+        stock: "",
+        size: "",
+        weight: "",
+        gst: "",
+        variantGroup: "",
+        description: "",
+        images: [],
+      });
+      setPricing([{ quantity: 1, price: "" }]);
+
     } catch (err) {
-      console.log(err);
-      alert(err.response?.data?.message || "Product Add Failed");
+      console.error("Submission Error:", err);
+      alert(
+        err.response?.data?.message || err.message || "Product Add Failed! Network ya Backend Check Karein."
+      );
     } finally {
       setLoading(false);
     }
@@ -312,7 +344,7 @@ const AddProduct = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 disabled:bg-gray-400"
+          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-6 rounded-xl transition flex items-center justify-center gap-2 disabled:bg-gray-400 cursor-pointer"
         >
           {loading ? (
             "Adding Product..."
