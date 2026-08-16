@@ -10,6 +10,7 @@ import {
   Boxes,
   RefreshCw,
   Layers,
+  Percent,
 } from "lucide-react";
 
 const GetAllProducts = () => {
@@ -139,9 +140,10 @@ const GetAllProducts = () => {
       formData.append("material", editProduct.material || "");
       formData.append("stock", editProduct.stock || 0);
 
-      // 🔥 Size aur Weight ko FormData mein add kiya
+      // Size, Weight aur GST ko FormData mein add kiya gaya hai
       formData.append("size", editProduct.size || "");
       formData.append("weight", editProduct.weight || "");
+      formData.append("gstPercent", editProduct.gstPercent || 0);
 
       formData.append("variantGroup", editProduct.variantGroup || "");
       formData.append("description", editProduct.description || "");
@@ -289,6 +291,13 @@ const GetAllProducts = () => {
                           {product.variantGroup}
                         </span>
                       )}
+                      {/* GST Badge Card Display */}
+                      {product.gstPercent !== undefined && (
+                        <span className="bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
+                          <Percent size={12} />
+                          GST: {product.gstPercent}%
+                        </span>
+                      )}
                     </div>
 
                     <div className="mt-3 text-sm text-gray-600 space-y-0.5">
@@ -296,7 +305,6 @@ const GetAllProducts = () => {
                         <span className="font-medium text-gray-800">Material:</span>{" "}
                         {product.material || "—"}
                       </p>
-                      {/* Optional: Card mein Size/Weight show karne ke liye */}
                       {(product.size || product.weight) && (
                         <p className="text-xs text-gray-500">
                           {product.size && <span>Size: {product.size} </span>}
@@ -464,16 +472,17 @@ const GetAllProducts = () => {
                   { name: "category", placeholder: "Category" },
                   { name: "material", placeholder: "Material" },
                   { name: "stock", placeholder: "Stock", type: "number" },
-                  // 🔥 Size aur Weight ke inputs yaha add kiye gaye hain
                   { name: "size", placeholder: "Size (e.g. XL, 10 inch)" },
                   { name: "weight", placeholder: "Weight (e.g. 500g, 1kg)" },
+                  // GST % Input field yahan add kiya gaya hai
+                  { name: "gstPercent", placeholder: "GST Percentage (%)", type: "number" },
                   { name: "variantGroup", placeholder: "Variant Group (e.g. pliers-water)" },
                 ].map((field) => (
                   <input
                     key={field.name}
                     type={field.type || "text"}
                     name={field.name}
-                    value={editProduct[field.name] || ""}
+                    value={editProduct[field.name] ?? ""}
                     onChange={handleEditChange}
                     placeholder={field.placeholder}
                     className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
