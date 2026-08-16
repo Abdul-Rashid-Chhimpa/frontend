@@ -175,62 +175,76 @@ const AdminCategories = () => {
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
   }, [orders, selectedMonth]);
 
-  // 1. PDF Download Function with CORS & Cloning Fix
-const handleDownloadPDF = async () => {
-  const element = reportRef.current;
-  if (!element) return;
+  // PDF Download Handler with OKLCH Color Parsing Fix
+  const handleDownloadPDF = async () => {
+    const element = reportRef.current;
+    if (!element) return;
 
-  try {
-    setDownloadingPdf(true);
+    try {
+      setDownloadingPdf(true);
 
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-      backgroundColor: "#ffffff",
-      windowWidth: element.scrollWidth,
-      windowHeight: element.scrollHeight,
-      onclone: (clonedDoc) => {
-        // PDF capture ke waqt display ensure karne ke liye
-        const clonedElement = clonedDoc.querySelector("[ref='reportRef']") || clonedDoc.body;
-        if (clonedElement) {
-          clonedElement.style.display = "block";
-        }
-      },
-    });
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        backgroundColor: "#ffffff",
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+        onclone: (clonedDoc) => {
+          // Fix Tailwind CSS v4 oklch colors parsing issue in html2canvas
+          const allElements = clonedDoc.querySelectorAll("*");
+          allElements.forEach((el) => {
+            const style = window.getComputedStyle(el);
+            
+            // Convert background oklch colors to fallback standard colors
+            if (style.backgroundColor && style.backgroundColor.includes("oklch")) {
+              el.style.backgroundColor = "#ffffff";
+            }
+            // Convert text oklch colors to fallback rgb/hex colors
+            if (style.color && style.color.includes("oklch")) {
+              el.style.color = "#1e293b";
+            }
+            // Convert border oklch colors to fallback rgb/hex colors
+            if (style.borderColor && style.borderColor.includes("oklch")) {
+              el.style.borderColor = "#e2e8f0";
+            }
+          });
+        },
+      });
 
-    const imgData = canvas.toDataURL("image/jpeg", 0.95);
-    const pdf = new jsPDF("p", "mm", "a4");
+      const imgData = canvas.toDataURL("image/jpeg", 0.95);
+      const pdf = new jsPDF("p", "mm", "a4");
 
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pdfWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pdfWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    let heightLeft = imgHeight;
-    let position = 0;
+      let heightLeft = imgHeight;
+      let position = 0;
 
-    // First page
-    pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pdfHeight;
-
-    // Loop for multi-page document
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
+      // First page
       pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
       heightLeft -= pdfHeight;
-    }
 
-    pdf.save(`Category_Sales_Report_${selectedMonth}.pdf`);
-  } catch (error) {
-    console.error("PDF Generation Detailed Error:", error);
-    alert(`PDF Error: ${error.message || "Failed to render PDF"}`);
-  } finally {
-    setDownloadingPdf(false);
-  }
-};
+      // Multi-page handling
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pdfHeight;
+      }
+
+      pdf.save(`Category_Sales_Report_${selectedMonth}.pdf`);
+    } catch (error) {
+      console.error("PDF Generation Detailed Error:", error);
+      alert(`PDF Error: ${error.message || "Failed to render PDF"}`);
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   const filteredCategories = useMemo(() => {
     const q = search.toLowerCase().trim();
     if (!q) return categoriesWithStock;
@@ -329,11 +343,21 @@ const handleDownloadPDF = async () => {
         </div>
 
         {/* Printable Report PDF Section Container */}
-        <div ref={reportRef} className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100">
+        <div
+          ref={reportRef}
+          className="p-4 bg-white rounded-2xl shadow-sm border border-gray-100"
+          style={{ backgroundColor: "#ffffff", color: "#1e293b" }}
+        >
           {/* Header Banner Inside PDF */}
-          <div className="bg-slate-50 p-5 rounded-2xl border border-gray-200 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div
+            className="p-5 rounded-2xl border border-gray-200 mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+            style={{ backgroundColor: "#f8fafc" }}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-black text-xl">
+              <div
+                className="w-10 h-10 rounded-xl text-white flex items-center justify-center font-black text-xl"
+                style={{ backgroundColor: "#4f46e5" }}
+              >
                 A
               </div>
               <div>
@@ -347,7 +371,10 @@ const handleDownloadPDF = async () => {
             </div>
 
             {/* Month Picker */}
-            <div className="flex items-center gap-2 border border-gray-200 px-3 py-1.5 rounded-xl bg-white">
+            <div
+              className="flex items-center gap-2 border border-gray-200 px-3 py-1.5 rounded-xl"
+              style={{ backgroundColor: "#ffffff" }}
+            >
               <Calendar size={16} className="text-gray-500" />
               <input
                 type="month"
@@ -360,7 +387,10 @@ const handleDownloadPDF = async () => {
 
           {/* Key Analytics Cards Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
+            <div
+              className="rounded-xl p-4 border border-gray-200 shadow-sm"
+              style={{ backgroundColor: "#f8fafc" }}
+            >
               <p className="text-xs text-gray-500 uppercase font-medium">
                 Units Sold ({selectedMonth})
               </p>
@@ -368,27 +398,45 @@ const handleDownloadPDF = async () => {
                 {monthlyStats.totalUnitsSold} Pcs
               </p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
+            <div
+              className="rounded-xl p-4 border border-gray-200 shadow-sm"
+              style={{ backgroundColor: "#f8fafc" }}
+            >
               <p className="text-xs text-gray-500 uppercase font-medium">
                 Monthly Revenue
               </p>
-              <p className="text-2xl font-extrabold text-indigo-600 mt-1">
+              <p
+                className="text-2xl font-extrabold mt-1"
+                style={{ color: "#4f46e5" }}
+              >
                 ₹{monthlyStats.totalRevenue.toLocaleString("en-IN")}
               </p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
+            <div
+              className="rounded-xl p-4 border border-gray-200 shadow-sm"
+              style={{ backgroundColor: "#f8fafc" }}
+            >
               <p className="text-xs text-gray-500 uppercase font-medium">
                 Net Profit
               </p>
-              <p className="text-2xl font-extrabold text-emerald-600 mt-1">
+              <p
+                className="text-2xl font-extrabold mt-1"
+                style={{ color: "#059669" }}
+              >
                 ₹{monthlyStats.netProfit.toLocaleString("en-IN")}
               </p>
             </div>
-            <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 shadow-sm">
+            <div
+              className="rounded-xl p-4 border border-gray-200 shadow-sm"
+              style={{ backgroundColor: "#f8fafc" }}
+            >
               <p className="text-xs text-gray-500 uppercase font-medium flex items-center gap-1">
                 <TrendingUp size={14} /> Profit Margin
               </p>
-              <p className="text-2xl font-extrabold text-purple-600 mt-1">
+              <p
+                className="text-2xl font-extrabold mt-1"
+                style={{ color: "#7c3aed" }}
+              >
                 {monthlyStats.profitMargin}%
               </p>
             </div>
@@ -397,21 +445,28 @@ const handleDownloadPDF = async () => {
           {/* Categories Grid List */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCategories.length === 0 ? (
-              <div className="col-span-full bg-gray-50 p-8 rounded-2xl text-center text-gray-400 font-medium">
+              <div
+                className="col-span-full p-8 rounded-2xl text-center text-gray-400 font-medium"
+                style={{ backgroundColor: "#f8fafc" }}
+              >
                 No categories found matching "{search}".
               </div>
             ) : (
               filteredCategories.map((cat, idx) => (
                 <div
                   key={idx}
-                  className="bg-slate-50 rounded-2xl border border-gray-200 p-4 sm:p-5 flex flex-col justify-between"
+                  className="rounded-2xl border border-gray-200 p-4 sm:p-5 flex flex-col justify-between"
+                  style={{ backgroundColor: "#f8fafc" }}
                 >
                   <div>
                     <div className="flex items-center justify-between gap-2">
                       <h3 className="font-bold text-gray-800 text-lg truncate">
                         {cat.name}
                       </h3>
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700">
+                      <span
+                        className="px-2.5 py-0.5 rounded-full text-xs font-semibold"
+                        style={{ backgroundColor: "#e0e7ff", color: "#4338ca" }}
+                      >
                         Active
                       </span>
                     </div>
@@ -430,7 +485,10 @@ const handleDownloadPDF = async () => {
                       <p className="text-xs text-gray-400 font-medium">
                         Stock Left
                       </p>
-                      <span className="font-bold text-sm text-emerald-600">
+                      <span
+                        className="font-bold text-sm"
+                        style={{ color: "#059669" }}
+                      >
                         {cat.stockLeft} in stock
                       </span>
                     </div>
