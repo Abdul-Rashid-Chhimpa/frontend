@@ -41,7 +41,7 @@ const GetAllProducts = () => {
     } catch (error) {
       console.log(error);
       alert("Failed To Load Products");
-    } font-medium finally {
+    } finally {
       setLoading(false);
     }
   };
