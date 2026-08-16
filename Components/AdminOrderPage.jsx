@@ -11,23 +11,60 @@ import {
   XCircle,
   RefreshCw,
   ShoppingBag,
+  AlertTriangle,
 } from "lucide-react";
+
+const API_BASE = "https://backend-3-axez.onrender.com/api";
 
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
+  // Robust Fetch Orders with Endpoint Fallbacks & Response Normalization
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(
-        "https://backend-3-axez.onrender.com/api/orders/all"
-      );
-      setOrders(data.orders || []);
+      setErrorMsg("");
+
+      // Primary Try: /orders/all
+      let response = await axios
+        .get(`${API_BASE}/orders/all`)
+        .catch(() => null);
+
+      // Secondary Fallback: /orders
+      if (!response || !response.data) {
+        response = await axios
+          .get(`${API_BASE}/orders`)
+          .catch(() => null);
+      }
+
+      if (response && response.data) {
+        const resData = response.data;
+        let fetchedList = [];
+
+        // Flexible key extraction for any backend structure
+        if (resData?.success && Array.isArray(resData.orders)) {
+          fetchedList = resData.orders;
+        } else if (Array.isArray(resData.orders)) {
+          fetchedList = resData.orders;
+        } else if (Array.isArray(resData.data)) {
+          fetchedList = resData.data;
+        } else if (Array.isArray(resData)) {
+          fetchedList = resData;
+        }
+
+        setOrders(fetchedList);
+      } else {
+        setErrorMsg("Failed to load orders. Please check your network or server status.");
+      }
     } catch (error) {
-      console.log(error);
-    } finally {
+      console.error("Fetch Orders Error:", error);
+      setErrorMsg(
+        error.response?.data?.message || "Something went wrong while fetching orders."
+      );
+    } fontinally: {
       setLoading(false);
     }
   };
@@ -36,16 +73,15 @@ const AdminOrders = () => {
     fetchOrders();
   }, []);
 
+  // Update Status Action
   const updateStatus = async (id, status) => {
     try {
       setUpdatingId(id);
-      await axios.put(
-        `https://backend-3-axez.onrender.com/api/orders/${id}`,
-        { status }
-      );
+      await axios.put(`${API_BASE}/orders/${id}`, { status });
       await fetchOrders();
     } catch (error) {
-      console.log(error);
+      console.error("Update Status Error:", error);
+      alert(error.response?.data?.message || "Failed to update order status");
     } finally {
       setUpdatingId(null);
     }
@@ -96,12 +132,11 @@ const AdminOrders = () => {
     }
   };
 
-  // Loading
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-4 text-gray-600 font-medium">Loading orders...</p>
         </div>
       </div>
@@ -112,7 +147,7 @@ const AdminOrders = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-6 sm:py-8 px-3 sm:px-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900">
               Admin Orders
@@ -131,6 +166,14 @@ const AdminOrders = () => {
           </button>
         </div>
 
+        {/* Error Alert Bar */}
+        {errorMsg && (
+          <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-700 shadow-sm">
+            <AlertTriangle size={18} className="shrink-0" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
         {/* Empty State */}
         {orders.length === 0 ? (
           <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-12 text-center">
@@ -145,8 +188,24 @@ const AdminOrders = () => {
         ) : (
           <div className="space-y-5 sm:space-y-6">
             {orders.map((order) => {
-              const statusStyle = getStatusStyle(order.status);
+              const currentStatus = order.status || "Pending";
+              const statusStyle = getStatusStyle(currentStatus);
               const isUpdating = updatingId === order._id;
+
+              // Product items array normalize
+              const itemsList =
+                order.items || order.orderItems || order.products || [];
+
+              // Price fallback
+              const totalAmount =
+                order.totalAmount ?? order.totalPrice ?? order.total ?? 0;
+
+              // Customer Name fallback
+              const customer =
+                order.customerName ||
+                order.user?.name ||
+                order.shippingAddress?.fullName ||
+                "Customer";
 
               return (
                 <div
@@ -163,7 +222,7 @@ const AdminOrders = () => {
                         <div className="flex items-center gap-2">
                           <User size={16} className="text-gray-500" />
                           <h2 className="text-lg sm:text-xl font-bold text-gray-900">
-                            {order.customerName || "Customer"}
+                            {customer}
                           </h2>
                         </div>
 
@@ -177,13 +236,13 @@ const AdminOrders = () => {
 
                           <span className="flex items-center gap-1.5 font-semibold text-gray-800">
                             <IndianRupee size={13} />
-                            {Number(order.totalAmount || 0).toLocaleString()}
+                            {Number(totalAmount).toLocaleString("en-IN")}
                           </span>
 
-                          {order.totalItems && (
+                          {itemsList.length > 0 && (
                             <span className="flex items-center gap-1.5">
                               <Package size={13} />
-                              {order.totalItems} items
+                              {itemsList.length} items
                             </span>
                           )}
                         </div>
@@ -194,7 +253,7 @@ const AdminOrders = () => {
                         className={`inline-flex items-center gap-1.5 self-start lg:self-center px-3.5 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
                       >
                         {statusStyle.icon}
-                        {order.status}
+                        {currentStatus}
                       </div>
                     </div>
                   </div>
@@ -202,72 +261,62 @@ const AdminOrders = () => {
                   {/* Products List */}
                   <div className="px-4 sm:px-6 py-4 sm:py-5">
                     <div className="space-y-3">
-                      {order.items?.map((item, index) => (
-                        <div
-                          key={index}
-                          className="flex gap-3 sm:gap-4 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition"
-                        >
-                          {/* Image */}
-                          <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
-                            <img
-                              src={item.image}
-                              alt={item.title}
-                              className="w-full h-full object-contain p-1"
-                              onError={(e) => {
-                                e.target.src =
-                                  "https://via.placeholder.com/80?text=No+Img";
-                              }}
-                            />
-                          </div>
+                      {itemsList.map((item, index) => {
+                        const itemTitle =
+                          item.title || item.name || item.product?.title || "Product";
+                        const itemImg =
+                          item.image || item.product?.image || "";
+                        const itemQty =
+                          item.quantity ?? item.qty ?? item.count ?? 1;
+                        const itemPrice =
+                          item.price ?? item.unitPrice ?? item.product?.price ?? 0;
 
-                          {/* Details */}
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
-                              {item.title}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
-                              <span>Qty: {item.quantity}</span>
-                              <span>•</span>
-                              <span>₹{Number(item.price || 0).toLocaleString()} / unit</span>
+                        return (
+                          <div
+                            key={index}
+                            className="flex gap-3 sm:gap-4 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-50 transition"
+                          >
+                            {/* Image */}
+                            <div className="w-14 h-14 sm:w-20 sm:h-20 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
+                              <img
+                                src={itemImg}
+                                alt={itemTitle}
+                                className="w-full h-full object-contain p-1"
+                                onError={(e) => {
+                                  e.target.src =
+                                    "https://via.placeholder.com/80?text=No+Img";
+                                }}
+                              />
+                            </div>
+
+                            {/* Details */}
+                            <div className="flex-1 min-w-0">
+                              <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
+                                {itemTitle}
+                              </h3>
+                              <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
+                                <span>Qty: {itemQty}</span>
+                                <span>•</span>
+                                <span>
+                                  ₹{Number(itemPrice).toLocaleString("en-IN")} / unit
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Line Total */}
+                            <div className="text-right flex-shrink-0">
+                              <p className="text-xs text-gray-400">Total</p>
+                              <p className="font-bold text-gray-900 text-sm sm:text-base">
+                                ₹
+                                {(
+                                  Number(itemPrice) * Number(itemQty)
+                                ).toLocaleString("en-IN")}
+                              </p>
                             </div>
                           </div>
-
-                          {/* Line Total */}
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-xs text-gray-400">Total</p>
-                            <p className="font-bold text-gray-900 text-sm sm:text-base">
-                              ₹
-                              {(
-                                Number(item.price || 0) *
-                                Number(item.quantity || 1)
-                              ).toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
-
-                    {/* Extra Info (if available) */}
-                    {(order.subTotal || order.gst) && (
-                      <div className="mt-4 pt-4 border-t border-gray-100 flex flex-wrap gap-4 text-xs sm:text-sm text-gray-600">
-                        {order.subTotal && (
-                          <span>
-                            Subtotal:{" "}
-                            <strong>
-                              ₹{Number(order.subTotal).toLocaleString()}
-                            </strong>
-                          </span>
-                        )}
-                        {order.gst && (
-                          <span>
-                            GST:{" "}
-                            <strong>
-                              ₹{Number(order.gst).toLocaleString()}
-                            </strong>
-                          </span>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   {/* Action Buttons */}
@@ -277,7 +326,7 @@ const AdminOrders = () => {
                     </p>
                     <div className="flex flex-wrap gap-2 sm:gap-3">
                       <button
-                        disabled={order.status === "Pending" || isUpdating}
+                        disabled={currentStatus === "Pending" || isUpdating}
                         onClick={() => updateStatus(order._id, "Pending")}
                         className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
                       >
@@ -286,7 +335,7 @@ const AdminOrders = () => {
                       </button>
 
                       <button
-                        disabled={order.status === "Shipped" || isUpdating}
+                        disabled={currentStatus === "Shipped" || isUpdating}
                         onClick={() => updateStatus(order._id, "Shipped")}
                         className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
                       >
@@ -295,7 +344,7 @@ const AdminOrders = () => {
                       </button>
 
                       <button
-                        disabled={order.status === "Delivered" || isUpdating}
+                        disabled={currentStatus === "Delivered" || isUpdating}
                         onClick={() => updateStatus(order._id, "Delivered")}
                         className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
                       >
@@ -304,7 +353,7 @@ const AdminOrders = () => {
                       </button>
 
                       <button
-                        disabled={order.status === "Cancelled" || isUpdating}
+                        disabled={currentStatus === "Cancelled" || isUpdating}
                         onClick={() => updateStatus(order._id, "Cancelled")}
                         className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
                       >
@@ -316,7 +365,7 @@ const AdminOrders = () => {
                     {isUpdating && (
                       <p className="text-xs text-indigo-600 mt-2 flex items-center gap-1.5">
                         <RefreshCw size={12} className="animate-spin" />
-                        Updating...
+                        Updating status...
                       </p>
                     )}
                   </div>
