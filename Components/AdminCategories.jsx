@@ -107,36 +107,60 @@ const AdminCategories = () => {
     return Object.values(categoryMap);
   }, [products]);
 
-  // Calculate Monthly Sales & Profit
-  const monthlyStats = useMemo(() => {
-    let totalUnitsSold = 0;
-    let totalRevenue = 0;
-    let totalCost = 0;
+  // 3. Dynamic Calculation for Monthly Sales, Revenue & Net Profit Margin
+const monthlyStats = useMemo(() => {
+  let totalUnitsSold = 0;
+  let totalRevenue = 0;
+  let totalCost = 0;
 
-    orders.forEach((order) => {
-      const dateStr = order.createdAt || order.date;
-      if (!dateStr) return;
-      
-      const orderDate = new Date(dateStr).toISOString().slice(0, 7);
-      if (orderDate === selectedMonth) {
-        const items = order.orderItems || order.items || [];
-        items.forEach((item) => {
-          const qty = Number(item.quantity || item.qty || 1);
-          const price = Number(item.price || item.product?.price || 0);
-          const cost = Number(item.costPrice || item.product?.costPrice || price * 0.7);
+  // Selected Month filter (Format: YYYY-MM)
+  const currentMonthFilter = selectedMonth || new Date().toISOString().slice(0, 7);
+
+  orders.forEach((order) => {
+    // Date extractor with multiple field fallback
+    const rawDate = order.createdAt || order.date || order.orderDate || order.updatedAt;
+    
+    // Convert to YYYY-MM string
+    let orderMonth = "";
+    if (rawDate) {
+      orderMonth = new Date(rawDate).toISOString().slice(0, 7);
+    }
+
+    // Direct month matching OR fallback if no dates exist in dummy backend
+    if (!rawDate || orderMonth === currentMonthFilter) {
+      // Order items extractor with multiple field fallback
+      const itemsList = order.orderItems || order.items || order.products || [];
+
+      if (Array.isArray(itemsList)) {
+        itemsList.forEach((item) => {
+          const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
+          const price = Number(
+            item.price ?? item.product?.price ?? item.unitPrice ?? 0
+          );
+          // Profit margin fallback (Agar costPrice define nahi hai toh 30% margin assume karega)
+          const cost = Number(
+            item.costPrice ?? item.product?.costPrice ?? price * 0.7
+          );
 
           totalUnitsSold += qty;
           totalRevenue += price * qty;
           totalCost += cost * qty;
         });
+      } else {
+        // Fallback agar order structure me direct totalAmount diya ho
+        const orderTotal = Number(order.totalPrice || order.totalAmount || 0);
+        totalRevenue += orderTotal;
+        totalCost += orderTotal * 0.7;
       }
-    });
+    }
+  });
 
-    const netProfit = totalRevenue - totalCost;
-    const profitMargin = totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
+  const netProfit = totalRevenue - totalCost;
+  const profitMargin =
+    totalRevenue > 0 ? ((netProfit / totalRevenue) * 100).toFixed(1) : 0;
 
-    return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
-  }, [orders, selectedMonth]);
+  return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
+}, [orders, selectedMonth]);
 
   // PDF Export
   const handleDownloadPDF = async () => {
