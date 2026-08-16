@@ -30,6 +30,14 @@ const AdminCategories = () => {
     new Date().toISOString().slice(0, 7)
   );
 
+  // Helper to extract clean string ID from any object/string representation
+  const getCleanId = (id) => {
+    if (!id) return "";
+    if (typeof id === "string") return id.trim();
+    if (typeof id === "object" && id._id) return String(id._id).trim();
+    return String(id).trim();
+  };
+
   // Fetch Products & Orders Data
   const fetchData = async () => {
     try {
@@ -37,7 +45,7 @@ const AdminCategories = () => {
       setMessage({ type: "", text: "" });
 
       const [prodRes, orderRes] = await Promise.all([
-        axios.get(`${API_BASE}/products`),
+        axios.get(`${API_BASE}/products`).catch(() => ({ data: [] })),
         axios
           .get(`${API_BASE}/orders/all`)
           .catch(() =>
@@ -61,6 +69,8 @@ const AdminCategories = () => {
         setOrders(oData.orders);
       } else if (Array.isArray(oData)) {
         setOrders(oData);
+      } else if (Array.isArray(oData?.data)) {
+        setOrders(oData.data);
       } else {
         setOrders([]);
       }
@@ -79,29 +89,43 @@ const AdminCategories = () => {
     fetchData();
   }, []);
 
-  // Map Shipped/Delivered Units by Product ID
-  const shippedUnitsMap = useMemo(() => {
+  // Map Sold Units by Product ID (Supports all order statuses except strictly cancelled/returned)
+  const productSoldMap = useMemo(() => {
     const map = {};
-    orders.forEach((order) => {
-      const status = (order.status || "").toLowerCase();
-      const isShipped = status === "shipped" || status === "delivered";
 
-      if (isShipped) {
-        const itemsList = order.items || order.orderItems || order.products || [];
+    orders.forEach((order) => {
+      const status = String(order.status || order.orderStatus || "").toLowerCase();
+      
+      // Exclude cancelled/refunded orders, include all active & completed ones
+      const isCancelled =
+        status.includes("cancel") || status.includes("return") || status.includes("refund");
+
+      if (!isCancelled) {
+        const itemsList =
+          order.items || order.orderItems || order.products || order.cartItems || [];
+
         itemsList.forEach((item) => {
-          const prodId =
-            item.product?._id || item.product || item._id || item.id;
+          const rawId =
+            item.product?._id ||
+            item.product ||
+            item.productId ||
+            item._id ||
+            item.id;
+          const cleanId = getCleanId(rawId);
+
           const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
-          if (prodId) {
-            map[prodId] = (map[prodId] || 0) + qty;
+
+          if (cleanId) {
+            map[cleanId] = (map[cleanId] || 0) + qty;
           }
         });
       }
     });
+
     return map;
   }, [orders]);
 
-  // Group Products by Category with Total, Sold, and Left Stock Calculation
+  // Group Products by Category with Real Sold & Remaining Stock Calculation
   const categoriesWithStock = useMemo(() => {
     const categoryMap = {};
 
@@ -113,10 +137,14 @@ const AdminCategories = () => {
         catName = prod.category.name.trim();
       }
 
+      const cleanProdId = getCleanId(prod._id || prod.id);
+
       const initialStock = Number(
         prod.stock ?? prod.countInStock ?? prod.quantity ?? 0
       );
-      const soldQty = shippedUnitsMap[prod._id] || 0;
+
+      // Matches against sold units map
+      const soldQty = productSoldMap[cleanProdId] || 0;
       const netRemainingStock = Math.max(0, initialStock - soldQty);
 
       if (!categoryMap[catName]) {
@@ -136,16 +164,17 @@ const AdminCategories = () => {
     });
 
     return Object.values(categoryMap);
-  }, [products, shippedUnitsMap]);
+  }, [products, productSoldMap]);
 
-  // Monthly Sold Products Data Extraction with Precise Product Name Resolution
+  // Monthly Sold Products Extraction for PDF
   const productMonthlySales = useMemo(() => {
     const prodStatsMap = {};
     const filterMonth = selectedMonth || new Date().toISOString().slice(0, 7);
 
     orders.forEach((order) => {
-      const status = (order.status || "").toLowerCase();
-      const isValid = status === "shipped" || status === "delivered" || order.isPaid;
+      const status = String(order.status || order.orderStatus || "").toLowerCase();
+      const isCancelled =
+        status.includes("cancel") || status.includes("return") || status.includes("refund");
 
       const rawDate =
         order.createdAt || order.date || order.orderDate || order.updatedAt;
@@ -157,17 +186,18 @@ const AdminCategories = () => {
         }
       }
 
-      if (isValid && (!orderMonth || orderMonth === filterMonth)) {
-        const itemsList = order.items || order.orderItems || order.products || [];
+      if (!isCancelled && (!orderMonth || orderMonth === filterMonth)) {
+        const itemsList =
+          order.items || order.orderItems || order.products || order.cartItems || [];
+
         itemsList.forEach((item) => {
-          // Dynamic product name extraction to eliminate "Standard Item" fallback
           const productName =
             item.name ||
             item.title ||
             item.product?.name ||
             item.product?.title ||
             item.productName ||
-            `Product #${item.product?._id || item._id || "ID"}`;
+            `Product #${getCleanId(item.product?._id || item.product || item._id)}`;
 
           const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1);
           const price = Number(
@@ -197,7 +227,7 @@ const AdminCategories = () => {
     return Object.values(prodStatsMap).sort((a, b) => b.unitsSold - a.unitsSold);
   }, [orders, selectedMonth]);
 
-  // Overall Monthly Stats
+  // Summary Metrics Calculation
   const monthlyStats = useMemo(() => {
     let totalUnitsSold = 0;
     let totalRevenue = 0;
@@ -216,17 +246,15 @@ const AdminCategories = () => {
     return { totalUnitsSold, totalRevenue, totalCost, netProfit, profitMargin };
   }, [productMonthlySales]);
 
-  // PDF Export Function
+  // PDF Downloader
   const handleDownloadPDF = () => {
     try {
       setDownloadingPdf(true);
       const doc = new jsPDF("p", "pt", "a4");
 
-      // Header Linear Gradient Representation
       doc.setFillColor(79, 70, 229);
       doc.rect(0, 0, 595, 80, "F");
 
-      // Company Title & Subtitle
       doc.setFontSize(20);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(255, 255, 255);
@@ -236,7 +264,6 @@ const AdminCategories = () => {
       doc.setFont("helvetica", "normal");
       doc.text("Official Inventory & Monthly Sales Report", 40, 58);
 
-      // Business Info Details
       doc.setTextColor(30, 41, 59);
       doc.setFontSize(9);
 
@@ -249,14 +276,13 @@ const AdminCategories = () => {
       doc.text(`Mobile: +91 9876543210`, 40, 118);
       doc.text(`Email: support@pedwallife.com`, 40, 131);
 
-      doc.text(`Report Period: ${selectedMonth}`, 380, 105);
+      doc.text(`Report Month: ${selectedMonth}`, 380, 105);
       doc.text(`Generated On: ${currentTime}`, 380, 118);
       doc.text(`Address: Main Market, New Delhi, India`, 380, 131);
 
       doc.setDrawColor(226, 232, 240);
       doc.line(40, 145, 555, 145);
 
-      // Sold Products Table with Actual Names
       doc.setFontSize(12);
       doc.setFont("helvetica", "bold");
       doc.setTextColor(30, 41, 59);
@@ -285,7 +311,6 @@ const AdminCategories = () => {
         styles: { fontSize: 9, cellPadding: 5 },
       });
 
-      // Overall Summary
       const finalY = doc.lastAutoTable.finalY + 25;
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
@@ -310,7 +335,7 @@ const AdminCategories = () => {
       doc.save(`Sales_Report_${selectedMonth}.pdf`);
     } catch (err) {
       console.error("PDF Export Error:", err);
-      alert("PDF generate karne me error aaya.");
+      alert("PDF generate karne mein issue aaya.");
     } finally {
       setDownloadingPdf(false);
     }
@@ -344,7 +369,7 @@ const AdminCategories = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
-        {/* Top Header */}
+        {/* Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md">
@@ -352,10 +377,10 @@ const AdminCategories = () => {
             </div>
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-800">
-                Categories & Monthly Reports
+                Categories & Stock Reports
               </h1>
               <p className="text-xs sm:text-sm text-gray-500">
-                Track Stock, Sold Quantities & Generate Monthly PDF Reports
+                Track Total, Sold & Remaining Stock with PDF Reports
               </p>
             </div>
           </div>
@@ -376,7 +401,7 @@ const AdminCategories = () => {
               {downloadingPdf ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Generating PDF...</span>
+                  <span>Generating...</span>
                 </>
               ) : (
                 <>
@@ -388,15 +413,7 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* Error Alert */}
-        {message.text && (
-          <div className="mb-5 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-700">
-            <AlertTriangle size={18} />
-            {message.text}
-          </div>
-        )}
-
-        {/* Search & Month Filters */}
+        {/* Search & Month Filter */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="relative w-full sm:w-80">
             <Search
@@ -431,43 +448,7 @@ const AdminCategories = () => {
           </div>
         </div>
 
-        {/* Analytics Highlights */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase font-medium">
-              Units Sold ({selectedMonth})
-            </p>
-            <p className="text-2xl font-bold text-gray-800 mt-1">
-              {monthlyStats.totalUnitsSold} Pcs
-            </p>
-          </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase font-medium">
-              Monthly Revenue
-            </p>
-            <p className="text-2xl font-bold text-indigo-600 mt-1">
-              ₹{monthlyStats.totalRevenue.toLocaleString("en-IN")}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase font-medium">
-              Net Profit
-            </p>
-            <p className="text-2xl font-bold text-emerald-600 mt-1">
-              ₹{monthlyStats.netProfit.toLocaleString("en-IN")}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
-            <p className="text-xs text-gray-500 uppercase font-medium flex items-center gap-1">
-              <TrendingUp size={14} /> Profit Margin
-            </p>
-            <p className="text-2xl font-bold text-purple-600 mt-1">
-              {monthlyStats.profitMargin}%
-            </p>
-          </div>
-        </div>
-
-        {/* Categories Card Grid with Total, Sold (Red), and Remaining Stock (Green) */}
+        {/* Category Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {displayedCategories.length === 0 ? (
             <div className="col-span-full bg-white p-8 rounded-2xl text-center text-gray-400 font-medium border border-gray-200">
@@ -490,13 +471,16 @@ const AdminCategories = () => {
                   </div>
 
                   <p className="text-xs text-gray-500 font-medium mb-3">
-                    Products Count: <span className="font-bold text-gray-700">{cat.productCount} items</span>
+                    Products Count:{" "}
+                    <span className="font-bold text-gray-700">
+                      {cat.productCount} items
+                    </span>
                   </p>
                 </div>
 
-                {/* Detailed Stock Statistics Breakdown */}
+                {/* Dynamic Stock Card Section */}
                 <div className="pt-3 border-t border-gray-100 grid grid-cols-3 gap-2 text-center bg-slate-50 p-2.5 rounded-xl">
-                  {/* Initial / Total Stock */}
+                  {/* Total */}
                   <div>
                     <p className="text-[10px] text-gray-400 uppercase font-semibold flex items-center justify-center gap-0.5">
                       <Package size={10} /> Total
@@ -506,7 +490,7 @@ const AdminCategories = () => {
                     </p>
                   </div>
 
-                  {/* Sold Stock (Highlighted in Red) */}
+                  {/* Sold (Red Accent) */}
                   <div className="border-x border-gray-200 px-1">
                     <p className="text-[10px] text-red-500 uppercase font-semibold flex items-center justify-center gap-0.5">
                       <ShoppingCart size={10} /> Sold
@@ -516,7 +500,7 @@ const AdminCategories = () => {
                     </p>
                   </div>
 
-                  {/* Remaining Stock (Highlighted in Green) */}
+                  {/* Remaining (Green Accent) */}
                   <div>
                     <p className="text-[10px] text-emerald-600 uppercase font-semibold flex items-center justify-center gap-0.5">
                       <Package size={10} /> Remaining
@@ -531,7 +515,7 @@ const AdminCategories = () => {
           )}
         </div>
 
-        {/* Load More Pagination */}
+        {/* Pagination Load More */}
         {visibleCount < filteredCategories.length && (
           <div className="mt-8 text-center">
             <button
