@@ -165,6 +165,7 @@ const ProductDetails = () => {
     });
   };
 
+  
   const quickQtys = useMemo(() => {
     return [1, 5, 10, 25, 50, 100, 250, 500, maxStock].filter(
       (q, i, arr) => q <= maxStock && arr.indexOf(q) === i
