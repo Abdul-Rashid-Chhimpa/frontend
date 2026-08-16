@@ -140,10 +140,12 @@ const GetAllProducts = () => {
       formData.append("material", editProduct.material || "");
       formData.append("stock", editProduct.stock || 0);
 
-      // Size, Weight aur GST ko FormData mein add kiya gaya hai
+      // Size aur Weight
       formData.append("size", editProduct.size || "");
       formData.append("weight", editProduct.weight || "");
-      formData.append("gstPercent", editProduct.gstPercent || 0);
+
+      // 🔥 GST Field Add Ki Gayi Hai
+      formData.append("gst", editProduct.gst || 0);
 
       formData.append("variantGroup", editProduct.variantGroup || "");
       formData.append("description", editProduct.description || "");
@@ -179,7 +181,6 @@ const GetAllProducts = () => {
     }
   };
 
-  
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
@@ -292,13 +293,6 @@ const GetAllProducts = () => {
                           {product.variantGroup}
                         </span>
                       )}
-                      {/* GST Badge Card Display */}
-                      {product.gstPercent !== undefined && (
-                        <span className="bg-amber-50 text-amber-700 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
-                          <Percent size={12} />
-                          GST: {product.gstPercent}%
-                        </span>
-                      )}
                     </div>
 
                     <div className="mt-3 text-sm text-gray-600 space-y-0.5">
@@ -310,6 +304,12 @@ const GetAllProducts = () => {
                         <p className="text-xs text-gray-500">
                           {product.size && <span>Size: {product.size} </span>}
                           {product.weight && <span>| Weight: {product.weight}</span>}
+                        </p>
+                      )}
+                      {/* 🔥 GST Display Badge */}
+                      {product.gst !== undefined && product.gst !== null && (
+                        <p className="text-xs text-indigo-600 font-medium">
+                          GST: {product.gst}%
                         </p>
                       )}
                       <p className="text-emerald-600 font-bold text-base mt-1">
@@ -475,15 +475,15 @@ const GetAllProducts = () => {
                   { name: "stock", placeholder: "Stock", type: "number" },
                   { name: "size", placeholder: "Size (e.g. XL, 10 inch)" },
                   { name: "weight", placeholder: "Weight (e.g. 500g, 1kg)" },
-                  // GST % Input field yahan add kiya gaya hai
-                  { name: "gstPercent", placeholder: "GST Percentage (%)", type: "number" },
+                  // 🔥 GST Input Field Add Ki Gayi Hai
+                  { name: "gst", placeholder: "GST Percentage (%)", type: "number" },
                   { name: "variantGroup", placeholder: "Variant Group (e.g. pliers-water)" },
                 ].map((field) => (
                   <input
                     key={field.name}
                     type={field.type || "text"}
                     name={field.name}
-                    value={editProduct[field.name] ?? ""}
+                    value={editProduct[field.name] || ""}
                     onChange={handleEditChange}
                     placeholder={field.placeholder}
                     className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
