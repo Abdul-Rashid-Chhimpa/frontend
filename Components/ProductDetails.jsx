@@ -14,6 +14,11 @@ import {
   Percent,
   Scale,
   Ruler,
+  CreditCard,
+  Wallet,
+  Building,
+  Banknote,
+  Zap,
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
 import axios from "axios";
@@ -35,6 +40,10 @@ const ProductDetails = () => {
   const [pincode, setPincode] = useState("");
   const [deliveryStatus, setDeliveryStatus] = useState(null); // null | { success: boolean, message: string }
   const [checkingPincode, setCheckingPincode] = useState(false);
+
+  // New States: Payment Method & Delivery Option
+  const [selectedPayment, setSelectedPayment] = useState("upi");
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("standard");
 
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
@@ -84,7 +93,7 @@ const ProductDetails = () => {
         }
       } catch (err) {
         if (isMounted) setError(true);
-      } finally {
+      } font-medium
         if (isMounted) setLoading(false);
       }
     };
@@ -133,13 +142,18 @@ const ProductDetails = () => {
 
   const totalPrice = unitPrice * quantity;
 
+  // Delivery Charges
+  const deliveryCharge = useMemo(() => {
+    return selectedDeliveryMethod === "express" ? 150 : 0;
+  }, [selectedDeliveryMethod]);
+
   // GST Calculation
   const gstAmount = useMemo(() => {
     const gstPercent = Number(product?.gst) || 0;
     return (totalPrice * gstPercent) / 100;
   }, [totalPrice, product]);
 
-  const grandTotal = totalPrice + gstAmount;
+  const grandTotal = totalPrice + gstAmount + deliveryCharge;
 
   // ================= AUTO SLIDE =================
   const imagesList = useMemo(() => {
@@ -179,9 +193,7 @@ const ProductDetails = () => {
     }
 
     setCheckingPincode(true);
-    // Standard Pincode service check simulation
     setTimeout(() => {
-      // Example validation logic
       if (/^[1-9][0-9]{5}$/.test(pincode)) {
         setDeliveryStatus({
           success: true,
@@ -211,6 +223,8 @@ const ProductDetails = () => {
       ...product,
       quantity: quantity,
       price: unitPrice,
+      paymentMethod: selectedPayment,
+      deliveryMethod: selectedDeliveryMethod,
       selectedOption: {
         quantity: quantity,
         price: unitPrice,
@@ -442,6 +456,85 @@ const ProductDetails = () => {
                   )}
                 </div>
 
+                {/* DELIVERY OPTIONS */}
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
+                    Select Delivery Option
+                  </h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDeliveryMethod("standard")}
+                      className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition ${
+                        selectedDeliveryMethod === "standard"
+                          ? "border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20"
+                          : "border-gray-200 bg-white hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs sm:text-sm text-gray-800 flex items-center gap-1.5">
+                          <Truck size={16} className="text-indigo-600" /> Standard
+                        </span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded">
+                          FREE
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-gray-500">Delivered in 3-5 Business Days</p>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedDeliveryMethod("express")}
+                      className={`p-3 rounded-xl border text-left flex flex-col gap-1 transition ${
+                        selectedDeliveryMethod === "express"
+                          ? "border-indigo-600 bg-indigo-50/60 ring-2 ring-indigo-500/20"
+                          : "border-gray-200 bg-white hover:border-gray-300"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-xs sm:text-sm text-gray-800 flex items-center gap-1.5">
+                          <Zap size={16} className="text-amber-500" /> Express
+                        </span>
+                        <span className="text-xs font-bold text-gray-800">₹150</span>
+                      </div>
+                      <p className="text-[11px] text-gray-500">Delivered in 1-2 Business Days</p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* PAYMENT METHODS */}
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
+                    Select Payment Method
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                    {[
+                      { id: "upi", label: "UPI / Google Pay", icon: Wallet },
+                      { id: "card", label: "Credit / Debit Card", icon: CreditCard },
+                      { id: "cod", label: "Cash on Delivery", icon: Banknote },
+                      { id: "netbanking", label: "Net Banking", icon: Building },
+                    ].map((method) => {
+                      const Icon = method.icon;
+                      const isSelected = selectedPayment === method.id;
+                      return (
+                        <button
+                          key={method.id}
+                          type="button"
+                          onClick={() => setSelectedPayment(method.id)}
+                          className={`p-2.5 sm:p-3 rounded-xl border flex items-center gap-2.5 transition text-left ${
+                            isSelected
+                              ? "border-indigo-600 bg-indigo-50/80 text-indigo-900 font-semibold ring-2 ring-indigo-500/20"
+                              : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
+                          }`}
+                        >
+                          <Icon size={18} className={isSelected ? "text-indigo-600" : "text-gray-400"} />
+                          <span className="text-xs sm:text-sm">{method.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
                 {/* PRICING TIERS */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
@@ -537,7 +630,7 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* TOTAL PRICE BREAKDOWN (WITH GST) */}
+                {/* TOTAL PRICE BREAKDOWN (WITH GST & DELIVERY) */}
                 <div className="mb-6 sm:mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 space-y-2">
                   <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
                     <span>
@@ -554,6 +647,13 @@ const ProductDetails = () => {
                       <span className="font-medium">+ ₹{gstAmount.toLocaleString()}</span>
                     </div>
                   )}
+
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
+                    <span>Delivery Charge</span>
+                    <span className="font-medium">
+                      {deliveryCharge === 0 ? "FREE" : `+ ₹${deliveryCharge}`}
+                    </span>
+                  </div>
 
                   <div className="border-t border-indigo-200/60 pt-2 flex justify-between items-center">
                     <span className="text-gray-800 font-bold text-sm sm:text-base">
