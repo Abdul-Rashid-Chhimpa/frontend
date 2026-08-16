@@ -12,6 +12,7 @@ import {
   RefreshCw,
   ShoppingBag,
   AlertTriangle,
+  Trash2,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
@@ -20,7 +21,12 @@ const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Confirmation Modal State
+  const [orderToDelete, setOrderToDelete] = useState(null);
+  const [confirmText, setConfirmText] = useState("");
 
   const fetchOrders = async () => {
     try {
@@ -61,6 +67,23 @@ const AdminOrders = () => {
       alert(error.response?.data?.message || "Failed to update order status");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  // Delete Order Handler
+  const handleDeleteOrder = async () => {
+    if (!orderToDelete) return;
+    try {
+      setDeletingId(orderToDelete._id);
+      await axios.delete(`${API_BASE}/orders/${orderToDelete._id}`);
+      setOrderToDelete(null);
+      setConfirmText("");
+      await fetchOrders();
+    } catch (error) {
+      console.error("Delete Order Error:", error);
+      alert(error.response?.data?.message || "Failed to delete order");
+    } fontally {
+      setDeletingId(null);
     }
   };
 
@@ -168,6 +191,7 @@ const AdminOrders = () => {
               const currentStatus = order.status || "Pending";
               const statusStyle = getStatusStyle(currentStatus);
               const isUpdating = updatingId === order._id;
+              const isDeleting = deletingId === order._id;
 
               return (
                 <div
@@ -273,45 +297,63 @@ const AdminOrders = () => {
                   </div>
 
                   {/* Action Buttons */}
-                  <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-100">
-                    <p className="text-xs text-gray-500 mb-3 font-medium uppercase tracking-wide">
-                      Update Status
-                    </p>
-                    <div className="flex flex-wrap gap-2 sm:gap-3">
-                      <button
-                        disabled={currentStatus === "Pending" || isUpdating}
-                        onClick={() => updateStatus(order._id, "Pending")}
-                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
-                      >
-                        <Clock size={14} />
-                        Pending
-                      </button>
+                  <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500 mb-2.5 font-medium uppercase tracking-wide">
+                        Update Status
+                      </p>
+                      <div className="flex flex-wrap gap-2 sm:gap-3">
+                        <button
+                          disabled={currentStatus === "Pending" || isUpdating || isDeleting}
+                          onClick={() => updateStatus(order._id, "Pending")}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+                        >
+                          <Clock size={14} />
+                          Pending
+                        </button>
 
-                      <button
-                        disabled={currentStatus === "Shipped" || isUpdating}
-                        onClick={() => updateStatus(order._id, "Shipped")}
-                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
-                      >
-                        <Truck size={14} />
-                        Shipped
-                      </button>
+                        <button
+                          disabled={currentStatus === "Shipped" || isUpdating || isDeleting}
+                          onClick={() => updateStatus(order._id, "Shipped")}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+                        >
+                          <Truck size={14} />
+                          Shipped
+                        </button>
 
-                      <button
-                        disabled={currentStatus === "Delivered" || isUpdating}
-                        onClick={() => updateStatus(order._id, "Delivered")}
-                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
-                      >
-                        <CheckCircle size={14} />
-                        Delivered
-                      </button>
+                        <button
+                          disabled={currentStatus === "Delivered" || isUpdating || isDeleting}
+                          onClick={() => updateStatus(order._id, "Delivered")}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+                        >
+                          <CheckCircle size={14} />
+                          Delivered
+                        </button>
 
+                        <button
+                          disabled={currentStatus === "Cancelled" || isUpdating || isDeleting}
+                          onClick={() => updateStatus(order._id, "Cancelled")}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+                        >
+                          <XCircle size={14} />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Permanent Delete Button */}
+                    <div className="flex items-end sm:items-center">
                       <button
-                        disabled={currentStatus === "Cancelled" || isUpdating}
-                        onClick={() => updateStatus(order._id, "Cancelled")}
-                        className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+                        disabled={isUpdating || isDeleting}
+                        onClick={() => {
+                          setOrderToDelete(order);
+                          setConfirmText("");
+                        }}
+                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white transition shadow-sm"
+                        title="Delete Order Permanently"
                       >
-                        <XCircle size={14} />
-                        Cancel
+                        <Trash2 size={16} />
+                        Delete Order
                       </button>
                     </div>
 
@@ -325,6 +367,66 @@ const AdminOrders = () => {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {orderToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100 animate-in fade-in zoom-in duration-200">
+              <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-4">
+                <AlertTriangle size={24} />
+              </div>
+
+              <h3 className="text-xl font-bold text-gray-900">
+                Delete Order Permanently?
+              </h3>
+              <p className="text-sm text-gray-500 mt-2">
+                Order ID <span className="font-mono font-bold text-gray-700">#{orderToDelete._id}</span> will be deleted forever. This action cannot be undone.
+              </p>
+
+              <div className="mt-4">
+                <label className="block text-xs font-semibold text-gray-700 uppercase mb-2">
+                  Type <span className="text-rose-600 font-extrabold">DELETE</span> to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder="Type DELETE here..."
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button
+                  onClick={() => {
+                    setOrderToDelete(null);
+                    setConfirmText("");
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-gray-200 text-gray-700 text-sm font-semibold hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={confirmText !== "DELETE" || deletingId === orderToDelete._id}
+                  onClick={handleDeleteOrder}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-md"
+                >
+                  {deletingId === orderToDelete._id ? (
+                    <>
+                      <RefreshCw size={14} className="animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={16} />
+                      Confirm Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
