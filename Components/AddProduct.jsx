@@ -10,7 +10,10 @@ import {
   X,
   Ruler,
   Weight,
-  Percent, // 🔥 Added Percent Icon
+  Percent,
+  Truck,
+  CreditCard,
+  Info,
 } from "lucide-react";
 
 const AddProduct = () => {
@@ -28,9 +31,22 @@ const AddProduct = () => {
     stock: "",
     description: "",
     variantGroup: "",
-    size: "", // ← OPTIONAL
-    weight: "", // ← OPTIONAL
-    gst: "", // 🔥 Added GST state
+    size: "",
+    weight: "",
+    gst: "",
+    // 🚚 Delivery Fields
+    minQtyForFreeDelivery: "", // Kis quantity se delivery free hogi
+    standardDeliveryCharge: "", // Agar order free delivery threshold se kam ho to kitna charge lagega
+    deliveryNote: "Free delivery on orders with 5 or more items!", // Static/Custom banner line
+    // 💳 Payment Options Status
+    paymentMethods: {
+      cod: true,
+      phonepe: true,
+      gpay: true,
+      paytm: true,
+      card: true,
+      netbanking: true,
+    },
   });
 
   const [priceList, setPriceList] = useState([{ quantity: "", price: "" }]);
@@ -76,6 +92,16 @@ const AddProduct = () => {
   // ================= FORM HANDLERS =================
   const handleChange = (e) => {
     setProduct({ ...product, [e.target.name]: e.target.value });
+  };
+
+  const handlePaymentToggle = (methodKey) => {
+    setProduct((prev) => ({
+      ...prev,
+      paymentMethods: {
+        ...prev.paymentMethods,
+        [methodKey]: !prev.paymentMethods[methodKey],
+      },
+    }));
   };
 
   const addPriceRow = () => {
@@ -127,9 +153,15 @@ const AddProduct = () => {
       formData.append("stock", product.stock);
       formData.append("description", product.description);
       formData.append("variantGroup", product.variantGroup || "");
-      formData.append("size", product.size || ""); // ← OPTIONAL
-      formData.append("weight", product.weight || ""); // ← OPTIONAL
-      formData.append("gst", product.gst || 0); // 🔥 GST Field Appended
+      formData.append("size", product.size || "");
+      formData.append("weight", product.weight || "");
+      formData.append("gst", product.gst || 0);
+
+      // 🚚 Delivery & Payment Settings Sent to Backend
+      formData.append("minQtyForFreeDelivery", product.minQtyForFreeDelivery || 0);
+      formData.append("standardDeliveryCharge", product.standardDeliveryCharge || 0);
+      formData.append("deliveryNote", product.deliveryNote);
+      formData.append("paymentMethods", JSON.stringify(product.paymentMethods));
 
       formData.append("pricing", JSON.stringify(validPricing));
 
@@ -155,7 +187,18 @@ const AddProduct = () => {
           variantGroup: "",
           size: "",
           weight: "",
-          gst: "", // Reset GST
+          gst: "",
+          minQtyForFreeDelivery: "",
+          standardDeliveryCharge: "",
+          deliveryNote: "Free delivery on orders with 5 or more items!",
+          paymentMethods: {
+            cod: true,
+            phonepe: true,
+            gpay: true,
+            paytm: true,
+            card: true,
+            netbanking: true,
+          },
         });
         setPriceList([{ quantity: "", price: "" }]);
         setTimeout(() => setSuccess(false), 3000);
@@ -163,7 +206,7 @@ const AddProduct = () => {
     } catch (err) {
       console.log(err);
       alert(err.response?.data?.message || "Product Add Failed");
-    } finally {
+    } fontally {
       setLoading(false);
     }
   };
@@ -335,7 +378,6 @@ const AddProduct = () => {
                   <Weight size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                 </div>
 
-                {/* 🔥 GST INPUT FIELD */}
                 <div className="relative">
                   <input
                     type="number"
@@ -347,6 +389,109 @@ const AddProduct = () => {
                   />
                   <Percent size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                 </div>
+              </div>
+            </div>
+
+            {/* ========== 🚚 DELIVERY SETTINGS & RULES ========== */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <Truck size={18} className="text-indigo-600" />
+                Delivery Charges & Rules
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Free Delivery Minimum Quantity
+                  </label>
+                  <input
+                    type="number"
+                    name="minQtyForFreeDelivery"
+                    value={product.minQtyForFreeDelivery}
+                    onChange={handleChange}
+                    placeholder="e.g. 5 (5 ya usse zyadah par delivery free)"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">
+                    Standard Delivery Charge (₹)
+                  </label>
+                  <input
+                    type="number"
+                    name="standardDeliveryCharge"
+                    value={product.standardDeliveryCharge}
+                    onChange={handleChange}
+                    placeholder="e.g. 50 (Kam quantity hone par charge)"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Delivery Banner Message Customization */}
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">
+                  Delivery Banner Line (User Display Note)
+                </label>
+                <input
+                  type="text"
+                  name="deliveryNote"
+                  value={product.deliveryNote}
+                  onChange={handleChange}
+                  placeholder="e.g. Order 5+ units to get FREE Delivery!"
+                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 bg-white"
+                />
+              </div>
+
+              {/* Dynamic Information Preview Box */}
+              <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">
+                <Info size={16} className="mt-0.5 shrink-0 text-amber-600" />
+                <div>
+                  <p className="font-semibold mb-0.5">Live Delivery Rule Summary:</p>
+                  <p>
+                    • Quantity <strong>{product.minQtyForFreeDelivery || 0}</strong> ya usse zyada par delivery <strong>FREE</strong> rahegi.
+                  </p>
+                  <p>
+                    • Quantity <strong>{product.minQtyForFreeDelivery || 0}</strong> se kam hone par <strong>₹{product.standardDeliveryCharge || 0}</strong> delivery charge apply hoga.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* ========== 💳 PAYMENT OPTIONS ACTIVE/INACTIVE ========== */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
+                <CreditCard size={18} className="text-indigo-600" />
+                Accepted Payment Methods
+              </h2>
+              <p className="text-xs text-gray-500 mb-3">
+                Admin is product ke liye payment options bandh (Disable) ya chalu (Enable) kar sakta hai.
+              </p>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {[
+                  { key: "cod", label: "Cash on Delivery" },
+                  { key: "phonepe", label: "PhonePe" },
+                  { key: "gpay", label: "Google Pay" },
+                  { key: "paytm", label: "Paytm" },
+                  { key: "card", label: "Credit/Debit Card" },
+                  { key: "netbanking", label: "Net Banking" },
+                ].map((item) => (
+                  <label
+                    key={item.key}
+                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer select-none transition ${
+                      product.paymentMethods[item.key]
+                        ? "bg-indigo-50 border-indigo-300 text-indigo-900"
+                        : "bg-white border-gray-200 text-gray-400"
+                    }`}
+                  >
+                    <span className="text-xs font-semibold">{item.label}</span>
+                    <input
+                      type="checkbox"
+                      checked={product.paymentMethods[item.key]}
+                      onChange={() => handlePaymentToggle(item.key)}
+                      className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                    />
+                  </label>
+                ))}
               </div>
             </div>
 
