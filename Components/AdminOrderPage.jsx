@@ -22,29 +22,29 @@ const AdminOrders = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
 
-  // Robust Fetch Orders with Endpoint Fallbacks & Response Normalization
   const fetchOrders = async () => {
     try {
       setLoading(true);
       setErrorMsg("");
 
-      // Primary Try: /orders/all
-      let response = await axios
-        .get(`${API_BASE}/orders/all`)
-        .catch(() => null);
+      let response = null;
 
-      // Secondary Fallback: /orders
-      if (!response || !response.data) {
-        response = await axios
-          .get(`${API_BASE}/orders`)
-          .catch(() => null);
+      // Primary Try: /orders/all
+      try {
+        response = await axios.get(`${API_BASE}/orders/all`);
+      } catch (e1) {
+        // Fallback Try: /orders
+        try {
+          response = await axios.get(`${API_BASE}/orders`);
+        } catch (e2) {
+          throw e1; // Rethrow original error if both fail
+        }
       }
 
       if (response && response.data) {
         const resData = response.data;
         let fetchedList = [];
 
-        // Flexible key extraction for any backend structure
         if (resData?.success && Array.isArray(resData.orders)) {
           fetchedList = resData.orders;
         } else if (Array.isArray(resData.orders)) {
@@ -57,14 +57,21 @@ const AdminOrders = () => {
 
         setOrders(fetchedList);
       } else {
-        setErrorMsg("Failed to load orders. Please check your network or server status.");
+        setErrorMsg("Failed to load orders. Please check backend response.");
       }
     } catch (error) {
       console.error("Fetch Orders Error:", error);
-      setErrorMsg(
-        error.response?.data?.message || "Something went wrong while fetching orders."
-      );
-    } fontinally: {
+      if (error.code === "ERR_NETWORK") {
+        setErrorMsg(
+          "Network Error: Server render instance waking up or CORS blocked. Please refresh in a few seconds."
+        );
+      } else {
+        setErrorMsg(
+          error.response?.data?.message ||
+            "Unable to connect to server. Please try again."
+        );
+      }
+    } finally {
       setLoading(false);
     }
   };
@@ -73,7 +80,6 @@ const AdminOrders = () => {
     fetchOrders();
   }, []);
 
-  // Update Status Action
   const updateStatus = async (id, status) => {
     try {
       setUpdatingId(id);
@@ -192,15 +198,12 @@ const AdminOrders = () => {
               const statusStyle = getStatusStyle(currentStatus);
               const isUpdating = updatingId === order._id;
 
-              // Product items array normalize
               const itemsList =
                 order.items || order.orderItems || order.products || [];
 
-              // Price fallback
               const totalAmount =
                 order.totalAmount ?? order.totalPrice ?? order.total ?? 0;
 
-              // Customer Name fallback
               const customer =
                 order.customerName ||
                 order.user?.name ||
