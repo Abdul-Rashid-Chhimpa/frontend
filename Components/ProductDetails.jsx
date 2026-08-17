@@ -48,63 +48,64 @@ const ProductDetails = () => {
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
 
-  // ================= FETCH PRODUCT =================
-  useEffect(() => {
-    let isMounted = true;
 
-    setSelectedImage(0);
-    setQuantity(1);
-    setDeliveryStatus(null);
 
-    if (location.state?.product) {
-      setProduct(location.state.product);
-      setLoading(false);
-      return;
-    }
+// ================= FETCH PRODUCT =================
+useEffect(() => {
+  let isMounted = true;
 
-    const fetchProduct = async () => {
+  setSelectedImage(0);
+  setQuantity(1);
+  setDeliveryStatus(null);
+
+  if (location.state?.product) {
+    setProduct(location.state.product);
+    setLoading(false);
+    return;
+  }
+
+  const fetchProduct = async () => {
+    try {
+      setLoading(true);
+      setError(false);
+
       try {
-        setLoading(true);
-        setError(false);
-
-        try {
-          const { data } = await axios.get(
-            `https://backend-3-axez.onrender.com/api/products/${id}`
-          );
-          if (isMounted && data.success && data.product) {
-            setProduct(data.product);
-            setLoading(false);
-            return;
-          }
-        } catch (e) {
-          // Fallback to bulk list search if direct ID fails
-        }
-
-        const res = await axios.get(
-          "https://backend-3-axez.onrender.com/api/products"
+        const { data } = await axios.get(
+          `https://backend-3-axez.onrender.com/api/products/${id}`
         );
-        if (!isMounted) return;
-
-        const found = res.data.products?.find((p) => p._id === id);
-        if (found) {
-          setProduct(found);
-        } else {
-          setError(true);
+        if (isMounted && data.success && data.product) {
+          setProduct(data.product);
+          setLoading(false);
+          return;
         }
-      } catch (err) {
-        if (isMounted) setError(true);
-      } font-medium
-        if (isMounted) setLoading(false);
+      } catch (e) {
+        // Fallback to bulk list search if direct ID fails
       }
-    };
 
-    fetchProduct();
+      const res = await axios.get(
+        "https://backend-3-axez.onrender.com/api/products"
+      );
+      if (!isMounted) return;
 
-    return () => {
-      isMounted = false;
-    };
-  }, [id]);
+      const found = res.data.products?.find((p) => p._id === id);
+      if (found) {
+        setProduct(found);
+      } else {
+        setError(true);
+      }
+    } catch (err) {
+      if (isMounted) setError(true);
+    } finally {
+      if (isMounted) setLoading(false);
+    }
+  };
 
+  fetchProduct();
+
+  return () => {
+    isMounted = false;
+  };
+}, [id]);
   // ================= PRICING TIERS (Memoized) =================
   const pricingTiers = useMemo(() => {
     if (!product) return [{ minQty: 1, price: 0 }];
@@ -700,7 +701,7 @@ const ProductDetails = () => {
         </div>
       </div>
     </div>
-  );
-};
+  );}
+  
 
 export default ProductDetails;
