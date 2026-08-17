@@ -23,6 +23,7 @@ import {
 import { CartContext } from "../Components/Context";
 import axios from "axios";
 
+
 const ProductDetails = () => {
   const { id } = useParams();
   const location = useLocation();
