@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+
 const GetAllProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
