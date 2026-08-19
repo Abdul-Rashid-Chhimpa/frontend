@@ -43,7 +43,7 @@ const ProductDetails = () => {
   const [checkingPincode, setCheckingPincode] = useState(false);
 
   // Payment Method & Delivery Option States
-  const [selectedPayment, setSelectedPayment] = useState("upi");
+  const [selectedPayment, setSelectedPayment] = useState("");
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("standard");
 
   const priceScrollRef = useRef(null);
@@ -106,12 +106,35 @@ const ProductDetails = () => {
     };
   }, [id, location.state]);
 
-  // Set initial available payment method when product loads
-  useEffect(() => {
-    if (product?.paymentMethods && Array.isArray(product.paymentMethods) && product.paymentMethods.length > 0) {
-      setSelectedPayment(product.paymentMethods[0]);
+  // Map Backend Payment Methods to Available Methods
+  const availablePaymentMethods = useMemo(() => {
+    const allMethods = [
+      { id: "upi", label: "UPI / Google Pay", desc: "Instant pay via UPI apps", icon: Wallet, backendNames: ["upi", "upi / google pay"] },
+      { id: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay", icon: CreditCard, backendNames: ["card", "credit / debit card", "credit card", "debit card"] },
+      { id: "cod", label: "Cash on Delivery", desc: "Pay cash upon arrival", icon: Banknote, backendNames: ["cod", "cash on delivery"] },
+      { id: "netbanking", label: "Net Banking", desc: "All major banks supported", icon: Building, backendNames: ["netbanking", "net banking"] },
+    ];
+
+    if (!product?.paymentMethods || !Array.isArray(product.paymentMethods) || product.paymentMethods.length === 0) {
+      return allMethods; // Fallback to all if backend array is empty
     }
+
+    // Filter based on backend response
+    const filtered = allMethods.filter((method) =>
+      product.paymentMethods.some((backendMethod) =>
+        method.backendNames.includes(String(backendMethod).toLowerCase().trim())
+      )
+    );
+
+    return filtered.length > 0 ? filtered : allMethods;
   }, [product]);
+
+  // Set initial selected payment method based on available backend options
+  useEffect(() => {
+    if (availablePaymentMethods.length > 0) {
+      setSelectedPayment(availablePaymentMethods[0].id);
+    }
+  }, [availablePaymentMethods]);
 
   // ================= PRICING TIERS (Memoized) =================
   const pricingTiers = useMemo(() => {
@@ -150,17 +173,24 @@ const ProductDetails = () => {
 
   const totalPrice = unitPrice * quantity;
 
-  // ================= DYNAMIC DELIVERY CHARGE FIX =================
+  // ================= FETCH DELIVERY CHARGE FROM BACKEND =================
+  const backendDeliveryCharge = useMemo(() => {
+    if (!product) return 0;
+    if (typeof product.delivery === "object" && product.delivery?.charge !== undefined) {
+      return Number(product.delivery.charge) || 0;
+    }
+    if (product.deliveryCharge !== undefined) {
+      return Number(product.deliveryCharge) || 0;
+    }
+    return typeof product.delivery === "number" ? product.delivery : 0;
+  }, [product]);
+
   const deliveryCharge = useMemo(() => {
-    if (selectedDeliveryMethod === "standard") return 0;
-
-    const dynamicCharge = 
-      typeof product?.delivery === "object" 
-        ? Number(product?.delivery?.charge) 
-        : Number(product?.deliveryCharge || product?.delivery || 150);
-
-    return isNaN(dynamicCharge) || dynamicCharge === 0 ? 150 : dynamicCharge;
-  }, [selectedDeliveryMethod, product]);
+    if (selectedDeliveryMethod === "standard") {
+      return backendDeliveryCharge; // Shows backend base delivery charge
+    }
+    return backendDeliveryCharge + 100; // Express adds extra charge over backend charge
+  }, [selectedDeliveryMethod, backendDeliveryCharge]);
 
   // GST Calculation
   const gstAmount = useMemo(() => {
@@ -210,9 +240,10 @@ const ProductDetails = () => {
     setCheckingPincode(true);
     setTimeout(() => {
       if (/^[1-9][0-9]{5}$/.test(pincode)) {
+        const estDays = product?.delivery?.time ? `${product.delivery.time} days` : "3-5 business days";
         setDeliveryStatus({
           success: true,
-          message: "Delivery available! Estimated delivery in 3-5 business days.",
+          message: `Delivery available! Estimated delivery in ${estDays}.`,
         });
       } else {
         setDeliveryStatus({
@@ -370,7 +401,7 @@ const ProductDetails = () => {
             {/* RIGHT - DETAILS */}
             <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col">
               <div className="flex-1">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-3 sm:mb-4 leading-snug sm:leading-tight">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-3 sm:mb-4 leading-snug sm:leading-tight capitalize">
                   {product.name}
                 </h1>
 
@@ -378,12 +409,12 @@ const ProductDetails = () => {
                 <div className="space-y-2 text-gray-600 mb-5 sm:mb-6 text-sm sm:text-base">
                   <div className="flex flex-wrap gap-2 mb-3">
                     {product.category && (
-                      <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                      <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full uppercase">
                         {product.category}
                       </span>
                     )}
                     {product.brand && (
-                      <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full">
+                      <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full uppercase">
                         {product.brand}
                       </span>
                     )}
@@ -473,7 +504,7 @@ const ProductDetails = () => {
                   )}
                 </div>
 
-                {/* UPDATED: DELIVERY OPTIONS */}
+                {/* DYNAMIC BACKEND DELIVERY OPTIONS */}
                 <div className="mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Select Delivery Option
@@ -494,11 +525,13 @@ const ProductDetails = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-semibold text-xs sm:text-sm text-gray-800">Standard Delivery</span>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                            FREE
+                          <span className="text-xs font-bold text-indigo-700">
+                            {backendDeliveryCharge === 0 ? "FREE" : `₹${backendDeliveryCharge}`}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-500">Delivered in 3-5 Business Days</p>
+                        <p className="text-[11px] text-gray-500">
+                          {product?.delivery?.time ? `Estimated: ${product.delivery.time} Days` : "Delivered in 3-5 Business Days"}
+                        </p>
                       </div>
                     </button>
 
@@ -518,27 +551,22 @@ const ProductDetails = () => {
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-semibold text-xs sm:text-sm text-gray-800">Express Delivery</span>
                           <span className="text-xs font-bold text-indigo-700">
-                            ₹{deliveryCharge > 0 && selectedDeliveryMethod === "express" ? deliveryCharge : 150}
+                            ₹{backendDeliveryCharge + 100}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-500">Delivered in 1-2 Business Days</p>
+                        <p className="text-[11px] text-gray-500">Faster Express Delivery</p>
                       </div>
                     </button>
                   </div>
                 </div>
 
-                {/* UPDATED: PAYMENT METHODS */}
+                {/* DYNAMIC BACKEND PAYMENT METHODS */}
                 <div className="mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Select Payment Method
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
-                    {[
-                      { id: "upi", label: "UPI / Google Pay", desc: "Instant pay via UPI apps", icon: Wallet },
-                      { id: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay", icon: CreditCard },
-                      { id: "cod", label: "Cash on Delivery", desc: "Pay cash upon arrival", icon: Banknote },
-                      { id: "netbanking", label: "Net Banking", desc: "All major banks supported", icon: Building },
-                    ].map((method) => {
+                    {availablePaymentMethods.map((method) => {
                       const Icon = method.icon;
                       const isSelected = selectedPayment === method.id;
                       return (
