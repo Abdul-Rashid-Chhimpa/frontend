@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import {
   PackagePlus,
@@ -16,58 +16,74 @@ import {
   Info,
 } from "lucide-react";
 
+const INITIAL_PRODUCT_STATE = {
+  name: "",
+  brand: "",
+  material: "",
+  category: "",
+  stock: "",
+  description: "",
+  variantGroup: "",
+  size: "",
+  weight: "",
+  gst: "",
+  minQtyForFreeDelivery: "",
+  standardDeliveryCharge: "",
+  deliveryNote: "Free delivery on orders with 5 or more items!",
+  paymentMethods: {
+    cod: true,
+    phonepe: true,
+    gpay: true,
+    paytm: true,
+    card: true,
+    netbanking: true,
+  },
+};
+
 const AddProduct = () => {
   const [images, setImages] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
   const [selectedImage, setSelectedImage] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const [product, setProduct] = useState({
-    name: "",
-    brand: "",
-    material: "",
-    category: "",
-    stock: "",
-    description: "",
-    variantGroup: "",
-    size: "",
-    weight: "",
-    gst: "",
-    // 🚚 Delivery Fields
-    minQtyForFreeDelivery: "", // Kis quantity se delivery free hogi
-    standardDeliveryCharge: "", // Agar order free delivery threshold se kam ho to kitna charge lagega
-    deliveryNote: "Free delivery on orders with 5 or more items!", // Static/Custom banner line
-    // 💳 Payment Options Status
-    paymentMethods: {
-      cod: true,
-      phonepe: true,
-      gpay: true,
-      paytm: true,
-      card: true,
-      netbanking: true,
-    },
-  });
-
+  const [product, setProduct] = useState(INITIAL_PRODUCT_STATE);
   const [priceList, setPriceList] = useState([{ quantity: "", price: "" }]);
+
+  // Clean up Object URLs to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      images.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [images]);
 
   // ================= IMAGE HANDLERS =================
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
+    if (!files.length) return;
+
     const updatedFiles = [...imageFiles, ...files].slice(0, 10);
     setImageFiles(updatedFiles);
+
+    // Revoke old previews
+    images.forEach((url) => URL.revokeObjectURL(url));
+
     const previews = updatedFiles.map((file) => URL.createObjectURL(file));
     setImages(previews);
+
     if (previews.length > 0 && !selectedImage) {
       setSelectedImage(previews[0]);
     }
   };
 
   const deleteImage = (index) => {
+    URL.revokeObjectURL(images[index]);
+
     const newImages = images.filter((_, i) => i !== index);
     const newFiles = imageFiles.filter((_, i) => i !== index);
+
     setImages(newImages);
     setImageFiles(newFiles);
+
     if (newImages.length > 0) {
       setSelectedImage(newImages[0]);
     } else {
@@ -77,13 +93,19 @@ const AddProduct = () => {
 
   const replaceImage = (index, file) => {
     if (!file) return;
+
+    URL.revokeObjectURL(images[index]);
     const preview = URL.createObjectURL(file);
+
     const newImages = [...images];
     newImages[index] = preview;
+
     const newFiles = [...imageFiles];
     newFiles[index] = file;
+
     setImages(newImages);
     setImageFiles(newFiles);
+
     if (selectedImage === images[index]) {
       setSelectedImage(preview);
     }
@@ -91,7 +113,7 @@ const AddProduct = () => {
 
   // ================= FORM HANDLERS =================
   const handleChange = (e) => {
-    setProduct({ ...product, [e.target.name]: e.target.value });
+    setProduct((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handlePaymentToggle = (methodKey) => {
@@ -105,19 +127,22 @@ const AddProduct = () => {
   };
 
   const addPriceRow = () => {
-    setPriceList([...priceList, { quantity: "", price: "" }]);
+    setPriceList((prev) => [...prev, { quantity: "", price: "" }]);
   };
 
   const removePriceRow = (index) => {
-    const data = [...priceList];
-    data.splice(index, 1);
-    setPriceList(data.length ? data : [{ quantity: "", price: "" }]);
+    setPriceList((prev) => {
+      const updated = prev.filter((_, i) => i !== index);
+      return updated.length ? updated : [{ quantity: "", price: "" }];
+    });
   };
 
   const handlePriceChange = (index, field, value) => {
-    const data = [...priceList];
-    data[index][field] = value;
-    setPriceList(data);
+    setPriceList((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
   };
 
   // ================= SUBMIT =================
@@ -157,19 +182,17 @@ const AddProduct = () => {
       formData.append("weight", product.weight || "");
       formData.append("gst", product.gst || 0);
 
-      // 🚚 Delivery & Payment Settings Sent to Backend
       formData.append("minQtyForFreeDelivery", product.minQtyForFreeDelivery || 0);
       formData.append("standardDeliveryCharge", product.standardDeliveryCharge || 0);
       formData.append("deliveryNote", product.deliveryNote);
       formData.append("paymentMethods", JSON.stringify(product.paymentMethods));
-
       formData.append("pricing", JSON.stringify(validPricing));
 
-      const res = await axios.post(
-        "https://backend-3-axez.onrender.com/api/products/add-product",
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
+      const apiUrl = process.env.REACT_APP_API_URL || "https://backend-3-axez.onrender.com";
+
+      const res = await axios.post(`${apiUrl}/api/products/add-product`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
       if (res.data.success) {
         alert("Product Added Successfully");
@@ -177,36 +200,14 @@ const AddProduct = () => {
         setImages([]);
         setImageFiles([]);
         setSelectedImage("");
-        setProduct({
-          name: "",
-          brand: "",
-          category: "",
-          material: "",
-          stock: "",
-          description: "",
-          variantGroup: "",
-          size: "",
-          weight: "",
-          gst: "",
-          minQtyForFreeDelivery: "",
-          standardDeliveryCharge: "",
-          deliveryNote: "Free delivery on orders with 5 or more items!",
-          paymentMethods: {
-            cod: true,
-            phonepe: true,
-            gpay: true,
-            paytm: true,
-            card: true,
-            netbanking: true,
-          },
-        });
+        setProduct(INITIAL_PRODUCT_STATE);
         setPriceList([{ quantity: "", price: "" }]);
         setTimeout(() => setSuccess(false), 3000);
       }
     } catch (err) {
-      console.log(err);
+      console.error(err);
       alert(err.response?.data?.message || "Product Add Failed");
-    }finally {
+    } finally {
       setLoading(false);
     }
   };
@@ -214,16 +215,13 @@ const AddProduct = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-6 sm:py-8 px-3 sm:px-6">
       <div className="max-w-4xl mx-auto">
-        {/* Header Card */}
         <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-xl mb-6">
           <div className="flex items-center gap-3 mb-2">
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
               <PackagePlus size={24} />
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold">
-                Add New Product
-              </h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold">Add New Product</h1>
               <p className="text-white/80 text-sm sm:text-base mt-0.5">
                 Upload, manage and publish your products
               </p>
@@ -231,7 +229,6 @@ const AddProduct = () => {
           </div>
         </div>
 
-        {/* Form Card */}
         <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
           {success && (
             <div className="mx-4 sm:mx-6 mt-5 flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl text-sm font-medium">
@@ -241,7 +238,7 @@ const AddProduct = () => {
           )}
 
           <form onSubmit={handleSubmit} className="p-4 sm:p-6 md:p-8 space-y-7">
-            {/* ========== IMAGES ========== */}
+            {/* IMAGES */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h2 className="text-base sm:text-lg font-bold text-gray-800 flex items-center gap-2">
@@ -254,16 +251,11 @@ const AddProduct = () => {
               </div>
 
               <label className="flex flex-col items-center justify-center w-full h-32 sm:h-36 border-2 border-dashed border-gray-300 rounded-2xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/50 transition group">
-                <Upload
-                  size={28}
-                  className="text-gray-400 group-hover:text-indigo-500 mb-2"
-                />
+                <Upload size={28} className="text-gray-400 group-hover:text-indigo-500 mb-2" />
                 <span className="text-sm text-gray-500 group-hover:text-indigo-600 font-medium">
                   Click to upload images
                 </span>
-                <span className="text-xs text-gray-400 mt-1">
-                  PNG, JPG up to 10 files
-                </span>
+                <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 10 files</span>
                 <input
                   type="file"
                   multiple
@@ -310,9 +302,7 @@ const AddProduct = () => {
                           hidden
                           type="file"
                           accept="image/*"
-                          onChange={(e) =>
-                            replaceImage(index, e.target.files[0])
-                          }
+                          onChange={(e) => replaceImage(index, e.target.files[0])}
                         />
                       </label>
                     </div>
@@ -321,11 +311,9 @@ const AddProduct = () => {
               )}
             </div>
 
-            {/* ========== BASIC INFO ========== */}
+            {/* BASIC INFO */}
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
-                Product Information
-              </h2>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">Product Information</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {[
                   { name: "name", placeholder: "Product Name *", required: true },
@@ -348,7 +336,7 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* ========== SIZE, WEIGHT & GST ========== */}
+            {/* SIZE, WEIGHT & GST */}
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                 Size, Weight & Tax <span className="text-xs font-normal text-gray-500">(Optional)</span>
@@ -392,7 +380,7 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* ========== 🚚 DELIVERY SETTINGS & RULES ========== */}
+            {/* DELIVERY SETTINGS */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
               <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <Truck size={18} className="text-indigo-600" />
@@ -408,7 +396,7 @@ const AddProduct = () => {
                     name="minQtyForFreeDelivery"
                     value={product.minQtyForFreeDelivery}
                     onChange={handleChange}
-                    placeholder="e.g. 5 (5 ya usse zyadah par delivery free)"
+                    placeholder="e.g. 5"
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 bg-white"
                   />
                 </div>
@@ -421,13 +409,12 @@ const AddProduct = () => {
                     name="standardDeliveryCharge"
                     value={product.standardDeliveryCharge}
                     onChange={handleChange}
-                    placeholder="e.g. 50 (Kam quantity hone par charge)"
+                    placeholder="e.g. 50"
                     className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-indigo-500 bg-white"
                   />
                 </div>
               </div>
 
-              {/* Delivery Banner Message Customization */}
               <div className="mb-3">
                 <label className="block text-xs font-semibold text-gray-600 mb-1">
                   Delivery Banner Line (User Display Note)
@@ -442,7 +429,6 @@ const AddProduct = () => {
                 />
               </div>
 
-              {/* Dynamic Information Preview Box */}
               <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 p-3 rounded-xl text-xs text-amber-800">
                 <Info size={16} className="mt-0.5 shrink-0 text-amber-600" />
                 <div>
@@ -457,15 +443,12 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* ========== 💳 PAYMENT OPTIONS ACTIVE/INACTIVE ========== */}
+            {/* PAYMENT METHODS */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
               <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
                 <CreditCard size={18} className="text-indigo-600" />
                 Accepted Payment Methods
               </h2>
-              <p className="text-xs text-gray-500 mb-3">
-                Admin is product ke liye payment options bandh (Disable) ya chalu (Enable) kar sakta hai.
-              </p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {[
                   { key: "cod", label: "Cash on Delivery" },
@@ -495,11 +478,9 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* ========== VARIANT GROUP ========== */}
+            {/* VARIANT GROUP */}
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
-                Variant Group (Optional)
-              </h2>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">Variant Group (Optional)</h2>
               <input
                 type="text"
                 name="variantGroup"
@@ -508,50 +489,35 @@ const AddProduct = () => {
                 placeholder="e.g. pliers-water, wrench-adj, spanner-set"
                 className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
               />
-              <p className="text-xs text-gray-500 mt-2">
-                Same group name wale products ek family banenge. Example:{" "}
-                <span className="font-medium text-indigo-600">pliers-water</span>{" "}
-                — is naam se multiple pliers add karo to unpe “View Varieties” button dikhega.
-              </p>
             </div>
 
-            {/* ========== PRICING ========== */}
+            {/* PRICING */}
             <div>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-base sm:text-lg font-bold text-gray-800">
-                  Quantity Wise Pricing
-                </h2>
+                <h2 className="text-base sm:text-lg font-bold text-gray-800">Quantity Wise Pricing</h2>
                 <button
                   type="button"
                   onClick={addPriceRow}
                   className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition"
                 >
-                  <Plus size={14} />
-                  Add Row
+                  <Plus size={14} /> Add Row
                 </button>
               </div>
               <div className="space-y-2.5">
                 {priceList.map((item, index) => (
-                  <div
-                    key={index}
-                    className="grid grid-cols-12 gap-2 sm:gap-3 items-center"
-                  >
+                  <div key={index} className="grid grid-cols-12 gap-2 sm:gap-3 items-center">
                     <input
                       type="number"
                       placeholder="Quantity"
                       value={item.quantity}
-                      onChange={(e) =>
-                        handlePriceChange(index, "quantity", e.target.value)
-                      }
+                      onChange={(e) => handlePriceChange(index, "quantity", e.target.value)}
                       className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
                     />
                     <input
                       type="number"
                       placeholder="Price"
                       value={item.price}
-                      onChange={(e) =>
-                        handlePriceChange(index, "price", e.target.value)
-                      }
+                      onChange={(e) => handlePriceChange(index, "price", e.target.value)}
                       className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
                     />
                     <button
@@ -566,11 +532,9 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* ========== DESCRIPTION ========== */}
+            {/* DESCRIPTION */}
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">
-                Description
-              </h2>
+              <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3">Description</h2>
               <textarea
                 rows={5}
                 name="description"
@@ -581,7 +545,7 @@ const AddProduct = () => {
               />
             </div>
 
-            {/* ========== SUBMIT ========== */}
+            {/* SUBMIT */}
             <button
               type="submit"
               disabled={loading}
@@ -594,8 +558,7 @@ const AddProduct = () => {
                 </>
               ) : (
                 <>
-                  <PackagePlus size={20} />
-                  Add Product
+                  <PackagePlus size={20} /> Add Product
                 </>
               )}
             </button>
