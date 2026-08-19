@@ -14,8 +14,8 @@ import {
   FiInfo,
   FiShoppingBag,
 } from "react-icons/fi";
-import Navbar from "../components/Navbar";
-import Footer from "../components/Footer";
+import Navbar from "../Components/Nav";
+import Footer from "../Components/Footer";
 
 const ProductDetail = ({ addToCart, cart = [] }) => {
   const { id } = useParams();
