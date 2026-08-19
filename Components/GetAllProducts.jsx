@@ -176,69 +176,79 @@ const GetAllProducts = () => {
   };
 
  // ================= UPDATE PRODUCT =================
-  const updateProduct = async () => {
-    if (!editProduct.pricing || editProduct.pricing.length === 0) {
-      alert("At least one pricing option is required.");
-      return;
+  // ================= UPDATE PRODUCT FUNCTION =================
+const updateProduct = async () => {
+  if (!editProduct.pricing || editProduct.pricing.length === 0) {
+    alert("At least one pricing option is required.");
+    return;
+  }
+
+  const formattedPricing = editProduct.pricing.map((p) => ({
+    quantity: Number(p.quantity) || 1,
+    price: Number(p.price) || 0,
+  }));
+
+  try {
+    setUpdating(true);
+    const formData = new FormData();
+
+    formData.append("name", editProduct.name || "");
+    formData.append("brand", editProduct.brand || "");
+    formData.append("category", editProduct.category || "");
+    formData.append("material", editProduct.material || "");
+    formData.append("stock", Number(editProduct.stock) || 0);
+    formData.append("size", editProduct.size || "");
+    formData.append("weight", editProduct.weight || "");
+    formData.append("gst", Number(editProduct.gst) || 0);
+    formData.append("variantGroup", editProduct.variantGroup || "");
+    formData.append("description", editProduct.description || "");
+    formData.append("pricing", JSON.stringify(formattedPricing));
+
+    // FIX 1: Send structured delivery object string matching backend expectation
+    const deliveryPayload = {
+      charge: Number(editProduct.deliveryCharge) || 0,
+      time: editProduct.deliveryTime || "",
+    };
+    formData.append("delivery", JSON.stringify(deliveryPayload));
+    
+    // Send standalone fallback fields in case backend references them directly
+    formData.append("deliveryCharge", Number(editProduct.deliveryCharge) || 0);
+    formData.append("deliveryTime", editProduct.deliveryTime || "");
+
+    // FIX 2: Send Payment Methods under both keys
+    const paymentMethodsArr = editProduct.paymentMethods || [];
+    formData.append("paymentMethods", JSON.stringify(paymentMethodsArr));
+    formData.append("payment", JSON.stringify(paymentMethodsArr));
+
+    const existingImages = (editProduct.images || []).filter(
+      (img) => typeof img === "string" && img.startsWith("http")
+    );
+    formData.append("existingImages", JSON.stringify(existingImages));
+
+    (editProduct.newImages || []).forEach((item) => {
+      if (!item || !item.file) return;
+      formData.append("images", item.file);
+      formData.append("replaceIndexes", item.index);
+    });
+
+    const { data } = await axios.put(`${API}/${editProduct._id}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    if (data.success) {
+      alert("Product Updated Successfully");
+      closeEditModal();
+      fetchProducts();
+    } else {
+      alert(data.message || "Update failed");
     }
-
-    const formattedPricing = editProduct.pricing.map((p) => ({
-      quantity: Number(p.quantity) || 1,
-      price: Number(p.price) || 0,
-    }));
-
-    try {
-      setUpdating(true);
-      const formData = new FormData();
-
-      formData.append("name", editProduct.name || "");
-      formData.append("brand", editProduct.brand || "");
-      formData.append("category", editProduct.category || "");
-      formData.append("material", editProduct.material || "");
-      formData.append("stock", Number(editProduct.stock) || 0);
-      formData.append("size", editProduct.size || "");
-      formData.append("weight", editProduct.weight || "");
-      formData.append("gst", Number(editProduct.gst) || 0);
-      formData.append("variantGroup", editProduct.variantGroup || "");
-      formData.append("description", editProduct.description || "");
-      formData.append("pricing", JSON.stringify(formattedPricing));
-
-      formData.append("deliveryCharge", Number(editProduct.deliveryCharge) || 0);
-      formData.append("deliveryTime", editProduct.deliveryTime || "");
-      formData.append(
-        "paymentMethods",
-        JSON.stringify(editProduct.paymentMethods || [])
-      );
-
-      const existingImages = (editProduct.images || []).filter(
-        (img) => typeof img === "string" && img.startsWith("http")
-      );
-      formData.append("existingImages", JSON.stringify(existingImages));
-
-      (editProduct.newImages || []).forEach((item) => {
-        if (!item || !item.file) return;
-        formData.append("images", item.file);
-        formData.append("replaceIndexes", item.index);
-      });
-
-      const { data } = await axios.put(`${API}/${editProduct._id}`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      if (data.success) {
-        alert("Product Updated Successfully");
-        closeEditModal();
-        fetchProducts();
-      } else {
-        alert(data.message || "Update failed");
-      }
-    } catch (error) {
-      console.log(error);
-      alert(error.response?.data?.message || "Update Failed");
-    } finally {
-      setUpdating(false);
-    }
-  };
+  } catch (error) {
+    console.error(error);
+    alert(error.response?.data?.message || "Update Failed");
+  } finally {
+    setUpdating(false);
+  }
+};
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
