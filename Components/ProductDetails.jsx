@@ -38,74 +38,80 @@ const ProductDetails = () => {
 
   // Delivery Pincode Checker States
   const [pincode, setPincode] = useState("");
-  const [deliveryStatus, setDeliveryStatus] = useState(null); // null | { success: boolean, message: string }
+  const [deliveryStatus, setDeliveryStatus] = useState(null);
   const [checkingPincode, setCheckingPincode] = useState(false);
 
-  // New States: Payment Method & Delivery Option
+  // Payment Method & Delivery Option States
   const [selectedPayment, setSelectedPayment] = useState("upi");
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("standard");
 
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
 
+  // ================= FETCH PRODUCT =================
+  useEffect(() => {
+    let isMounted = true;
 
+    setSelectedImage(0);
+    setQuantity(1);
+    setDeliveryStatus(null);
 
-// ================= FETCH PRODUCT =================
-useEffect(() => {
-  let isMounted = true;
-
-  setSelectedImage(0);
-  setQuantity(1);
-  setDeliveryStatus(null);
-
-  if (location.state?.product) {
-    setProduct(location.state.product);
-    setLoading(false);
-    return;
-  }
-
-  const fetchProduct = async () => {
-    try {
-      setLoading(true);
-      setError(false);
-
-      try {
-        const { data } = await axios.get(
-          `https://backend-3-axez.onrender.com/api/products/${id}`
-        );
-        if (isMounted && data.success && data.product) {
-          setProduct(data.product);
-          setLoading(false);
-          return;
-        }
-      } catch (e) {
-        // Fallback to bulk list search if direct ID fails
-      }
-
-      const res = await axios.get(
-        "https://backend-3-axez.onrender.com/api/products"
-      );
-      if (!isMounted) return;
-
-      const found = res.data.products?.find((p) => p._id === id);
-      if (found) {
-        setProduct(found);
-      } else {
-        setError(true);
-      }
-    } catch (err) {
-      if (isMounted) setError(true);
-    } finally {
-      if (isMounted) setLoading(false);
+    if (location.state?.product) {
+      setProduct(location.state.product);
+      setLoading(false);
+      return;
     }
-  };
 
-  fetchProduct();
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError(false);
 
-  return () => {
-    isMounted = false;
-  };
-}, [id]);
+        try {
+          const { data } = await axios.get(
+            `https://backend-3-axez.onrender.com/api/products/${id}`
+          );
+          if (isMounted && data.success && data.product) {
+            setProduct(data.product);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          // Fallback to bulk list search if direct ID fails
+        }
+
+        const res = await axios.get(
+          "https://backend-3-axez.onrender.com/api/products"
+        );
+        if (!isMounted) return;
+
+        const found = res.data.products?.find((p) => p._id === id);
+        if (found) {
+          setProduct(found);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        if (isMounted) setError(true);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchProduct();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, location.state]);
+
+  // Set initial available payment method when product loads
+  useEffect(() => {
+    if (product?.paymentMethods && Array.isArray(product.paymentMethods) && product.paymentMethods.length > 0) {
+      setSelectedPayment(product.paymentMethods[0]);
+    }
+  }, [product]);
+
   // ================= PRICING TIERS (Memoized) =================
   const pricingTiers = useMemo(() => {
     if (!product) return [{ minQty: 1, price: 0 }];
@@ -143,10 +149,18 @@ useEffect(() => {
 
   const totalPrice = unitPrice * quantity;
 
-  // Delivery Charges
+  // ================= DYNAMIC DELIVERY CHARGE FIX =================
   const deliveryCharge = useMemo(() => {
-    return selectedDeliveryMethod === "express" ? 150 : 0;
-  }, [selectedDeliveryMethod]);
+    if (selectedDeliveryMethod === "standard") return 0;
+
+    // Fetch dynamic express/delivery charge from product object or default to 150
+    const dynamicCharge = 
+      typeof product?.delivery === "object" 
+        ? Number(product?.delivery?.charge) 
+        : Number(product?.deliveryCharge || product?.delivery || 150);
+
+    return isNaN(dynamicCharge) || dynamicCharge === 0 ? 150 : dynamicCharge;
+  }, [selectedDeliveryMethod, product]);
 
   // GST Calculation
   const gstAmount = useMemo(() => {
@@ -226,6 +240,8 @@ useEffect(() => {
       price: unitPrice,
       paymentMethod: selectedPayment,
       deliveryMethod: selectedDeliveryMethod,
+      deliveryCharge: deliveryCharge,
+      grandTotal: grandTotal,
       selectedOption: {
         quantity: quantity,
         price: unitPrice,
@@ -496,7 +512,9 @@ useEffect(() => {
                         <span className="font-semibold text-xs sm:text-sm text-gray-800 flex items-center gap-1.5">
                           <Zap size={16} className="text-amber-500" /> Express
                         </span>
-                        <span className="text-xs font-bold text-gray-800">₹150</span>
+                        <span className="text-xs font-bold text-gray-800">
+                          ₹{deliveryCharge > 0 && selectedDeliveryMethod === "express" ? deliveryCharge : 150}
+                        </span>
                       </div>
                       <p className="text-[11px] text-gray-500">Delivered in 1-2 Business Days</p>
                     </button>
@@ -522,7 +540,7 @@ useEffect(() => {
                           key={method.id}
                           type="button"
                           onClick={() => setSelectedPayment(method.id)}
-                          className={`p-2.5 sm:p-3 rounded-xl border flex items-center gap-2.5 transition text-left ${
+                          className={`p-2.5 sm:p-3 rounded-xl border flex items-center gap-2.5 transition text-left cursor-pointer ${
                             isSelected
                               ? "border-indigo-600 bg-indigo-50/80 text-indigo-900 font-semibold ring-2 ring-indigo-500/20"
                               : "border-gray-200 bg-white text-gray-700 hover:border-gray-300"
@@ -631,7 +649,7 @@ useEffect(() => {
                   </div>
                 </div>
 
-                {/* TOTAL PRICE BREAKDOWN (WITH GST & DELIVERY) */}
+                {/* TOTAL PRICE BREAKDOWN */}
                 <div className="mb-6 sm:mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 space-y-2">
                   <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
                     <span>
@@ -701,7 +719,7 @@ useEffect(() => {
         </div>
       </div>
     </div>
-  );}
-  
+  );
+};
 
 export default ProductDetails;
