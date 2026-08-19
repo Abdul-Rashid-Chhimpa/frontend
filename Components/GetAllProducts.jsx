@@ -3,20 +3,15 @@ import axios from "axios";
 import {
   Pencil,
   Trash2,
-  Package,
   Plus,
   X,
   ImagePlus,
   Boxes,
   RefreshCw,
   Layers,
-  Percent,
   Truck,
   CreditCard,
-  CheckCircle2,
-  XCircle,
 } from "lucide-react";
-
 
 const GetAllProducts = () => {
   const [products, setProducts] = useState([]);
@@ -41,7 +36,7 @@ const GetAllProducts = () => {
       const { data } = await axios.get(API);
       if (data.success) setProducts(data.products || []);
     } catch (error) {
-      console.log(error);
+      console.error(error);
       alert("Failed To Load Products");
     } finally {
       setLoading(false);
@@ -62,7 +57,7 @@ const GetAllProducts = () => {
         alert("Product Deleted Successfully");
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       alert("Delete Failed");
     }
   };
@@ -175,80 +170,76 @@ const GetAllProducts = () => {
     setEditProduct(null);
   };
 
- // ================= UPDATE PRODUCT =================
   // ================= UPDATE PRODUCT FUNCTION =================
-const updateProduct = async () => {
-  if (!editProduct.pricing || editProduct.pricing.length === 0) {
-    alert("At least one pricing option is required.");
-    return;
-  }
-
-  const formattedPricing = editProduct.pricing.map((p) => ({
-    quantity: Number(p.quantity) || 1,
-    price: Number(p.price) || 0,
-  }));
-
-  try {
-    setUpdating(true);
-    const formData = new FormData();
-
-    formData.append("name", editProduct.name || "");
-    formData.append("brand", editProduct.brand || "");
-    formData.append("category", editProduct.category || "");
-    formData.append("material", editProduct.material || "");
-    formData.append("stock", Number(editProduct.stock) || 0);
-    formData.append("size", editProduct.size || "");
-    formData.append("weight", editProduct.weight || "");
-    formData.append("gst", Number(editProduct.gst) || 0);
-    formData.append("variantGroup", editProduct.variantGroup || "");
-    formData.append("description", editProduct.description || "");
-    formData.append("pricing", JSON.stringify(formattedPricing));
-
-    // FIX 1: Send structured delivery object string matching backend expectation
-    const deliveryPayload = {
-      charge: Number(editProduct.deliveryCharge) || 0,
-      time: editProduct.deliveryTime || "",
-    };
-    formData.append("delivery", JSON.stringify(deliveryPayload));
-    
-    // Send standalone fallback fields in case backend references them directly
-    formData.append("deliveryCharge", Number(editProduct.deliveryCharge) || 0);
-    formData.append("deliveryTime", editProduct.deliveryTime || "");
-
-    // FIX 2: Send Payment Methods under both keys
-    const paymentMethodsArr = editProduct.paymentMethods || [];
-    formData.append("paymentMethods", JSON.stringify(paymentMethodsArr));
-    formData.append("payment", JSON.stringify(paymentMethodsArr));
-
-    const existingImages = (editProduct.images || []).filter(
-      (img) => typeof img === "string" && img.startsWith("http")
-    );
-    formData.append("existingImages", JSON.stringify(existingImages));
-
-    (editProduct.newImages || []).forEach((item) => {
-      if (!item || !item.file) return;
-      formData.append("images", item.file);
-      formData.append("replaceIndexes", item.index);
-    });
-
-    const { data } = await axios.put(`${API}/${editProduct._id}`, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    if (data.success) {
-      alert("Product Updated Successfully");
-      closeEditModal();
-      fetchProducts();
-    } else {
-      alert(data.message || "Update failed");
+  const updateProduct = async () => {
+    if (!editProduct.pricing || editProduct.pricing.length === 0) {
+      alert("At least one pricing option is required.");
+      return;
     }
-  } catch (error) {
-    console.error(error);
-    alert(error.response?.data?.message || "Update Failed");
-  } finally {
-    setUpdating(false);
-  }
-};
+
+    const formattedPricing = editProduct.pricing.map((p) => ({
+      quantity: Number(p.quantity) || 1,
+      price: Number(p.price) || 0,
+    }));
+
+    try {
+      setUpdating(true);
+      const formData = new FormData();
+
+      formData.append("name", editProduct.name || "");
+      formData.append("brand", editProduct.brand || "");
+      formData.append("category", editProduct.category || "");
+      formData.append("material", editProduct.material || "");
+      formData.append("stock", Number(editProduct.stock) || 0);
+      formData.append("size", editProduct.size || "");
+      formData.append("weight", editProduct.weight || "");
+      formData.append("gst", Number(editProduct.gst) || 0);
+      formData.append("variantGroup", editProduct.variantGroup || "");
+      formData.append("description", editProduct.description || "");
+      formData.append("pricing", JSON.stringify(formattedPricing));
+
+      const deliveryPayload = {
+        charge: Number(editProduct.deliveryCharge) || 0,
+        time: editProduct.deliveryTime || "",
+      };
+      formData.append("delivery", JSON.stringify(deliveryPayload));
+      formData.append("deliveryCharge", Number(editProduct.deliveryCharge) || 0);
+      formData.append("deliveryTime", editProduct.deliveryTime || "");
+
+      const paymentMethodsArr = editProduct.paymentMethods || [];
+      formData.append("paymentMethods", JSON.stringify(paymentMethodsArr));
+      formData.append("payment", JSON.stringify(paymentMethodsArr));
+
+      const existingImages = (editProduct.images || []).filter(
+        (img) => typeof img === "string" && img.startsWith("http")
+      );
+      formData.append("existingImages", JSON.stringify(existingImages));
+
+      (editProduct.newImages || []).forEach((item) => {
+        if (!item || !item.file) return;
+        formData.append("images", item.file);
+        formData.append("replaceIndexes", item.index);
+      });
+
+      const { data } = await axios.put(`${API}/${editProduct._id}`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      if (data.success) {
+        alert("Product Updated Successfully");
+        closeEditModal();
+        fetchProducts();
+      } else {
+        alert(data.message || "Update failed");
+      }
+    } catch (error) {
+      console.error(error);
+      alert(error.response?.data?.message || "Update Failed");
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
@@ -306,6 +297,10 @@ const updateProduct = async () => {
                       p._id !== product._id
                   )
                 : [];
+
+              const deliveryCharge = product.deliveryCharge ?? product.delivery?.charge;
+              const deliveryTime = product.deliveryTime || product.delivery?.time;
+              const paymentMethods = product.paymentMethods || product.payment || [];
 
               return (
                 <div
@@ -384,34 +379,32 @@ const updateProduct = async () => {
                       </p>
                     </div>
 
-                    {/* UPDATED: Delivery & Payment Details Always Visible */}
+                    {/* Delivery & Payment Details */}
                     <div className="mt-3 pt-3 border-t border-gray-100 text-xs space-y-2 bg-slate-50 p-2.5 rounded-xl">
-                      {/* Delivery Status & Fee */}
                       <div className="flex items-start gap-1.5 text-gray-700">
                         <Truck size={15} className="text-indigo-600 flex-shrink-0 mt-0.5" />
                         <div>
                           <span className="font-semibold text-gray-900">Delivery: </span>
-                          {product.deliveryCharge === 0 || product.deliveryCharge === "0" ? (
+                          {deliveryCharge === 0 || deliveryCharge === "0" ? (
                             <span className="text-emerald-600 font-bold">Free Delivery</span>
-                          ) : product.deliveryCharge ? (
-                            <span className="font-medium text-gray-800">₹{product.deliveryCharge} Charge</span>
+                          ) : deliveryCharge ? (
+                            <span className="font-medium text-gray-800">₹{deliveryCharge} Charge</span>
                           ) : (
                             <span className="text-gray-400 italic">Not Specified</span>
                           )}
-                          {product.deliveryTime && (
-                            <span className="text-gray-500 font-normal"> ({product.deliveryTime})</span>
+                          {deliveryTime && (
+                            <span className="text-gray-500 font-normal"> ({deliveryTime})</span>
                           )}
                         </div>
                       </div>
 
-                      {/* Payment Methods */}
                       <div className="flex items-start gap-1.5 text-gray-700">
                         <CreditCard size={15} className="text-emerald-600 flex-shrink-0 mt-0.5" />
                         <div>
                           <span className="font-semibold text-gray-900">Payment: </span>
-                          {product.paymentMethods && product.paymentMethods.length > 0 ? (
+                          {paymentMethods.length > 0 ? (
                             <span className="text-gray-700 font-medium">
-                              {product.paymentMethods.join(", ")}
+                              {paymentMethods.join(", ")}
                             </span>
                           ) : (
                             <span className="text-amber-600 italic font-medium">No methods specified</span>
@@ -479,7 +472,9 @@ const updateProduct = async () => {
                         onClick={() =>
                           setEditProduct({
                             ...product,
-                            paymentMethods: product.paymentMethods || [],
+                            deliveryCharge: deliveryCharge ?? "",
+                            deliveryTime: deliveryTime ?? "",
+                            paymentMethods: paymentMethods,
                             newImages: [],
                           })
                         }
@@ -747,8 +742,13 @@ const updateProduct = async () => {
       )}
 
       <style>{`
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
       `}</style>
     </div>
   );
