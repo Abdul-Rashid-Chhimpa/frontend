@@ -23,6 +23,13 @@ import {
 import { CartContext } from "../Components/Context";
 import axios from "axios";
 
+const ALL_PAYMENT_METHODS = [
+  { id: "upi", aliases: ["upi", "upi / online payment", "upi / google pay"], label: "UPI / Google Pay", icon: Wallet },
+  { id: "card", aliases: ["card", "credit / debit card"], label: "Credit / Debit Card", icon: CreditCard },
+  { id: "cod", aliases: ["cod", "cash on delivery"], label: "Cash on Delivery", icon: Banknote },
+  { id: "netbanking", aliases: ["netbanking", "net banking"], label: "Net Banking", icon: Building },
+];
+
 const ProductDetails = () => {
   const { id } = useParams();
   const location = useLocation();
@@ -93,7 +100,7 @@ const ProductDetails = () => {
         }
       } catch (err) {
         if (isMounted) setError(true);
-      } finally {
+      } font-medium
         if (isMounted) setLoading(false);
       }
     };
@@ -105,12 +112,25 @@ const ProductDetails = () => {
     };
   }, [id, location.state]);
 
+  // ================= FILTERED PAYMENT METHODS =================
+  const availablePaymentMethods = useMemo(() => {
+    if (!product?.paymentMethods || !Array.isArray(product.paymentMethods) || product.paymentMethods.length === 0) {
+      return ALL_PAYMENT_METHODS;
+    }
+
+    const dbMethodsNormalized = product.paymentMethods.map((m) => String(m).toLowerCase().trim());
+
+    return ALL_PAYMENT_METHODS.filter((pm) =>
+      pm.aliases.some((alias) => dbMethodsNormalized.includes(alias))
+    );
+  }, [product]);
+
   // Set initial available payment method when product loads
   useEffect(() => {
-    if (product?.paymentMethods && Array.isArray(product.paymentMethods) && product.paymentMethods.length > 0) {
-      setSelectedPayment(product.paymentMethods[0]);
+    if (availablePaymentMethods.length > 0) {
+      setSelectedPayment(availablePaymentMethods[0].id);
     }
-  }, [product]);
+  }, [availablePaymentMethods]);
 
   // ================= PRICING TIERS (Memoized) =================
   const pricingTiers = useMemo(() => {
@@ -153,7 +173,6 @@ const ProductDetails = () => {
   const deliveryCharge = useMemo(() => {
     if (selectedDeliveryMethod === "standard") return 0;
 
-    // Fetch dynamic express/delivery charge from product object or default to 150
     const dynamicCharge = 
       typeof product?.delivery === "object" 
         ? Number(product?.delivery?.charge) 
@@ -521,18 +540,13 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* PAYMENT METHODS */}
+                {/* DYNAMIC PAYMENT METHODS */}
                 <div className="mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Select Payment Method
                   </h3>
                   <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-                    {[
-                      { id: "upi", label: "UPI / Google Pay", icon: Wallet },
-                      { id: "card", label: "Credit / Debit Card", icon: CreditCard },
-                      { id: "cod", label: "Cash on Delivery", icon: Banknote },
-                      { id: "netbanking", label: "Net Banking", icon: Building },
-                    ].map((method) => {
+                    {availablePaymentMethods.map((method) => {
                       const Icon = method.icon;
                       const isSelected = selectedPayment === method.id;
                       return (
