@@ -166,10 +166,8 @@ const MyOrders = () => {
     const grandTotal = Number(order.totalAmount || subTotal + taxAmt);
     const amountInWords = numberToWords(grandTotal); 
 
-// Grand Total: subTotal + totalTaxAmt
-const grandTotal = Number(order.totalAmount || (subTotal + totalTaxAmt));
 
-const amountInWords = numberToWords(grandTotal);
+
 
 
     const htmlContent = `
