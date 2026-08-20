@@ -26,7 +26,7 @@ const numberToWords = (num) => {
 
   const inWords = (n) => {
     if ((n = n.toString()).length > 9) return "overflow";
-    let n_array = ("000000000" + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    let n_array = ("00" + n).substr(-2).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
     if (!n_array) return "";
     let str = "";
     str += n_array[1] != 0 ? (a[Number(n_array[1])] || b[n_array[1][0]] + " " + a[n_array[1][1]]) + "Crore " : "";
@@ -164,7 +164,7 @@ const MyOrders = () => {
       const subTotal = Number(order.subTotal || order.totalAmount || 0);
     const taxAmt = Number(order.gst || subTotal * 0.18);
     const grandTotal = Number(order.totalAmount || subTotal + taxAmt);
-    const amountInWords = numberToWords(grandTotal); 
+    const amountInWords = numberToWords(grandTotal+taxAmt); 
 
 
 
