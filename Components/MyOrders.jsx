@@ -209,6 +209,14 @@ const MyOrders = () => {
           <div class="company-sub">Contact no. ${companyDetails.phone}</div>
         </div>
         <div class="info-grid">
+        <div class="info-box">
+            <span class="info-title">INVOICE DETAILS</span>
+            <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${companyDetails.gstin}</span></div>
+            <div class="info-row"><span class="info-label">Name</span><span>: ${companyDetails.name}</span></div>
+            <div class="info-row"><span class="info-label">Address</span><span>: ${companyDetails.address}</span></div>
+            <div class="info-row"><span class="info-label">Invoice no.</span><span>: ${order._id.slice(-6).toUpperCase()}</span></div>
+            <div class="info-row"><span class="info-label">Invoice Date</span><span>: ${orderDate}</span></div>
+          </div>
           <div class="info-box">
             <span class="info-title">DETAILS OF RECEIVER (BILLED TO)</span>
             <div class="info-row"><span class="info-label">Name</span><span>: ${user?.name || "Jay Bhavani Traders"}</span></div>
@@ -225,14 +233,7 @@ const MyOrders = () => {
             <div class="info-row"><span class="info-label">State Code</span><span>: ${user?.stateCode || "TS (36)"}</span></div>
             <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${user?.gstin || "36AMYPB3174E1ZX"}</span></div>
           </div>
-          <div class="info-box">
-            <span class="info-title">INVOICE DETAILS</span>
-            <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${companyDetails.gstin}</span></div>
-            <div class="info-row"><span class="info-label">Name</span><span>: ${companyDetails.name}</span></div>
-            <div class="info-row"><span class="info-label">Address</span><span>: ${companyDetails.address}</span></div>
-            <div class="info-row"><span class="info-label">Invoice no.</span><span>: ${order._id.slice(-6).toUpperCase()}</span></div>
-            <div class="info-row"><span class="info-label">Invoice Date</span><span>: ${orderDate}</span></div>
-          </div>
+          
         </div>
         <table class="invoice-table">
           <thead>
@@ -268,11 +269,11 @@ const MyOrders = () => {
         <table class="summary-table">
           <tr>
             <td style="width: 200px; font-weight: bold;">Total Invoice Value (in figure)</td>
-            <td style="font-weight: bold; font-size: 12px;">Rs. ${grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="font-weight: bold; font-size: 12px;">Rs. ${grandTotal+taxAmt}</td>
           </tr>
           <tr>
             <td style="font-weight: bold;">Total Invoice Value (in words)</td>
-            <td style="font-weight: bold; font-size: 11px;">${amountInWords}${grandTotal+taxAmt}</td>
+            <td style="font-weight: bold; font-size: 11px;">${amountInWords}</td>
           </tr>
         </table>
         <div class="footer-grid">
