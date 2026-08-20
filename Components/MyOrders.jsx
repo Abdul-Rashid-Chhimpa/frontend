@@ -160,14 +160,11 @@ const MyOrders = () => {
       }
     }
 
-    const subTotal = Number(order.subTotal || 0);
-const gstAmt = Number(order.gst || 0);
-const igstAmt = Number(order.igst || 0);
-
-// Tax amount calculation: agar order m gst/igst nahi h toh 18% default tax lagega
-const totalTaxAmt = (gstAmt || igstAmt) 
-  ? (gstAmt + igstAmt) 
-  : subTotal * 0.18;
+    
+      const subTotal = Number(order.subTotal || order.totalAmount || 0);
+    const taxAmt = Number(order.gst || subTotal * 0.18);
+    const grandTotal = Number(order.totalAmount || subTotal + taxAmt);
+    const amountInWords = numberToWords(grandTotal); 
 
 // Grand Total: subTotal + totalTaxAmt
 const grandTotal = Number(order.totalAmount || (subTotal + totalTaxAmt));
@@ -277,7 +274,7 @@ const amountInWords = numberToWords(grandTotal);
           </tr>
           <tr>
             <td style="font-weight: bold;">Total Invoice Value (in words)</td>
-            <td style="font-weight: bold; font-size: 11px;">${amountInWords}</td>
+            <td style="font-weight: bold; font-size: 11px;">${amountInWords}${grandTotal+taxAmt}</td>
           </tr>
         </table>
         <div class="footer-grid">
