@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
-import { ReceiptText, ArrowLeft, Printer, Download, Search, RefreshCw } from "lucide-react";
+import { ReceiptText, ArrowLeft, Printer, Search, RefreshCw, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const AdminBills = () => {
@@ -14,16 +14,24 @@ const AdminBills = () => {
     try {
       setLoading(true);
       const token = localStorage.getItem("token");
-      const { data } = await axios.get(
-        "https://backend-3-axez.onrender.com/api/orders", // Apne backend ka correct endpoint rakhein
+      
+      // Hit the API (Works for both /api/orders and /api/orders/all)
+      const res = await axios.get(
+        "https://backend-3-axez.onrender.com/api/orders/all",
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
-      // Backend response handle karein
-      if (data.orders) setOrders(data.orders);
-      else if (Array.isArray(data)) setOrders(data);
+      console.log("Fetched Orders Backend Data:", res.data);
+
+      if (res.data?.orders) {
+        setOrders(res.data.orders);
+      } else if (Array.isArray(res.data)) {
+        setOrders(res.data);
+      } else {
+        setOrders([]);
+      }
     } catch (error) {
-      console.error("Error fetching bills:", error);
+      console.error("Error fetching bills:", error.response?.data || error.message);
     } finally {
       setLoading(false);
     }
@@ -33,11 +41,15 @@ const AdminBills = () => {
     fetchOrders();
   }, []);
 
-  const filteredOrders = orders.filter((order) =>
-    order._id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.shippingAddress?.phone?.includes(searchTerm)
-  );
+  // Filter based on backend field names (customerName, _id)
+  const filteredOrders = orders.filter((order) => {
+    const custName = order.customerName || order.user?.name || "";
+    const orderId = order._id || "";
+    return (
+      orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      custName.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const handlePrint = () => {
     window.print();
@@ -59,9 +71,9 @@ const AdminBills = () => {
           </h1>
           <button
             onClick={fetchOrders}
-            className="p-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50"
+            className="p-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 flex items-center gap-2 text-sm font-medium text-gray-600"
           >
-            <RefreshCw size={18} className="text-gray-600" />
+            <RefreshCw size={16} /> Refresh
           </button>
         </div>
 
@@ -70,7 +82,7 @@ const AdminBills = () => {
           <Search size={20} className="text-gray-400" />
           <input
             type="text"
-            placeholder="Search by Order ID, Customer Name, or Phone..."
+            placeholder="Search by Order ID or Customer Name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full outline-none text-sm text-gray-700"
@@ -79,44 +91,51 @@ const AdminBills = () => {
 
         {/* Orders / Bills List */}
         {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading Bills...</div>
+          <div className="text-center py-12 text-gray-500 font-medium">Loading Bills...</div>
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-12 text-gray-500 bg-white rounded-2xl border">
-            No bills found.
+            No bills or orders found in Database.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredOrders.map((order) => (
-              <div
-                key={order._id}
-                className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition"
-              >
-                <div className="flex justify-between items-start mb-3 border-b pb-2">
-                  <div>
-                    <p className="text-xs text-gray-400">Order ID</p>
-                    <p className="font-mono text-xs font-bold text-indigo-600">
-                      #{order._id.slice(-8)}
-                    </p>
-                  </div>
-                  <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full">
-                    ₹{order.totalPrice || order.grandTotal || 0}
-                  </span>
-                </div>
-
-                <div className="text-xs text-gray-600 space-y-1 mb-4">
-                  <p><span className="font-semibold">Customer:</span> {order.user?.name || order.shippingAddress?.fullName || "Guest"}</p>
-                  <p><span className="font-semibold">Date:</span> {new Date(order.createdAt).toLocaleDateString()}</p>
-                  <p><span className="font-semibold">Payment:</span> {order.paymentMethod || "COD"}</p>
-                </div>
-
-                <button
-                  onClick={() => setSelectedBill(order)}
-                  className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-2"
+            {filteredOrders.map((order) => {
+              // Extract fields handling backend structure
+              const amount = order.totalAmount || order.totalPrice || order.grandTotal || 0;
+              const name = order.customerName || order.user?.name || "Customer";
+              const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "N/A";
+              
+              return (
+                <div
+                  key={order._id}
+                  className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition"
                 >
-                  <ReceiptText size={14} /> View Invoice
-                </button>
-              </div>
-            ))}
+                  <div className="flex justify-between items-start mb-3 border-b pb-2">
+                    <div>
+                      <p className="text-[10px] text-gray-400 uppercase font-semibold">Order ID</p>
+                      <p className="font-mono text-xs font-bold text-indigo-600">
+                        #{order._id ? order._id.slice(-8) : "N/A"}
+                      </p>
+                    </div>
+                    <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full">
+                      ₹{amount}
+                    </span>
+                  </div>
+
+                  <div className="text-xs text-gray-600 space-y-1 mb-4">
+                    <p><span className="font-semibold text-gray-800">Customer:</span> {name}</p>
+                    <p><span className="font-semibold text-gray-800">Date:</span> {date}</p>
+                    <p><span className="font-semibold text-gray-800">Items Count:</span> {order.items?.length || 0}</p>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedBill(order)}
+                    className="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-xl transition flex items-center justify-center gap-2"
+                  >
+                    <Eye size={14} /> View & Print Bill
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -139,35 +158,42 @@ const AdminBills = () => {
                     <p className="text-xs text-gray-500">Pedwal Store</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-gray-400">Invoice ID</p>
-                    <p className="font-mono text-sm font-bold text-gray-800">INV-{selectedBill._id.slice(-6)}</p>
+                    <p className="text-[10px] text-gray-400 uppercase">Invoice No.</p>
+                    <p className="font-mono text-sm font-bold text-gray-800">
+                      INV-{selectedBill._id?.slice(-6)}
+                    </p>
                   </div>
+                </div>
+
+                <div className="text-xs space-y-1">
+                  <p><span className="font-semibold text-gray-700">Customer Name:</span> {selectedBill.customerName || selectedBill.user?.name || "N/A"}</p>
+                  <p><span className="font-semibold text-gray-700">Date:</span> {new Date(selectedBill.createdAt).toLocaleString()}</p>
                 </div>
 
                 {/* Items Table */}
                 <table className="w-full text-left text-xs">
                   <thead>
                     <tr className="border-b bg-gray-50">
-                      <th className="py-2 px-2">Item</th>
+                      <th className="py-2 px-2">Item / Product</th>
                       <th className="py-2 px-2">Qty</th>
                       <th className="py-2 px-2 text-right">Price</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {selectedBill.orderItems?.map((item, idx) => (
+                    {(selectedBill.items || selectedBill.orderItems || []).map((item, idx) => (
                       <tr key={idx} className="border-b">
-                        <td className="py-2 px-2">{item.name}</td>
-                        <td className="py-2 px-2">{item.quantity}</td>
-                        <td className="py-2 px-2 text-right">₹{item.price}</td>
+                        <td className="py-2 px-2">{item.name || item.title || item.product?.name || "Product Item"}</td>
+                        <td className="py-2 px-2">{item.quantity || item.qty || 1}</td>
+                        <td className="py-2 px-2 text-right">₹{item.price || 0}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
 
                 {/* Total */}
-                <div className="flex justify-between items-center font-bold text-sm pt-2">
+                <div className="flex justify-between items-center font-bold text-sm pt-2 border-t">
                   <span>Grand Total:</span>
-                  <span className="text-indigo-600">₹{selectedBill.totalPrice || selectedBill.grandTotal}</span>
+                  <span className="text-indigo-600">₹{selectedBill.totalAmount || selectedBill.totalPrice || 0}</span>
                 </div>
               </div>
 
@@ -175,9 +201,9 @@ const AdminBills = () => {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={handlePrint}
-                  className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-700"
+                  className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 hover:bg-indigo-700 transition"
                 >
-                  <Printer size={16} /> Print / Save PDF
+                  <Printer size={16} /> Print / Download Invoice
                 </button>
               </div>
             </div>
