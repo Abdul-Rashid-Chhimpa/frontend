@@ -18,7 +18,7 @@ import {
 
 // Helper function: Convert number to Words (Indian Currency Format)
 const numberToWords = (num) => {
-  if (!num) return "Rupees Zero Only";
+  if (!num || isNaN(num)) return "Rupees Zero Only";
   const a = [
     "", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ",
     "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "
@@ -45,7 +45,7 @@ const MyOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
-  const user = JSON.parse(localStorage.getItem("user"));
+  const user = JSON.parse(localStorage.getItem("user")) || {};
 
   const companyDetails = {
     name: "PEDWAL LIFE CREATION",
@@ -74,7 +74,7 @@ const MyOrders = () => {
     } catch (error) {
       console.log(error);
       toast.error("Failed to fetch orders");
-    } finally {
+    } fontally {
       setLoading(false);
     }
   };
@@ -126,24 +126,48 @@ const MyOrders = () => {
     let itemsTableRows = "";
     
     let calculatedSubTotal = 0;
-    let calculatedTotalGst = 0;
+    let calculatedTotalCgst = 0;
+    let calculatedTotalSgst = 0;
+    let calculatedTotalIgst = 0;
+    let computedGrandTotal = 0;
+
+    // Detect if Intra-state (Rajasthan) or Inter-state to split CGST/SGST vs IGST
+    const userState = (user?.state || "Rajasthan").toLowerCase();
+    const isIntraState = userState.includes("rajasthan") || userState.includes("rj");
 
     for (let i = 0; i < minRows; i++) {
       const item = itemsList[i];
       if (item) {
-        const price = Number(item.price || 0);
+        const unitPrice = Number(item.price || 0);
         const qty = Number(item.quantity || 1);
-        const lineTotal = price * qty;
+        const lineTotal = unitPrice * qty;
         
-        // Exact Key Match for GST based on JSON: item.gst first
+        // Extract Dynamic GST Rate safely
         const itemGstRate = Number(item.gst ?? item.gstRate ?? item.taxRate ?? 18);
         
-        // Dynamic Taxable & GST amount calculations
+        // Tax-inclusive math derivation
         const taxableVal = item.taxableValue || (lineTotal / (1 + itemGstRate / 100));
-        const calculatedIgst = item.igstAmount || (lineTotal - taxableVal);
+        const totalTaxAmt = lineTotal - taxableVal;
+
+        let cgstRate = 0, cgstAmt = 0;
+        let sgstRate = 0, sgstAmt = 0;
+        let igstRate = 0, igstAmt = 0;
+
+        if (isIntraState) {
+          cgstRate = itemGstRate / 2;
+          sgstRate = itemGstRate / 2;
+          cgstAmt = totalTaxAmt / 2;
+          sgstAmt = totalTaxAmt / 2;
+          calculatedTotalCgst += cgstAmt;
+          calculatedTotalSgst += sgstAmt;
+        } else {
+          igstRate = itemGstRate;
+          igstAmt = totalTaxAmt;
+          calculatedTotalIgst += igstAmt;
+        }
 
         calculatedSubTotal += taxableVal;
-        calculatedTotalGst += calculatedIgst;
+        computedGrandTotal += lineTotal;
 
         itemsTableRows += `
           <tr>
@@ -152,16 +176,16 @@ const MyOrders = () => {
             <td style="text-align: center;">${item.hsnCode || "8203"}</td>
             <td style="text-align: center;">${qty}</td>
             <td style="text-align: center;">${item.unit || "PCS"}</td>
-            <td style="text-align: right;">Rs. ${price.toFixed(2)}</td>
-            <td style="text-align: right;">${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style="text-align: right;">Rs. ${taxableVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="text-align: right;">Rs. ${unitPrice.toFixed(2)}</td>
+            <td style="text-align: right;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td style="text-align: right;">Rs. ${taxableVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td style="text-align: center;">${item.discount || "-"}</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">${itemGstRate}%</td>
-            <td style="text-align: right;">Rs. ${calculatedIgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="text-align: center;">${isIntraState ? `${cgstRate}%` : "-"}</td>
+            <td style="text-align: right;">${isIntraState ? `Rs. ${cgstAmt.toFixed(2)}` : "-"}</td>
+            <td style="text-align: center;">${isIntraState ? `${sgstRate}%` : "-"}</td>
+            <td style="text-align: right;">${isIntraState ? `Rs. ${sgstAmt.toFixed(2)}` : "-"}</td>
+            <td style="text-align: center;">${!isIntraState ? `${igstRate}%` : "-"}</td>
+            <td style="text-align: right;">${!isIntraState ? `Rs. ${igstAmt.toFixed(2)}` : "-"}</td>
           </tr>
         `;
       } else {
@@ -174,10 +198,10 @@ const MyOrders = () => {
       }
     }
 
-    const subTotal = order.subTotal ? Number(order.subTotal) : calculatedSubTotal;
-    const taxAmt = order.gst ? Number(order.gst) : calculatedTotalGst;
-    const grandTotal = Number(order.totalAmount || (subTotal + taxAmt));
-    const amountInWords = numberToWords(grandTotal);
+    const finalSubTotal = order.subTotal ? Number(order.subTotal) : calculatedSubTotal;
+    const finalGrandTotal = Number(order.totalAmount || computedGrandTotal);
+    const finalTotalTax = order.gst ? Number(order.gst) : (calculatedTotalCgst + calculatedTotalSgst + calculatedTotalIgst);
+    const amountInWords = numberToWords(finalGrandTotal);
 
     const invoiceTitle = `Invoice_${order._id.slice(-6).toUpperCase()}`;
 
@@ -269,17 +293,19 @@ const MyOrders = () => {
             ${itemsTableRows}
             <tr class="total-row">
               <td colspan="6" style="text-align: right;">Total</td>
-              <td style="text-align: right;">Rs. ${grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-              <td style="text-align: right;">Rs. ${subTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-              <td></td><td></td><td></td><td></td><td></td><td></td>
-              <td style="text-align: right;">Rs. ${taxAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              <td style="text-align: right;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: right;">Rs. ${finalSubTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td></td>
+              <td></td><td style="text-align: right;">${isIntraState ? `Rs. ${calculatedTotalCgst.toFixed(2)}` : "-"}</td>
+              <td></td><td style="text-align: right;">${isIntraState ? `Rs. ${calculatedTotalSgst.toFixed(2)}` : "-"}</td>
+              <td></td><td style="text-align: right;">${!isIntraState ? `Rs. ${calculatedTotalIgst.toFixed(2)}` : "-"}</td>
             </tr>
           </tbody>
         </table>
         <table class="summary-table">
           <tr>
             <td style="width: 200px; font-weight: bold;">Total Invoice Value (in figure)</td>
-            <td style="font-weight: bold; font-size: 12px;">Rs. ${grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="font-weight: bold; font-size: 12px;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
           <tr>
             <td style="font-weight: bold;">Total Invoice Value (in words)</td>
@@ -452,43 +478,46 @@ const MyOrders = () => {
                   </div>
 
                   <div className="px-4 sm:px-6 py-4 space-y-3">
-                    {order.items?.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex gap-3 sm:gap-4 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/60 hover:bg-gray-50 transition"
-                      >
-                        <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
-                          <img
-                            src={item.image || item.images?.[0]}
-                            alt={item.title || item.name}
-                            className="w-full h-full object-contain p-1"
-                            onError={(e) => {
-                              e.target.src = "https://via.placeholder.com/80?text=No+Img";
-                            }}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
-                            {item.title || item.name}
-                          </h3>
-                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
-                            <span>Qty: {item.quantity}</span>
-                            <span>•</span>
-                            <span>₹{Number(item.price || 0).toLocaleString()} / unit</span>
-                            <span>•</span>
-                            <span className="font-semibold text-indigo-600">
-                              GST: {item.gst ?? item.gstRate ?? item.taxRate ?? 18}%
-                            </span>
+                    {order.items?.map((item, index) => {
+                      const dynamicGst = item.gst ?? item.gstRate ?? item.taxRate ?? 18;
+                      return (
+                        <div
+                          key={index}
+                          className="flex gap-3 sm:gap-4 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/60 hover:bg-gray-50 transition"
+                        >
+                          <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
+                            <img
+                              src={item.image || item.images?.[0]}
+                              alt={item.title || item.name}
+                              className="w-full h-full object-contain p-1"
+                              onError={(e) => {
+                                e.target.src = "https://via.placeholder.com/80?text=No+Img";
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
+                              {item.title || item.name}
+                            </h3>
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
+                              <span>Qty: {item.quantity}</span>
+                              <span>•</span>
+                              <span>₹{Number(item.price || 0).toLocaleString()} / unit</span>
+                              <span>•</span>
+                              <span className="font-semibold text-indigo-600">
+                                GST: {dynamicGst}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[10px] sm:text-xs text-gray-400">Total</p>
+                            <p className="font-bold text-gray-900 text-sm sm:text-base">
+                              ₹{(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString()}
+                            </p>
                           </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          <p className="text-[10px] sm:text-xs text-gray-400">Total</p>
-                          <p className="font-bold text-gray-900 text-sm sm:text-base">
-                            ₹{(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
 
                   <div className="px-4 sm:px-6 py-3 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-gray-600">
