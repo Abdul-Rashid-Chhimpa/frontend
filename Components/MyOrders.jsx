@@ -64,41 +64,49 @@ const MyOrders = () => {
     fetchOrders();
   }, []);
 
-  // Fetch Orders and Merge Database Product GST Rates Dynamically
   const fetchOrders = async () => {
     try {
+      // 1. Fetch all Products first to create a dynamic GST Map
+      let gstMap = {};
+      try {
+        const productRes = await axios.get("https://backend-3-axez.onrender.com/api/products");
+        const productList = productRes.data.products || productRes.data || [];
+        
+        productList.forEach((prod) => {
+          const id = String(prod._id);
+          // Store exact GST rate from database
+          gstMap[id] = prod.gst !== undefined ? Number(prod.gst) : 0;
+        });
+      } catch (prodErr) {
+        console.error("Error fetching products database for GST mapping:", prodErr);
+      }
+
+      // 2. Fetch User Orders
       const { data } = await axios.get("https://backend-3-axez.onrender.com/api/orders/all");
       if (data.success) {
         let myOrders = data.orders.filter((order) => order.userId === user?._id);
 
-        // Fetch Product List to Map Live GST Values from Product Collection
-        let productsMap = {};
-        try {
-          const prodRes = await axios.get("https://backend-3-axez.onrender.com/api/products");
-          const allProducts = prodRes.data.products || prodRes.data || [];
-          allProducts.forEach((p) => {
-            if (p._id) {
-              productsMap[p._id] = p.gst !== undefined ? p.gst : p.gstRate || 0;
-            }
-          });
-        } catch (err) {
-          console.log("Could not fetch global product list for GST mapping:", err);
-        }
-
-        // Attach live product GST if missing in order item
+        // 3. Dynamic GST Injector based on Product ID or Name match
         myOrders = myOrders.map((order) => {
           const updatedItems = order.items?.map((item) => {
-            const pId = item.productId?._id || item.productId || item._id;
-            let realGst =
-              item.gst ??
-              item.gstRate ??
-              item.productId?.gst ??
-              productsMap[pId] ??
-              0;
+            // Extract Product ID
+            const targetId = String(
+              item.productId?._id || item.productId || item.id || item._id || ""
+            );
+            
+            // Check GST priority: Order Item GST -> Database Product GST Map -> Default 0
+            let finalGst = 0;
+            if (item.gst !== undefined && item.gst !== null && Number(item.gst) > 0) {
+              finalGst = Number(item.gst);
+            } else if (targetId && gstMap[targetId] !== undefined) {
+              finalGst = gstMap[targetId];
+            } else if (item.productId && typeof item.productId === "object" && item.productId.gst !== undefined) {
+              finalGst = Number(item.productId.gst);
+            }
 
             return {
               ...item,
-              gst: Number(realGst),
+              gst: finalGst,
             };
           });
 
@@ -111,7 +119,7 @@ const MyOrders = () => {
         setOrders(myOrders);
       }
     } catch (error) {
-      console.log(error);
+      console.error(error);
       toast.error("Failed to fetch orders");
     } finally {
       setLoading(false);
@@ -139,7 +147,6 @@ const MyOrders = () => {
     }
   };
 
-  // Shipping Fee Extractor
   const extractShippingFee = (order) => {
     let fee = Number(
       order.shippingCharge ??
@@ -174,7 +181,6 @@ const MyOrders = () => {
     return fee;
   };
 
-  // Download / Print Invoice Handler
   const handleDownloadInvoice = (order) => {
     if (order.status !== "Delivered") {
       toast.error("Invoice is available only after order is Delivered!");
