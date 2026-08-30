@@ -136,7 +136,7 @@ const MyOrders = () => {
         const lineTotal = price * qty;
         
         // Dynamic GST Fetching from backend item (defaulting to 18 if not available)
-        const itemGstRate = Number(item.gstRate ?? item.taxRate ?? item.gst ?? 18);
+        const itemGstRate = Number(item.gst ?? item.taxRate ?? item.gst ?? 18);
         const taxableVal = item.taxableValue || lineTotal;
         const calculatedIgst = item.igstAmount || (taxableVal * (itemGstRate / 100));
 
