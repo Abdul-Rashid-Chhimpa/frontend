@@ -66,7 +66,6 @@ const MyOrders = () => {
 
   const fetchOrders = async () => {
     try {
-      // 1. Fetch all Products first to create a dynamic GST Map
       let gstMap = {};
       try {
         const productRes = await axios.get("https://backend-3-axez.onrender.com/api/products");
@@ -74,30 +73,25 @@ const MyOrders = () => {
         
         productList.forEach((prod) => {
           const id = String(prod._id);
-          // Store exact GST rate from database
           gstMap[id] = prod.gst !== undefined ? Number(prod.gst) : 0;
         });
       } catch (prodErr) {
         console.error("Error fetching products database for GST mapping:", prodErr);
       }
 
-      // 2. Fetch User Orders
       const { data } = await axios.get("https://backend-3-axez.onrender.com/api/orders/all");
       if (data.success) {
-       // MyOrders.jsx ke inside fetchOrders() me filter logic update:
-let myOrders = data.orders.filter(
-  (order) => order.userId === user?._id && !order.deletedByUser
-);
+        // User specific non-deleted orders filter
+        let myOrders = data.orders.filter(
+          (order) => order.userId === user?._id && !order.deletedByUser
+        );
 
-        // 3. Dynamic GST Injector based on Product ID or Name match
         myOrders = myOrders.map((order) => {
           const updatedItems = order.items?.map((item) => {
-            // Extract Product ID
             const targetId = String(
               item.productId?._id || item.productId || item.id || item._id || ""
             );
             
-            // Check GST priority: Order Item GST -> Database Product GST Map -> Default 0
             let finalGst = 0;
             if (item.gst !== undefined && item.gst !== null && Number(item.gst) > 0) {
               finalGst = Number(item.gst);
@@ -129,22 +123,25 @@ let myOrders = data.orders.filter(
     }
   };
 
+  // ================= FIXED SOFT DELETE HANDLER =================
   const handleDeleteOrder = async (orderId) => {
-    const confirmDelete = window.confirm("Are you sure you want to permanently delete this order?");
+    const confirmDelete = window.confirm("Are you sure you want to remove this order from your dashboard?");
     if (!confirmDelete) return;
 
     try {
       setDeletingId(orderId);
-      const { data } = await axios.delete(`https://backend-3-axez.onrender.com/api/orders/delete/${orderId}`);
+      // HARD DELETE ko replace karke user-delete PUT route call kiya hai
+      const { data } = await axios.put(`https://backend-3-axez.onrender.com/api/orders/user-delete/${orderId}`);
+      
       if (data.success || data.message) {
-        toast.success("Order deleted permanently");
+        toast.success("Order removed from dashboard");
         setOrders((prev) => prev.filter((item) => item._id !== orderId));
       } else {
-        toast.error(data.message || "Failed to delete order");
+        toast.error(data.message || "Failed to remove order");
       }
     } catch (error) {
       console.error(error);
-      toast.error(error.response?.data?.message || "Server Error: Unable to delete");
+      toast.error(error.response?.data?.message || "Server Error: Unable to remove order");
     } finally {
       setDeletingId(null);
     }
