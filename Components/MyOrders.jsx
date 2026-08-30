@@ -101,7 +101,7 @@ const MyOrders = () => {
   };
 
   // INVOICE DOWNLOAD / PRINT HANDLER
-  const handleDownloadInvoice = (order, autoPrint = false) => {
+  const handleDownloadInvoice = (order) => {
     if (order.status !== "Delivered") {
       toast.error("Invoice is available only after order is Delivered!");
       return;
@@ -135,10 +135,12 @@ const MyOrders = () => {
         const qty = Number(item.quantity || 1);
         const lineTotal = price * qty;
         
-        // Dynamic GST Fetching from backend item (defaulting to 18 if not available)
-        const itemGstRate = Number(item.gst ?? item.taxRate ?? item.gst ?? 18);
-        const taxableVal = item.taxableValue || lineTotal;
-        const calculatedIgst = item.igstAmount || (taxableVal * (itemGstRate / 100));
+        // Exact Key Match for GST based on JSON: item.gst first
+        const itemGstRate = Number(item.gst ?? item.gstRate ?? item.taxRate ?? 18);
+        
+        // Dynamic Taxable & GST amount calculations
+        const taxableVal = item.taxableValue || (lineTotal / (1 + itemGstRate / 100));
+        const calculatedIgst = item.igstAmount || (lineTotal - taxableVal);
 
         calculatedSubTotal += taxableVal;
         calculatedTotalGst += calculatedIgst;
@@ -146,7 +148,7 @@ const MyOrders = () => {
         itemsTableRows += `
           <tr>
             <td style="text-align: center;">${i + 1}</td>
-            <td>${item.title || ""}</td>
+            <td>${item.title || item.name || ""}</td>
             <td style="text-align: center;">${item.hsnCode || "8203"}</td>
             <td style="text-align: center;">${qty}</td>
             <td style="text-align: center;">${item.unit || "PCS"}</td>
@@ -267,7 +269,7 @@ const MyOrders = () => {
             ${itemsTableRows}
             <tr class="total-row">
               <td colspan="6" style="text-align: right;">Total</td>
-              <td style="text-align: right;">Rs. ${subTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              <td style="text-align: right;">Rs. ${grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
               <td style="text-align: right;">Rs. ${subTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
               <td></td><td></td><td></td><td></td><td></td><td></td>
               <td style="text-align: right;">Rs. ${taxAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
@@ -376,7 +378,6 @@ const MyOrders = () => {
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-5xl mx-auto space-y-6">
-        {/* Header */}
         <div className="flex justify-between items-center">
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Orders</h1>
           <span className="text-sm text-gray-500 font-medium">
@@ -384,7 +385,6 @@ const MyOrders = () => {
           </span>
         </div>
 
-        {/* Empty State */}
         {orders.length === 0 ? (
           <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-10 sm:p-14 text-center">
             <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5">
@@ -405,7 +405,6 @@ const MyOrders = () => {
                   key={order._id}
                   className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300"
                 >
-                  {/* Order Header */}
                   <div className={`px-4 sm:px-6 py-4 border-b ${statusStyle.border} ${statusStyle.bg}`}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1.5">
@@ -433,7 +432,6 @@ const MyOrders = () => {
                         </div>
                       </div>
 
-                      {/* Status Badge & Delete */}
                       <div className="flex items-center gap-2 self-start sm:self-center">
                         <div
                           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
@@ -453,7 +451,6 @@ const MyOrders = () => {
                     </div>
                   </div>
 
-                  {/* Items List */}
                   <div className="px-4 sm:px-6 py-4 space-y-3">
                     {order.items?.map((item, index) => (
                       <div
@@ -462,8 +459,8 @@ const MyOrders = () => {
                       >
                         <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
                           <img
-                            src={item.image}
-                            alt={item.title}
+                            src={item.image || item.images?.[0]}
+                            alt={item.title || item.name}
                             className="w-full h-full object-contain p-1"
                             onError={(e) => {
                               e.target.src = "https://via.placeholder.com/80?text=No+Img";
@@ -472,12 +469,16 @@ const MyOrders = () => {
                         </div>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
-                            {item.title}
+                            {item.title || item.name}
                           </h3>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
                             <span>Qty: {item.quantity}</span>
                             <span>•</span>
                             <span>₹{Number(item.price || 0).toLocaleString()} / unit</span>
+                            <span>•</span>
+                            <span className="font-semibold text-indigo-600">
+                              GST: {item.gst ?? item.gstRate ?? item.taxRate ?? 18}%
+                            </span>
                           </div>
                         </div>
                         <div className="text-right flex-shrink-0">
@@ -490,7 +491,6 @@ const MyOrders = () => {
                     ))}
                   </div>
 
-                  {/* Footer Action Bar */}
                   <div className="px-4 sm:px-6 py-3 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-gray-600">
                     <div className="flex flex-wrap gap-4">
                       {order.subTotal && (
@@ -510,7 +510,7 @@ const MyOrders = () => {
 
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => handleDownloadInvoice(order, false)}
+                        onClick={() => handleDownloadInvoice(order)}
                         disabled={!isDelivered}
                         title={
                           isDelivered
@@ -529,7 +529,7 @@ const MyOrders = () => {
 
                       {isDelivered && (
                         <button
-                          onClick={() => handleDownloadInvoice(order, true)}
+                          onClick={() => handleDownloadInvoice(order)}
                           title="Print Tax Invoice"
                           className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer"
                         >
