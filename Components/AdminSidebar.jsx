@@ -11,8 +11,8 @@ import {
   Settings,
   LogOut,
   Shield,
+  ReceiptText, // Invoice / Bills icon
 } from "lucide-react";
-
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -52,6 +52,13 @@ const AdminDashboard = () => {
       icon: <ShoppingBag size={28} />,
       gradient: "from-rose-500 to-red-600",
       shadow: "shadow-rose-200",
+    },
+    {
+      title: "Bills & Invoices", // NEW BILLS FEATURE
+      path: "/admin/bills",
+      icon: <ReceiptText size={28} />,
+      gradient: "from-teal-500 to-emerald-700",
+      shadow: "shadow-teal-200",
     },
     {
       title: "Users",
