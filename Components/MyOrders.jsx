@@ -125,7 +125,6 @@ const MyOrders = () => {
     const minRows = Math.max(10, itemsList.length);
     let itemsTableRows = "";
     
-    let calculatedSubTotal = 0;
     let calculatedTotalGstAmount = 0;
     let computedGrandTotal = 0;
 
@@ -136,18 +135,17 @@ const MyOrders = () => {
         const qty = Number(item.quantity || 1);
         const lineTotal = unitPrice * qty;
         
-        // 1. Direct Backend GST Extraction (Single GST Value like 12)
+        // Dynamic GST Fetching from Backend
         let rawGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? item.productId?.gst ?? 12;
         if (typeof rawGst === "string") {
           rawGst = parseFloat(rawGst.replace(/[^0-9.]/g, ""));
         }
         const itemGstRate = !isNaN(rawGst) && rawGst > 0 ? Number(rawGst) : 12;
         
-        // 2. Taxable Value & Tax Amount calculations
-        const taxableVal = item.taxableValue || (lineTotal / (1 + itemGstRate / 100));
+        // GST Calculation based on Line Total
+        const taxableVal = lineTotal / (1 + itemGstRate / 100);
         const totalTaxAmt = lineTotal - taxableVal;
 
-        calculatedSubTotal += taxableVal;
         calculatedTotalGstAmount += totalTaxAmt;
         computedGrandTotal += lineTotal;
 
@@ -159,8 +157,8 @@ const MyOrders = () => {
             <td style="text-align: center;">${qty}</td>
             <td style="text-align: center;">${item.unit || "PCS"}</td>
             <td style="text-align: right;">Rs. ${unitPrice.toFixed(2)}</td>
-            <td style="text-align: right;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td style="text-align: right;">Rs. ${taxableVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td style="text-align: right; font-weight: bold;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td style="text-align: center;">-</td>
             <td style="text-align: center;">${item.discount || "-"}</td>
             <td style="text-align: center; font-weight: bold;">${itemGstRate}%</td>
             <td style="text-align: right; font-weight: bold;">Rs. ${totalTaxAmt.toFixed(2)}</td>
@@ -180,7 +178,6 @@ const MyOrders = () => {
       }
     }
 
-    const finalSubTotal = order.subTotal ? Number(order.subTotal) : calculatedSubTotal;
     const finalGrandTotal = Number(order.totalAmount || computedGrandTotal);
     const amountInWords = numberToWords(finalGrandTotal);
 
@@ -275,7 +272,7 @@ const MyOrders = () => {
             <tr class="total-row">
               <td colspan="6" style="text-align: right;">Total</td>
               <td style="text-align: right;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style="text-align: right;">Rs. ${finalSubTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: center;">-</td>
               <td></td>
               <td></td>
               <td style="text-align: right;">Rs. ${calculatedTotalGstAmount.toFixed(2)}</td>
