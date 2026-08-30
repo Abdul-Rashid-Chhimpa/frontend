@@ -7,14 +7,13 @@ import {
   Printer,
   Search,
   RefreshCw,
-  Eye,
   Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Helper function: Convert number to Words (Indian Currency Format)
 const numberToWords = (num) => {
-  if (!num) return "Rupees Zero Only";
+  if (!num || isNaN(num)) return "Rupees Zero Only";
   const a = [
     "", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ",
     "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "
@@ -60,17 +59,63 @@ const AdminBills = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
+
+      // 1. Fetch Global Product Catalog for Real-time Dynamic GST fallback
+      let gstMap = {};
+      try {
+        const prodRes = await axios.get("https://backend-3-axez.onrender.com/api/products");
+        const allProducts = prodRes.data.products || prodRes.data || [];
+        allProducts.forEach((p) => {
+          if (p._id) {
+            gstMap[String(p._id)] = p.gst !== undefined ? Number(p.gst) : 0;
+          }
+        });
+      } catch (prodErr) {
+        console.error("Failed fetching dynamic global product GST list:", prodErr);
+      }
+
+      // 2. Fetch Orders List
       const token = localStorage.getItem("token");
       const { data } = await axios.get(
         "https://backend-3-axez.onrender.com/api/orders/all",
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
+      let rawOrders = [];
       if (data.success && data.orders) {
-        setOrders(data.orders);
+        rawOrders = data.orders;
       } else if (Array.isArray(data)) {
-        setOrders(data);
+        rawOrders = data;
       }
+
+      // 3. Dynamic GST Value Injection loop
+      const mappedOrders = rawOrders.map((order) => {
+        const itemsList = order.items || order.orderItems || [];
+        const updatedItems = itemsList.map((item) => {
+          const pId = String(item.productId?._id || item.productId || item.id || item._id || "");
+          
+          let dynamicGst = 0;
+          if (item.gst !== undefined && item.gst !== null && Number(item.gst) >= 0) {
+            dynamicGst = Number(item.gst);
+          } else if (pId && gstMap[pId] !== undefined) {
+            dynamicGst = gstMap[pId];
+          } else if (item.productId && typeof item.productId === "object" && item.productId.gst !== undefined) {
+            dynamicGst = Number(item.productId.gst);
+          }
+
+          return {
+            ...item,
+            gst: dynamicGst,
+          };
+        });
+
+        return {
+          ...order,
+          items: updatedItems,
+        };
+      });
+
+      setOrders(mappedOrders);
     } catch (error) {
       console.error("Error fetching bills:", error);
       toast.error("Failed to fetch bills");
@@ -106,7 +151,43 @@ const AdminBills = () => {
     }
   };
 
-  // EXACT INVOICE PRINT / DOWNLOAD PDF HANDLER (MATCHING MYORDERS)
+  // Helper Shipping Fee Extraction Handler
+  const extractShippingFee = (order) => {
+    let fee = Number(
+      order.shippingCharge ??
+      order.deliveryFee ??
+      order.shippingCost ??
+      order.deliveryCharge ??
+      order.shippingAmount ??
+      order.delivery?.charge ??
+      0
+    );
+
+    const itemsList = order.items || order.orderItems || [];
+    if (fee === 0 && Array.isArray(itemsList)) {
+      itemsList.forEach((item) => {
+        const itemShipping = Number(
+          item.deliveryCharge ??
+          item.deliveryFee ??
+          item.shippingCharge ??
+          item.delivery?.charge ??
+          0
+        );
+        fee += itemShipping;
+      });
+    }
+
+    if (fee === 0 && order.totalAmount && itemsList.length > 0) {
+      const itemsSum = itemsList.reduce((acc, it) => acc + (Number(it.price || 0) * Number(it.quantity || it.qty || 1)), 0);
+      if (Number(order.totalAmount) > itemsSum) {
+        fee = Number(order.totalAmount) - itemsSum;
+      }
+    }
+
+    return fee;
+  };
+
+  // Dynamic GST Invoice Print / Download Handler
   const handlePrintInvoice = (order) => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -123,50 +204,81 @@ const AdminBills = () => {
       : "N/A";
 
     const itemsList = order.items || order.orderItems || [];
-    const minRows = Math.max(10, itemsList.length);
-    let itemsTableRows = "";
+    const shippingFee = extractShippingFee(order);
 
-    for (let i = 0; i < minRows; i++) {
-      const item = itemsList[i];
-      if (item) {
-        const price = Number(item.price || 0);
-        const qty = Number(item.quantity || item.qty || 1);
-        const total = price * qty;
-        const taxableVal = item.taxableValue || total;
-        const igstAmt = item.igstAmount || total * 0.18;
-        itemsTableRows += `
-          <tr>
-            <td style="text-align: center;">${i + 1}</td>
-            <td>${item.title || item.name || "Product"}</td>
-            <td style="text-align: center;">${item.hsnCode || "8203"}</td>
-            <td style="text-align: center;">${qty}</td>
-            <td style="text-align: center;">${item.unit || "PCS"}</td>
-            <td style="text-align: right;">Rs. ${price.toFixed(2)}</td>
-            <td style="text-align: right;">${total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style="text-align: right;">Rs. ${taxableVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-            <td style="text-align: center;">${item.discount || "-"}</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">18%</td>
-            <td style="text-align: right;">Rs. ${igstAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-          </tr>
-        `;
-      } else {
-        itemsTableRows += `
-          <tr>
-            <td>&nbsp;</td>
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-          </tr>
-        `;
-      }
+    let itemsTableRows = "";
+    let calculatedItemsTotal = 0;
+    let calculatedTotalGstAmount = 0;
+
+    itemsList.forEach((item, i) => {
+      const unitPrice = Number(item.price || 0);
+      const qty = Number(item.quantity || item.qty || 1);
+      const lineTotal = unitPrice * qty;
+
+      const itemGstRate = Number(item.gst || 0);
+      const totalTaxAmt = itemGstRate > 0 ? (lineTotal * itemGstRate) / 100 : 0;
+
+      calculatedItemsTotal += lineTotal;
+      calculatedTotalGstAmount += totalTaxAmt;
+
+      itemsTableRows += `
+        <tr>
+          <td style="text-align: center;">${i + 1}</td>
+          <td>${item.title || item.name || item.productId?.name || "Product Item"}</td>
+          <td style="text-align: center;">${item.hsnCode || item.productId?.hsnCode || "8203"}</td>
+          <td style="text-align: center;">${qty}</td>
+          <td style="text-align: center;">${item.unit || "PCS"}</td>
+          <td style="text-align: right;">Rs. ${unitPrice.toFixed(2)}</td>
+          <td style="text-align: right; font-weight: bold;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">${item.discount || "-"}</td>
+          <td style="text-align: center; font-weight: bold;">${itemGstRate}%</td>
+          <td style="text-align: right; font-weight: bold;">Rs. ${totalTaxAmt.toFixed(2)}</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+        </tr>
+      `;
+    });
+
+    let rowCounter = itemsList.length + 1;
+    if (shippingFee > 0) {
+      itemsTableRows += `
+        <tr>
+          <td style="text-align: center;">${rowCounter}</td>
+          <td>Delivery / Shipping Charge</td>
+          <td style="text-align: center;">9965</td>
+          <td style="text-align: center;">1</td>
+          <td style="text-align: center;">NOS</td>
+          <td style="text-align: right;">Rs. ${shippingFee.toFixed(2)}</td>
+          <td style="text-align: right; font-weight: bold;">Rs. ${shippingFee.toFixed(2)}</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">0%</td>
+          <td style="text-align: right;">Rs. 0.00</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+        </tr>
+      `;
     }
 
-    const subTotal = Number(order.subTotal || order.totalAmount || 0);
-    const taxAmt = Number(order.gst || subTotal * 0.18);
-    const grandTotal = Number(order.totalAmount || subTotal + taxAmt);
-    const amountInWords = numberToWords(grandTotal);
+    const totalFilledRows = itemsList.length + (shippingFee > 0 ? 1 : 0);
+    const minRows = Math.max(10, totalFilledRows);
+    for (let i = totalFilledRows; i < minRows; i++) {
+      itemsTableRows += `
+        <tr>
+          <td>&nbsp;</td>
+          <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+      `;
+    }
+
+    const computedGrandTotal = calculatedItemsTotal + calculatedTotalGstAmount + shippingFee;
+    const finalGrandTotal = Number(order.totalAmount || computedGrandTotal);
+    const amountInWords = numberToWords(finalGrandTotal);
 
     const customerName = order.customerName || order.user?.name || "Customer";
     const customerAddress = order.shippingAddress?.address || order.user?.address || "N/A";
@@ -177,7 +289,7 @@ const AdminBills = () => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Invoice #${order._id}</title>
+      <title>Invoice #${order._id ? order._id.slice(-6).toUpperCase() : "N/A"}</title>
       <style>
         * { box-sizing: border-box; font-family: Arial, sans-serif; font-size: 11px; }
         body { padding: 10px; background: #fff; color: #000; }
@@ -247,29 +359,34 @@ const AdminBills = () => {
               <th rowspan="2">Total</th>
               <th rowspan="2">Taxable Value</th>
               <th rowspan="2">Discount</th>
-              <th colspan="2">CGST</th>
-              <th colspan="2">SGST</th>
+              <th colspan="2">GST</th>
+              <th colspan="2">CGST / SGST</th>
               <th colspan="2">IGST</th>
             </tr>
             <tr>
-              <th>Rate</th><th>Amount</th><th>Rate</th><th>Amount</th><th>Rate</th><th>Amount</th>
+              <th>Rate</th><th>Amount</th><th>CGST</th><th>SGST</th><th>Rate</th><th>Amount</th>
             </tr>
           </thead>
           <tbody>
             ${itemsTableRows}
             <tr class="total-row">
               <td colspan="6" style="text-align: right;">Total</td>
-              <td style="text-align: right;">Rs. ${subTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-              <td style="text-align: right;">Rs. ${subTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
-              <td></td><td></td><td></td><td></td><td></td><td></td>
-              <td style="text-align: right;">Rs. ${taxAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+              <td style="text-align: right;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: right;">Rs. ${calculatedTotalGstAmount.toFixed(2)}</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
             </tr>
           </tbody>
         </table>
         <table class="summary-table">
           <tr>
             <td style="width: 200px; font-weight: bold;">Total Invoice Value (in figure)</td>
-            <td style="font-weight: bold; font-size: 12px;">Rs. ${grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="font-weight: bold; font-size: 12px;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
           <tr>
             <td style="font-weight: bold;">Total Invoice Value (in words)</td>
@@ -364,7 +481,8 @@ const AdminBills = () => {
               const amount = Number(order.totalAmount || order.totalPrice || 0);
               const name = order.customerName || order.user?.name || "Customer";
               const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "N/A";
-              const itemsCount = (order.items || order.orderItems || []).length;
+              const itemsList = order.items || order.orderItems || [];
+              const itemsCount = itemsList.length;
 
               return (
                 <div
