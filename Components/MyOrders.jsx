@@ -100,49 +100,70 @@ const MyOrders = () => {
     }
   };
 
-  // Helper to dynamically extract GST Rate per item (Defaults to 0% if absent or invalid)
+  // ADVANCED: Dynamic GST Extraction logic (Handles all possible nested backend keys)
   const extractGstRate = (item) => {
-    let rawGst =
-      item?.gst ??
-      item?.gstRate ??
-      item?.taxRate ??
-      item?.tax ??
-      item?.productId?.gst ??
-      item?.productId?.gstRate;
+    if (!item) return 0;
+    
+    const possibleGstValues = [
+      item.gst,
+      item.gstRate,
+      item.gstPercent,
+      item.tax,
+      item.taxRate,
+      item.productId?.gst,
+      item.productId?.gstRate,
+      item.productId?.gstPercent,
+      item.productId?.tax,
+    ];
 
-    if (rawGst === undefined || rawGst === null || rawGst === "") return 0;
-
-    if (typeof rawGst === "string") {
-      rawGst = parseFloat(rawGst.replace(/[^0-9.]/g, ""));
+    for (let rawVal of possibleGstValues) {
+      if (rawVal !== undefined && rawVal !== null && rawVal !== "") {
+        if (typeof rawVal === "string") {
+          rawVal = parseFloat(rawVal.replace(/[^0-9.]/g, ""));
+        }
+        if (!isNaN(rawVal) && rawVal >= 0) {
+          return Number(rawVal);
+        }
+      }
     }
 
-    return !isNaN(rawGst) && rawGst >= 0 ? Number(rawGst) : 0;
+    return 0; // Default to 0% if no GST field is populated
   };
 
-  // Helper to dynamically extract Delivery/Shipping charges from Order level or Items
+  // ADVANCED: Dynamic Delivery Fee Extraction Logic
   const extractShippingFee = (order) => {
     let fee = Number(
       order.shippingCharge ??
-        order.deliveryFee ??
-        order.shippingCost ??
-        order.deliveryCharge ??
-        order.shippingAmount ??
-        order.delivery?.charge ??
-        0
+      order.deliveryFee ??
+      order.shippingCost ??
+      order.deliveryCharge ??
+      order.shippingAmount ??
+      order.delivery?.charge ??
+      0
     );
 
-    // If order-level shipping fee is missing, calculate from individual items if present
+    // If order level property is missing, aggregate from individual items
     if (fee === 0 && order.items && Array.isArray(order.items)) {
       order.items.forEach((item) => {
         const itemShipping = Number(
           item.deliveryCharge ??
-            item.deliveryFee ??
-            item.shippingCharge ??
-            item.delivery?.charge ??
-            0
+          item.deliveryFee ??
+          item.shippingCharge ??
+          item.delivery?.charge ??
+          0
         );
         fee += itemShipping;
       });
+    }
+
+    // Auto-detect difference if totalAmount has shipping embedded
+    if (fee === 0 && order.totalAmount && order.items) {
+      const itemsSum = order.items.reduce((acc, it) => acc + (Number(it.price || 0) * Number(it.quantity || 1)), 0);
+      if (Number(order.totalAmount) > itemsSum) {
+        // If total is higher than items sum and GST is 0, difference is Shipping
+        const diff = Number(order.totalAmount) - itemsSum;
+        fee = diff;
+      }
     }
 
     return fee;
@@ -177,7 +198,7 @@ const MyOrders = () => {
 
     const shippingFee = extractShippingFee(order);
 
-    // Dynamic Items Iteration
+    // Dynamic Items Loop
     itemsList.forEach((item, i) => {
       const unitPrice = Number(item.price || 0);
       const qty = Number(item.quantity || 1);
@@ -210,7 +231,7 @@ const MyOrders = () => {
       `;
     });
 
-    // Dedicated Row for Delivery Charge in Bill
+    // Dedicated Delivery Charge Row in Bill
     let rowCounter = itemsList.length + 1;
     if (shippingFee > 0) {
       itemsTableRows += `
