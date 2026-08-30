@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   Download,
   Trash2,
+  Printer,
 } from "lucide-react";
 
 // Helper function: Convert number to Words (Indian Currency Format)
@@ -78,7 +79,6 @@ const MyOrders = () => {
     }
   };
 
-  // ORDER DELETE HANDLER
   const handleDeleteOrder = async (orderId) => {
     const confirmDelete = window.confirm("Are you sure you want to permanently delete this order?");
     if (!confirmDelete) return;
@@ -100,18 +100,19 @@ const MyOrders = () => {
     }
   };
 
-  // INVOICE PRINT / DOWNLOAD PDF HANDLER
-  const handleDownloadInvoice = (order) => {
+  // INVOICE DOWNLOAD / PRINT HANDLER
+  const handleDownloadInvoice = (order, autoPrint = false) => {
     if (order.status !== "Delivered") {
-      toast.error("Invoice download is available only after order is Delivered!");
+      toast.error("Invoice is available only after order is Delivered!");
       return;
     }
 
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
-      toast.error("Popup blocked! Please allow popups to download invoice.");
+      toast.error("Popup blocked! Please allow popups to view/download invoice.");
       return;
     }
+
     const orderDate = order.createdAt
       ? new Date(order.createdAt).toLocaleDateString("en-IN", {
           day: "2-digit",
@@ -123,14 +124,25 @@ const MyOrders = () => {
     const itemsList = order.items || [];
     const minRows = Math.max(10, itemsList.length);
     let itemsTableRows = "";
+    
+    let calculatedSubTotal = 0;
+    let calculatedTotalGst = 0;
+
     for (let i = 0; i < minRows; i++) {
       const item = itemsList[i];
       if (item) {
         const price = Number(item.price || 0);
         const qty = Number(item.quantity || 1);
-        const total = price * qty;
-        const taxableVal = item.taxableValue || total;
-        const igstAmt = item.igstAmount || total * 0.18;
+        const lineTotal = price * qty;
+        
+        // Dynamic GST Fetching from backend item (defaulting to 18 if not available)
+        const itemGstRate = Number(item.gstRate ?? item.taxRate ?? item.gst ?? 18);
+        const taxableVal = item.taxableValue || lineTotal;
+        const calculatedIgst = item.igstAmount || (taxableVal * (itemGstRate / 100));
+
+        calculatedSubTotal += taxableVal;
+        calculatedTotalGst += calculatedIgst;
+
         itemsTableRows += `
           <tr>
             <td style="text-align: center;">${i + 1}</td>
@@ -139,15 +151,15 @@ const MyOrders = () => {
             <td style="text-align: center;">${qty}</td>
             <td style="text-align: center;">${item.unit || "PCS"}</td>
             <td style="text-align: right;">Rs. ${price.toFixed(2)}</td>
-            <td style="text-align: right;">${total.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="text-align: right;">${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
             <td style="text-align: right;">Rs. ${taxableVal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
             <td style="text-align: center;">${item.discount || "-"}</td>
             <td style="text-align: center;">-</td>
             <td style="text-align: center;">-</td>
             <td style="text-align: center;">-</td>
             <td style="text-align: center;">-</td>
-            <td style="text-align: center;">18%</td>
-            <td style="text-align: right;">Rs. ${igstAmt.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
+            <td style="text-align: center;">${itemGstRate}%</td>
+            <td style="text-align: right;">Rs. ${calculatedIgst.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
           </tr>
         `;
       } else {
@@ -160,21 +172,18 @@ const MyOrders = () => {
       }
     }
 
-    
-      const subTotal = Number(order.subTotal || order.totalAmount || 0);
-    const taxAmt = Number(order.gst || subTotal * 0.18);
-    const grandTotal = Number(order.totalAmount || subTotal + taxAmt);
-    const amountInWords = numberToWords(grandTotal); 
+    const subTotal = order.subTotal ? Number(order.subTotal) : calculatedSubTotal;
+    const taxAmt = order.gst ? Number(order.gst) : calculatedTotalGst;
+    const grandTotal = Number(order.totalAmount || (subTotal + taxAmt));
+    const amountInWords = numberToWords(grandTotal);
 
-
-
-
+    const invoiceTitle = `Invoice_${order._id.slice(-6).toUpperCase()}`;
 
     const htmlContent = `
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Invoice #${order._id}</title>
+      <title>${invoiceTitle}</title>
       <style>
         * { box-sizing: border-box; font-family: Arial, sans-serif; font-size: 11px; }
         body { padding: 10px; background: #fff; color: #000; }
@@ -209,7 +218,7 @@ const MyOrders = () => {
           <div class="company-sub">Contact no. ${companyDetails.phone}</div>
         </div>
         <div class="info-grid">
-        <div class="info-box">
+          <div class="info-box">
             <span class="info-title">INVOICE DETAILS</span>
             <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${companyDetails.gstin}</span></div>
             <div class="info-row"><span class="info-label">Name</span><span>: ${companyDetails.name}</span></div>
@@ -219,21 +228,20 @@ const MyOrders = () => {
           </div>
           <div class="info-box">
             <span class="info-title">DETAILS OF RECEIVER (BILLED TO)</span>
-            <div class="info-row"><span class="info-label">Name</span><span>: ${user?.name || "Jay Bhavani Traders"}</span></div>
-            <div class="info-row"><span class="info-label">Address</span><span>: ${user?.address || "Hyderabad"}</span></div>
-            <div class="info-row"><span class="info-label">State</span><span>: ${user?.state || "Telangana"}</span></div>
-            <div class="info-row"><span class="info-label">State Code</span><span>: ${user?.stateCode || "TS (36)"}</span></div>
-            <div class="info-row"><span class="info-label">GSTIN No.</span><span>: ${user?.gstin || "36AMYPB3174E1ZX"}</span></div>
+            <div class="info-row"><span class="info-label">Name</span><span>: ${user?.name || "Customer"}</span></div>
+            <div class="info-row"><span class="info-label">Address</span><span>: ${user?.address || "N/A"}</span></div>
+            <div class="info-row"><span class="info-label">State</span><span>: ${user?.state || "Rajasthan"}</span></div>
+            <div class="info-row"><span class="info-label">State Code</span><span>: ${user?.stateCode || "RJ (08)"}</span></div>
+            <div class="info-row"><span class="info-label">GSTIN No.</span><span>: ${user?.gstin || "N/A"}</span></div>
           </div>
           <div class="info-box">
             <span class="info-title">DETAILS OF CONSIGNEE (SHIPPED TO)</span>
-            <div class="info-row"><span class="info-label">Name</span><span>: ${user?.name || "Jay Bhavani Traders"}</span></div>
-            <div class="info-row"><span class="info-label">Address</span><span>: ${user?.address || "Hyderabad"}</span></div>
-            <div class="info-row"><span class="info-label">State</span><span>: ${user?.state || "Telangana"}</span></div>
-            <div class="info-row"><span class="info-label">State Code</span><span>: ${user?.stateCode || "TS (36)"}</span></div>
-            <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${user?.gstin || "36AMYPB3174E1ZX"}</span></div>
+            <div class="info-row"><span class="info-label">Name</span><span>: ${user?.name || "Customer"}</span></div>
+            <div class="info-row"><span class="info-label">Address</span><span>: ${user?.address || "N/A"}</span></div>
+            <div class="info-row"><span class="info-label">State</span><span>: ${user?.state || "Rajasthan"}</span></div>
+            <div class="info-row"><span class="info-label">State Code</span><span>: ${user?.stateCode || "RJ (08)"}</span></div>
+            <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${user?.gstin || "N/A"}</span></div>
           </div>
-          
         </div>
         <table class="invoice-table">
           <thead>
@@ -269,7 +277,7 @@ const MyOrders = () => {
         <table class="summary-table">
           <tr>
             <td style="width: 200px; font-weight: bold;">Total Invoice Value (in figure)</td>
-            <td style="font-weight: bold; font-size: 12px;">Rs. ${grandTotal+taxAmt}</td>
+            <td style="font-weight: bold; font-size: 12px;">Rs. ${grandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</td>
           </tr>
           <tr>
             <td style="font-weight: bold;">Total Invoice Value (in words)</td>
@@ -300,7 +308,11 @@ const MyOrders = () => {
           </div>
         </div>
       </div>
-      <script>window.onload = function() { window.print(); }</script>
+      <script>
+        window.onload = function() { 
+          window.print(); 
+        }
+      </script>
     </body>
     </html>`;
 
@@ -496,23 +508,36 @@ const MyOrders = () => {
                       </span>
                     </div>
 
-                    <button
-                      onClick={() => handleDownloadInvoice(order)}
-                      disabled={!isDelivered}
-                      title={
-                        isDelivered
-                          ? "Download Tax Invoice PDF"
-                          : "Invoice available after order delivery"
-                      }
-                      className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
-                        isDelivered
-                          ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow hover:shadow-md cursor-pointer"
-                          : "bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300"
-                      }`}
-                    >
-                      <Download size={15} />
-                      {isDelivered ? "Download Invoice" : "Bill (Locked)"}
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => handleDownloadInvoice(order, false)}
+                        disabled={!isDelivered}
+                        title={
+                          isDelivered
+                            ? "Download Tax Invoice PDF"
+                            : "Invoice available after order delivery"
+                        }
+                        className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
+                          isDelivered
+                            ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow hover:shadow-md cursor-pointer"
+                            : "bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300"
+                        }`}
+                      >
+                        <Download size={15} />
+                        {isDelivered ? "Download Invoice" : "Bill (Locked)"}
+                      </button>
+
+                      {isDelivered && (
+                        <button
+                          onClick={() => handleDownloadInvoice(order, true)}
+                          title="Print Tax Invoice"
+                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer"
+                        >
+                          <Printer size={15} />
+                          Print
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               );
