@@ -26,6 +26,7 @@ import Adminuser from "../Components/Adminuser";
 import AdminSettings from"../Components/AdminSettings";
 import AdminCategories from "../Components/AdminCategories";
 import AdminAnalytics from "../Components/AdminAnalytics";
+import AdminBills from "../Components/AdminBills";
 
 <Route
   path="/admin/orders"
@@ -60,6 +61,7 @@ function App() {
         <Route path="/admin/categories" element={<AdminCategories />} />
           
 <Route path="/admin/analytics" element={<AdminAnalytics />} />
+          <Route path="/admin/bills" element={<AdminBills />} />
         </Routes>
       </BrowserRouter>
     </CartProvider>
