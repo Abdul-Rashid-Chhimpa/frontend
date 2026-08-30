@@ -64,11 +64,50 @@ const MyOrders = () => {
     fetchOrders();
   }, []);
 
+  // Fetch Orders and Merge Database Product GST Rates Dynamically
   const fetchOrders = async () => {
     try {
       const { data } = await axios.get("https://backend-3-axez.onrender.com/api/orders/all");
       if (data.success) {
-        const myOrders = data.orders.filter((order) => order.userId === user?._id);
+        let myOrders = data.orders.filter((order) => order.userId === user?._id);
+
+        // Fetch Product List to Map Live GST Values from Product Collection
+        let productsMap = {};
+        try {
+          const prodRes = await axios.get("https://backend-3-axez.onrender.com/api/products");
+          const allProducts = prodRes.data.products || prodRes.data || [];
+          allProducts.forEach((p) => {
+            if (p._id) {
+              productsMap[p._id] = p.gst !== undefined ? p.gst : p.gstRate || 0;
+            }
+          });
+        } catch (err) {
+          console.log("Could not fetch global product list for GST mapping:", err);
+        }
+
+        // Attach live product GST if missing in order item
+        myOrders = myOrders.map((order) => {
+          const updatedItems = order.items?.map((item) => {
+            const pId = item.productId?._id || item.productId || item._id;
+            let realGst =
+              item.gst ??
+              item.gstRate ??
+              item.productId?.gst ??
+              productsMap[pId] ??
+              0;
+
+            return {
+              ...item,
+              gst: Number(realGst),
+            };
+          });
+
+          return {
+            ...order,
+            items: updatedItems,
+          };
+        });
+
         setOrders(myOrders);
       }
     } catch (error) {
@@ -98,35 +137,6 @@ const MyOrders = () => {
     } finally {
       setDeletingId(null);
     }
-  };
-
-  // Improved Backend Dynamic GST Extractor
-  const extractGstRate = (item) => {
-    if (!item) return 0;
-
-    // Check directly in item object or inside nested productId object from backend
-    const checkTarget = [
-      item.gst,
-      item.gstRate,
-      item.gstPercent,
-      item.tax,
-      item.productId?.gst,
-      item.productId?.gstRate,
-      item.productId?.gstPercent,
-      item.productId?.tax,
-      item.product?.gst,
-    ];
-
-    for (let val of checkTarget) {
-      if (val !== undefined && val !== null && val !== "") {
-        const parsedVal = Number(val);
-        if (!isNaN(parsedVal) && parsedVal > 0) {
-          return parsedVal;
-        }
-      }
-    }
-
-    return 0; // If backend has 0 or undefined, return 0
   };
 
   // Shipping Fee Extractor
@@ -164,7 +174,7 @@ const MyOrders = () => {
     return fee;
   };
 
-  // Tax Invoice Generation & Window Print Trigger
+  // Download / Print Invoice Handler
   const handleDownloadInvoice = (order) => {
     if (order.status !== "Delivered") {
       toast.error("Invoice is available only after order is Delivered!");
@@ -198,8 +208,7 @@ const MyOrders = () => {
       const qty = Number(item.quantity || 1);
       const lineTotal = unitPrice * qty;
 
-      // Extract exact GST rate from backend
-      const itemGstRate = extractGstRate(item);
+      const itemGstRate = Number(item.gst || 0);
       const totalTaxAmt = itemGstRate > 0 ? (lineTotal * itemGstRate) / 100 : 0;
 
       calculatedItemsTotal += lineTotal;
@@ -226,7 +235,6 @@ const MyOrders = () => {
       `;
     });
 
-    // Add Shipping / Delivery Row if present
     let rowCounter = itemsList.length + 1;
     if (shippingFee > 0) {
       itemsTableRows += `
@@ -417,45 +425,15 @@ const MyOrders = () => {
   const getStatusStyle = (status) => {
     switch (status) {
       case "Pending":
-        return {
-          bg: "bg-amber-50",
-          text: "text-amber-700",
-          border: "border-amber-200",
-          badge: "bg-amber-500",
-          icon: <Clock size={16} />,
-        };
+        return { bg: "bg-amber-50", border: "border-amber-200", badge: "bg-amber-500", icon: <Clock size={16} /> };
       case "Shipped":
-        return {
-          bg: "bg-blue-50",
-          text: "text-blue-700",
-          border: "border-blue-200",
-          badge: "bg-blue-600",
-          icon: <Truck size={16} />,
-        };
+        return { bg: "bg-blue-50", border: "border-blue-200", badge: "bg-blue-600", icon: <Truck size={16} /> };
       case "Delivered":
-        return {
-          bg: "bg-emerald-50",
-          text: "text-emerald-700",
-          border: "border-emerald-200",
-          badge: "bg-emerald-600",
-          icon: <CheckCircle size={16} />,
-        };
+        return { bg: "bg-emerald-50", border: "border-emerald-200", badge: "bg-emerald-600", icon: <CheckCircle size={16} /> };
       case "Cancelled":
-        return {
-          bg: "bg-red-50",
-          text: "text-red-700",
-          border: "border-red-200",
-          badge: "bg-red-600",
-          icon: <XCircle size={16} />,
-        };
+        return { bg: "bg-red-50", border: "border-red-200", badge: "bg-red-600", icon: <XCircle size={16} /> };
       default:
-        return {
-          bg: "bg-gray-50",
-          text: "text-gray-700",
-          border: "border-gray-200",
-          badge: "bg-gray-500",
-          icon: <Package size={16} />,
-        };
+        return { bg: "bg-gray-50", border: "border-gray-200", badge: "bg-gray-500", icon: <Package size={16} /> };
     }
   };
 
@@ -483,9 +461,6 @@ const MyOrders = () => {
               <ShoppingBag size={36} className="text-indigo-400" />
             </div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-800">No Orders Found</h2>
-            <p className="text-gray-500 mt-2 text-sm sm:text-base">
-              Your placed orders will appear here.
-            </p>
           </div>
         ) : (
           <div className="space-y-5 sm:space-y-6">
@@ -495,50 +470,30 @@ const MyOrders = () => {
               const shippingFee = extractShippingFee(order);
 
               return (
-                <div
-                  key={order._id}
-                  className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300"
-                >
+                <div key={order._id} className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden">
                   <div className={`px-4 sm:px-6 py-4 border-b ${statusStyle.border} ${statusStyle.bg}`}>
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
                           <Hash size={14} />
-                          <span className="font-mono truncate max-w-[180px] sm:max-w-none">
-                            {order._id}
-                          </span>
+                          <span className="font-mono">{order._id}</span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm">
-                          <span className="flex items-center gap-1.5 font-semibold text-gray-800">
-                            <IndianRupee size={14} />
-                            {Number(order.totalAmount || 0).toLocaleString()}
-                          </span>
+                        <div className="flex items-center gap-4 text-xs sm:text-sm">
+                          <span className="font-semibold text-gray-800">₹{Number(order.totalAmount || 0).toLocaleString()}</span>
                           {order.createdAt && (
-                            <span className="flex items-center gap-1.5 text-gray-500">
-                              <Calendar size={13} />
-                              {new Date(order.createdAt).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })}
+                            <span className="text-gray-500">
+                              {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 self-start sm:self-center">
-                        <div
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
-                        >
+                      <div className="flex items-center gap-2">
+                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold ${statusStyle.badge}`}>
                           {statusStyle.icon}
                           {order.status}
                         </div>
-                        <button
-                          onClick={() => handleDeleteOrder(order._id)}
-                          disabled={deletingId === order._id}
-                          title="Delete Order Permanently"
-                          className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-100 rounded-lg transition disabled:opacity-50"
-                        >
+                        <button onClick={() => handleDeleteOrder(order._id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg">
                           <Trash2 size={17} />
                         </button>
                       </div>
@@ -546,92 +501,36 @@ const MyOrders = () => {
                   </div>
 
                   <div className="px-4 sm:px-6 py-4 space-y-3">
-                    {order.items?.map((item, index) => {
-                      const dynamicGst = extractGstRate(item);
-                      return (
-                        <div
-                          key={index}
-                          className="flex gap-3 sm:gap-4 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/60 hover:bg-gray-50 transition"
-                        >
-                          <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
-                            <img
-                              src={item.image || item.images?.[0] || item.productId?.images?.[0]}
-                              alt={item.title || item.name}
-                              className="w-full h-full object-contain p-1"
-                              onError={(e) => {
-                                e.target.src = "https://via.placeholder.com/80?text=No+Img";
-                              }}
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
-                              {item.title || item.name || item.productId?.name}
-                            </h3>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
-                              <span>Qty: {item.quantity}</span>
-                              <span>•</span>
-                              <span>₹{Number(item.price || 0).toLocaleString()} / unit</span>
-                              <span>•</span>
-                              <span className="font-semibold text-indigo-600">
-                                GST: {dynamicGst}%
-                              </span>
-                            </div>
-                          </div>
-                          <div className="text-right flex-shrink-0">
-                            <p className="text-[10px] sm:text-xs text-gray-400">Total</p>
-                            <p className="font-bold text-gray-900 text-sm sm:text-base">
-                              ₹{(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString()}
-                            </p>
+                    {order.items?.map((item, index) => (
+                      <div key={index} className="flex gap-3 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/60">
+                        <img src={item.image || item.images?.[0] || item.productId?.images?.[0]} className="w-14 h-14 object-contain" alt="" />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-gray-900 text-sm">{item.title || item.name || item.productId?.name}</h3>
+                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
+                            <span>Qty: {item.quantity}</span>
+                            <span>•</span>
+                            <span>₹{item.price} / unit</span>
+                            <span>•</span>
+                            <span className="font-bold text-indigo-600">GST: {item.gst}%</span>
                           </div>
                         </div>
-                      );
-                    })}
+                        <p className="font-bold text-gray-900 text-sm">₹{item.price * item.quantity}</p>
+                      </div>
+                    ))}
                   </div>
 
-                  <div className="px-4 sm:px-6 py-3 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-gray-600">
-                    <div className="flex flex-wrap gap-4">
-                      {order.subTotal && (
-                        <span>
-                          Subtotal: <strong>₹{Number(order.subTotal).toLocaleString()}</strong>
-                        </span>
-                      )}
-                      {shippingFee > 0 && (
-                        <span>
-                          Delivery Fee: <strong>₹{shippingFee.toLocaleString()}</strong>
-                        </span>
-                      )}
-                      <span className="font-bold text-emerald-600">
-                        Grand Total: ₹{Number(order.totalAmount || 0).toLocaleString()}
-                      </span>
+                  <div className="px-4 sm:px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center text-xs sm:text-sm">
+                    <div>
+                      {shippingFee > 0 && <span>Delivery Fee: <strong>₹{shippingFee}</strong> • </span>}
+                      <span className="font-bold text-emerald-600">Grand Total: ₹{order.totalAmount}</span>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => handleDownloadInvoice(order)}
-                        disabled={!isDelivered}
-                        title={
-                          isDelivered
-                            ? "Download Tax Invoice PDF"
-                            : "Invoice available after order delivery"
-                        }
-                        className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition ${
-                          isDelivered
-                            ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow hover:shadow-md cursor-pointer"
-                            : "bg-gray-200 text-gray-400 cursor-not-allowed border border-gray-300"
-                        }`}
-                      >
-                        <Download size={15} />
-                        {isDelivered ? "Download Invoice" : "Bill (Locked)"}
+                    <div className="flex gap-2">
+                      <button onClick={() => handleDownloadInvoice(order)} disabled={!isDelivered} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold">
+                        <Download size={15} /> Download Invoice
                       </button>
-
                       {isDelivered && (
-                        <button
-                          onClick={() => handleDownloadInvoice(order)}
-                          title="Print Tax Invoice"
-                          className="inline-flex items-center justify-center gap-2 px-3 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-xs sm:text-sm font-semibold transition cursor-pointer"
-                        >
-                          <Printer size={15} />
-                          Print
+                        <button onClick={() => handleDownloadInvoice(order)} className="flex items-center gap-2 px-3 py-2 bg-gray-200 text-gray-800 rounded-xl font-semibold">
+                          <Printer size={15} /> Print
                         </button>
                       )}
                     </div>
