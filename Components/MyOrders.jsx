@@ -122,62 +122,93 @@ const MyOrders = () => {
       : "N/A";
 
     const itemsList = order.items || [];
-    const minRows = Math.max(10, itemsList.length);
     let itemsTableRows = "";
     
+    let calculatedItemsTotal = 0;
     let calculatedTotalGstAmount = 0;
-    let computedGrandTotal = 0;
 
-    for (let i = 0; i < minRows; i++) {
-      const item = itemsList[i];
-      if (item) {
-        const unitPrice = Number(item.price || 0);
-        const qty = Number(item.quantity || 1);
-        const lineTotal = unitPrice * qty;
-        
-        // Dynamic GST Fetching from Backend
-        let rawGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? item.productId?.gst ?? 12;
-        if (typeof rawGst === "string") {
-          rawGst = parseFloat(rawGst.replace(/[^0-9.]/g, ""));
-        }
-        const itemGstRate = !isNaN(rawGst) && rawGst > 0 ? Number(rawGst) : 12;
-        
-        // GST Calculation based on Line Total
-        const taxableVal = lineTotal / (1 + itemGstRate / 100);
-        const totalTaxAmt = lineTotal - taxableVal;
+    // Delivery charge extraction from backend order data
+    const shippingFee = Number(order.shippingCharge ?? order.deliveryFee ?? order.shippingCost ?? order.deliveryCharge ?? 0);
 
-        calculatedTotalGstAmount += totalTaxAmt;
-        computedGrandTotal += lineTotal;
-
-        itemsTableRows += `
-          <tr>
-            <td style="text-align: center;">${i + 1}</td>
-            <td>${item.title || item.name || ""}</td>
-            <td style="text-align: center;">${item.hsnCode || "8203"}</td>
-            <td style="text-align: center;">${qty}</td>
-            <td style="text-align: center;">${item.unit || "PCS"}</td>
-            <td style="text-align: right;">Rs. ${unitPrice.toFixed(2)}</td>
-            <td style="text-align: right; font-weight: bold;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">${item.discount || "-"}</td>
-            <td style="text-align: center; font-weight: bold;">${itemGstRate}%</td>
-            <td style="text-align: right; font-weight: bold;">Rs. ${totalTaxAmt.toFixed(2)}</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-            <td style="text-align: center;">-</td>
-          </tr>
-        `;
-      } else {
-        itemsTableRows += `
-          <tr>
-            <td>&nbsp;</td>
-            <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-          </tr>
-        `;
+    // 1. Loop through items
+    itemsList.forEach((item, i) => {
+      const unitPrice = Number(item.price || 0);
+      const qty = Number(item.quantity || 1);
+      const lineTotal = unitPrice * qty;
+      
+      // Dynamic GST rate check
+      let rawGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? item.productId?.gst ?? 12;
+      if (typeof rawGst === "string") {
+        rawGst = parseFloat(rawGst.replace(/[^0-9.]/g, ""));
       }
+      const itemGstRate = !isNaN(rawGst) && rawGst > 0 ? Number(rawGst) : 12;
+      
+      // Direct Exclusive GST Calculation (e.g. 1800 * 12% = 216)
+      const totalTaxAmt = (lineTotal * itemGstRate) / 100;
+
+      calculatedItemsTotal += lineTotal;
+      calculatedTotalGstAmount += totalTaxAmt;
+
+      itemsTableRows += `
+        <tr>
+          <td style="text-align: center;">${i + 1}</td>
+          <td>${item.title || item.name || ""}</td>
+          <td style="text-align: center;">${item.hsnCode || "8203"}</td>
+          <td style="text-align: center;">${qty}</td>
+          <td style="text-align: center;">${item.unit || "PCS"}</td>
+          <td style="text-align: right;">Rs. ${unitPrice.toFixed(2)}</td>
+          <td style="text-align: right; font-weight: bold;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">${item.discount || "-"}</td>
+          <td style="text-align: center; font-weight: bold;">${itemGstRate}%</td>
+          <td style="text-align: right; font-weight: bold;">Rs. ${totalTaxAmt.toFixed(2)}</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+        </tr>
+      `;
+    });
+
+    // 2. Dynamic Delivery / Shipping Charge Row
+    let rowCounter = itemsList.length + 1;
+    if (shippingFee > 0) {
+      itemsTableRows += `
+        <tr>
+          <td style="text-align: center;">${rowCounter}</td>
+          <td>Delivery / Shipping Charge</td>
+          <td style="text-align: center;">9965</td>
+          <td style="text-align: center;">1</td>
+          <td style="text-align: center;">NOS</td>
+          <td style="text-align: right;">Rs. ${shippingFee.toFixed(2)}</td>
+          <td style="text-align: right; font-weight: bold;">Rs. ${shippingFee.toFixed(2)}</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">-</td>
+        </tr>
+      `;
+      rowCounter++;
     }
 
+    // Fill remaining empty rows for aesthetic alignment
+    const totalFilledRows = itemsList.length + (shippingFee > 0 ? 1 : 0);
+    const minRows = Math.max(10, totalFilledRows);
+    for (let i = totalFilledRows; i < minRows; i++) {
+      itemsTableRows += `
+        <tr>
+          <td>&nbsp;</td>
+          <td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td>
+        </tr>
+      `;
+    }
+
+    // Grand total calculation
+    const computedGrandTotal = calculatedItemsTotal + calculatedTotalGstAmount + shippingFee;
     const finalGrandTotal = Number(order.totalAmount || computedGrandTotal);
     const amountInWords = numberToWords(finalGrandTotal);
 
@@ -273,8 +304,8 @@ const MyOrders = () => {
               <td colspan="6" style="text-align: right;">Total</td>
               <td style="text-align: right;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td style="text-align: center;">-</td>
-              <td></td>
-              <td></td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
               <td style="text-align: right;">Rs. ${calculatedTotalGstAmount.toFixed(2)}</td>
               <td style="text-align: center;">-</td>
               <td style="text-align: center;">-</td>
