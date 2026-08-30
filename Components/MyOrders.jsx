@@ -126,14 +126,8 @@ const MyOrders = () => {
     let itemsTableRows = "";
     
     let calculatedSubTotal = 0;
-    let calculatedTotalCgst = 0;
-    let calculatedTotalSgst = 0;
-    let calculatedTotalIgst = 0;
+    let calculatedTotalGstAmount = 0;
     let computedGrandTotal = 0;
-
-    // Detect if Intra-state (Rajasthan) or Inter-state to split CGST/SGST vs IGST
-    const userState = (user?.state || "Rajasthan").toLowerCase();
-    const isIntraState = userState.includes("rajasthan") || userState.includes("rj");
 
     for (let i = 0; i < minRows; i++) {
       const item = itemsList[i];
@@ -142,31 +136,19 @@ const MyOrders = () => {
         const qty = Number(item.quantity || 1);
         const lineTotal = unitPrice * qty;
         
-        // Extract Dynamic GST Rate safely
-        const itemGstRate = Number(item.gst ?? item.gstRate ?? item.taxRate ?? 18);
+        // 1. Direct Backend GST Extraction (Single GST Value like 12)
+        let rawGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? item.productId?.gst ?? 12;
+        if (typeof rawGst === "string") {
+          rawGst = parseFloat(rawGst.replace(/[^0-9.]/g, ""));
+        }
+        const itemGstRate = !isNaN(rawGst) && rawGst > 0 ? Number(rawGst) : 12;
         
-        // Tax-inclusive math derivation
+        // 2. Taxable Value & Tax Amount calculations
         const taxableVal = item.taxableValue || (lineTotal / (1 + itemGstRate / 100));
         const totalTaxAmt = lineTotal - taxableVal;
 
-        let cgstRate = 0, cgstAmt = 0;
-        let sgstRate = 0, sgstAmt = 0;
-        let igstRate = 0, igstAmt = 0;
-
-        if (isIntraState) {
-          cgstRate = itemGstRate / 2;
-          sgstRate = itemGstRate / 2;
-          cgstAmt = totalTaxAmt / 2;
-          sgstAmt = totalTaxAmt / 2;
-          calculatedTotalCgst += cgstAmt;
-          calculatedTotalSgst += sgstAmt;
-        } else {
-          igstRate = itemGstRate;
-          igstAmt = totalTaxAmt;
-          calculatedTotalIgst += igstAmt;
-        }
-
         calculatedSubTotal += taxableVal;
+        calculatedTotalGstAmount += totalTaxAmt;
         computedGrandTotal += lineTotal;
 
         itemsTableRows += `
@@ -180,12 +162,12 @@ const MyOrders = () => {
             <td style="text-align: right;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td style="text-align: right;">Rs. ${taxableVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td style="text-align: center;">${item.discount || "-"}</td>
-            <td style="text-align: center;">${isIntraState ? `${cgstRate}%` : "-"}</td>
-            <td style="text-align: right;">${isIntraState ? `Rs. ${cgstAmt.toFixed(2)}` : "-"}</td>
-            <td style="text-align: center;">${isIntraState ? `${sgstRate}%` : "-"}</td>
-            <td style="text-align: right;">${isIntraState ? `Rs. ${sgstAmt.toFixed(2)}` : "-"}</td>
-            <td style="text-align: center;">${!isIntraState ? `${igstRate}%` : "-"}</td>
-            <td style="text-align: right;">${!isIntraState ? `Rs. ${igstAmt.toFixed(2)}` : "-"}</td>
+            <td style="text-align: center; font-weight: bold;">${itemGstRate}%</td>
+            <td style="text-align: right; font-weight: bold;">Rs. ${totalTaxAmt.toFixed(2)}</td>
+            <td style="text-align: center;">-</td>
+            <td style="text-align: center;">-</td>
+            <td style="text-align: center;">-</td>
+            <td style="text-align: center;">-</td>
           </tr>
         `;
       } else {
@@ -200,7 +182,6 @@ const MyOrders = () => {
 
     const finalSubTotal = order.subTotal ? Number(order.subTotal) : calculatedSubTotal;
     const finalGrandTotal = Number(order.totalAmount || computedGrandTotal);
-    const finalTotalTax = order.gst ? Number(order.gst) : (calculatedTotalCgst + calculatedTotalSgst + calculatedTotalIgst);
     const amountInWords = numberToWords(finalGrandTotal);
 
     const invoiceTitle = `Invoice_${order._id.slice(-6).toUpperCase()}`;
@@ -281,12 +262,12 @@ const MyOrders = () => {
               <th rowspan="2">Total</th>
               <th rowspan="2">Taxable Value</th>
               <th rowspan="2">Discount</th>
-              <th colspan="2">CGST</th>
-              <th colspan="2">SGST</th>
+              <th colspan="2">GST</th>
+              <th colspan="2">CGST / SGST</th>
               <th colspan="2">IGST</th>
             </tr>
             <tr>
-              <th>Rate</th><th>Amount</th><th>Rate</th><th>Amount</th><th>Rate</th><th>Amount</th>
+              <th>Rate</th><th>Amount</th><th>CGST</th><th>SGST</th><th>Rate</th><th>Amount</th>
             </tr>
           </thead>
           <tbody>
@@ -296,9 +277,12 @@ const MyOrders = () => {
               <td style="text-align: right;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td style="text-align: right;">Rs. ${finalSubTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
               <td></td>
-              <td></td><td style="text-align: right;">${isIntraState ? `Rs. ${calculatedTotalCgst.toFixed(2)}` : "-"}</td>
-              <td></td><td style="text-align: right;">${isIntraState ? `Rs. ${calculatedTotalSgst.toFixed(2)}` : "-"}</td>
-              <td></td><td style="text-align: right;">${!isIntraState ? `Rs. ${calculatedTotalIgst.toFixed(2)}` : "-"}</td>
+              <td></td>
+              <td style="text-align: right;">Rs. ${calculatedTotalGstAmount.toFixed(2)}</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
+              <td style="text-align: center;">-</td>
             </tr>
           </tbody>
         </table>
@@ -479,7 +463,7 @@ const MyOrders = () => {
 
                   <div className="px-4 sm:px-6 py-4 space-y-3">
                     {order.items?.map((item, index) => {
-                      const dynamicGst = item.gst ?? item.gstRate ?? item.taxRate ?? 18;
+                      const dynamicGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? 12;
                       return (
                         <div
                           key={index}
