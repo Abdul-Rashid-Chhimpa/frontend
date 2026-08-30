@@ -100,6 +100,29 @@ const MyOrders = () => {
     }
   };
 
+  // Helper to safely parse GST Value (Default 0% if missing)
+  const extractGstRate = (item) => {
+    let rawGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? item.productId?.gst;
+    if (rawGst === undefined || rawGst === null || rawGst === "") return 0;
+    if (typeof rawGst === "string") {
+      rawGst = parseFloat(rawGst.replace(/[^0-9.]/g, ""));
+    }
+    return !isNaN(rawGst) && rawGst >= 0 ? Number(rawGst) : 0;
+  };
+
+  // Helper to safely extract Delivery/Shipping charges (supports nested delivery.charge)
+  const extractShippingFee = (order) => {
+    return Number(
+      order.shippingCharge ?? 
+      order.deliveryFee ?? 
+      order.shippingCost ?? 
+      order.deliveryCharge ?? 
+      order.shippingAmount ?? 
+      order.delivery?.charge ?? 
+      0
+    );
+  };
+
   // INVOICE DOWNLOAD / PRINT HANDLER
   const handleDownloadInvoice = (order) => {
     if (order.status !== "Delivered") {
@@ -127,24 +150,16 @@ const MyOrders = () => {
     let calculatedItemsTotal = 0;
     let calculatedTotalGstAmount = 0;
 
-    // Delivery charge extraction from backend order data
-    const shippingFee = Number(order.shippingCharge ?? order.deliveryFee ?? order.shippingCost ?? order.deliveryCharge ?? 0);
+    const shippingFee = extractShippingFee(order);
 
-    // 1. Loop through items
+    // Loop through items
     itemsList.forEach((item, i) => {
       const unitPrice = Number(item.price || 0);
       const qty = Number(item.quantity || 1);
       const lineTotal = unitPrice * qty;
       
-      // Dynamic GST rate check
-      let rawGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? item.productId?.gst ?? 12;
-      if (typeof rawGst === "string") {
-        rawGst = parseFloat(rawGst.replace(/[^0-9.]/g, ""));
-      }
-      const itemGstRate = !isNaN(rawGst) && rawGst > 0 ? Number(rawGst) : 12;
-      
-      // Direct Exclusive GST Calculation (e.g. 1800 * 12% = 216)
-      const totalTaxAmt = (lineTotal * itemGstRate) / 100;
+      const itemGstRate = extractGstRate(item);
+      const totalTaxAmt = itemGstRate > 0 ? (lineTotal * itemGstRate) / 100 : 0;
 
       calculatedItemsTotal += lineTotal;
       calculatedTotalGstAmount += totalTaxAmt;
@@ -170,7 +185,7 @@ const MyOrders = () => {
       `;
     });
 
-    // 2. Dynamic Delivery / Shipping Charge Row
+    // Delivery / Shipping Charge Row
     let rowCounter = itemsList.length + 1;
     if (shippingFee > 0) {
       itemsTableRows += `
@@ -184,8 +199,8 @@ const MyOrders = () => {
           <td style="text-align: right; font-weight: bold;">Rs. ${shippingFee.toFixed(2)}</td>
           <td style="text-align: center;">-</td>
           <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
+          <td style="text-align: center;">0%</td>
+          <td style="text-align: right;">Rs. 0.00</td>
           <td style="text-align: center;">-</td>
           <td style="text-align: center;">-</td>
           <td style="text-align: center;">-</td>
@@ -195,7 +210,7 @@ const MyOrders = () => {
       rowCounter++;
     }
 
-    // Fill remaining empty rows for aesthetic alignment
+    // Fill empty rows for standard template spacing
     const totalFilledRows = itemsList.length + (shippingFee > 0 ? 1 : 0);
     const minRows = Math.max(10, totalFilledRows);
     for (let i = totalFilledRows; i < minRows; i++) {
@@ -438,6 +453,8 @@ const MyOrders = () => {
             {orders.map((order) => {
               const statusStyle = getStatusStyle(order.status);
               const isDelivered = order.status === "Delivered";
+              const shippingFee = extractShippingFee(order);
+
               return (
                 <div
                   key={order._id}
@@ -491,7 +508,7 @@ const MyOrders = () => {
 
                   <div className="px-4 sm:px-6 py-4 space-y-3">
                     {order.items?.map((item, index) => {
-                      const dynamicGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? 12;
+                      const dynamicGst = extractGstRate(item);
                       return (
                         <div
                           key={index}
@@ -539,9 +556,14 @@ const MyOrders = () => {
                           Subtotal: <strong>₹{Number(order.subTotal).toLocaleString()}</strong>
                         </span>
                       )}
-                      {order.gst && (
+                      {order.gst !== undefined && (
                         <span>
                           GST: <strong>₹{Number(order.gst).toLocaleString()}</strong>
+                        </span>
+                      )}
+                      {shippingFee > 0 && (
+                        <span>
+                          Delivery Fee: <strong>₹{shippingFee.toLocaleString()}</strong>
                         </span>
                       )}
                       <span className="font-bold text-emerald-600">
