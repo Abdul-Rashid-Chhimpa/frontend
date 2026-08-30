@@ -100,27 +100,52 @@ const MyOrders = () => {
     }
   };
 
-  // Helper to safely parse GST Value (Default 0% if missing)
+  // Helper to dynamically extract GST Rate per item (Defaults to 0% if absent or invalid)
   const extractGstRate = (item) => {
-    let rawGst = item.gst ?? item.gstRate ?? item.taxRate ?? item.tax ?? item.productId?.gst;
+    let rawGst =
+      item?.gst ??
+      item?.gstRate ??
+      item?.taxRate ??
+      item?.tax ??
+      item?.productId?.gst ??
+      item?.productId?.gstRate;
+
     if (rawGst === undefined || rawGst === null || rawGst === "") return 0;
+
     if (typeof rawGst === "string") {
       rawGst = parseFloat(rawGst.replace(/[^0-9.]/g, ""));
     }
+
     return !isNaN(rawGst) && rawGst >= 0 ? Number(rawGst) : 0;
   };
 
-  // Helper to safely extract Delivery/Shipping charges (supports nested delivery.charge)
+  // Helper to dynamically extract Delivery/Shipping charges from Order level or Items
   const extractShippingFee = (order) => {
-    return Number(
-      order.shippingCharge ?? 
-      order.deliveryFee ?? 
-      order.shippingCost ?? 
-      order.deliveryCharge ?? 
-      order.shippingAmount ?? 
-      order.delivery?.charge ?? 
-      0
+    let fee = Number(
+      order.shippingCharge ??
+        order.deliveryFee ??
+        order.shippingCost ??
+        order.deliveryCharge ??
+        order.shippingAmount ??
+        order.delivery?.charge ??
+        0
     );
+
+    // If order-level shipping fee is missing, calculate from individual items if present
+    if (fee === 0 && order.items && Array.isArray(order.items)) {
+      order.items.forEach((item) => {
+        const itemShipping = Number(
+          item.deliveryCharge ??
+            item.deliveryFee ??
+            item.shippingCharge ??
+            item.delivery?.charge ??
+            0
+        );
+        fee += itemShipping;
+      });
+    }
+
+    return fee;
   };
 
   // INVOICE DOWNLOAD / PRINT HANDLER
@@ -146,18 +171,18 @@ const MyOrders = () => {
 
     const itemsList = order.items || [];
     let itemsTableRows = "";
-    
+
     let calculatedItemsTotal = 0;
     let calculatedTotalGstAmount = 0;
 
     const shippingFee = extractShippingFee(order);
 
-    // Loop through items
+    // Dynamic Items Iteration
     itemsList.forEach((item, i) => {
       const unitPrice = Number(item.price || 0);
       const qty = Number(item.quantity || 1);
       const lineTotal = unitPrice * qty;
-      
+
       const itemGstRate = extractGstRate(item);
       const totalTaxAmt = itemGstRate > 0 ? (lineTotal * itemGstRate) / 100 : 0;
 
@@ -167,8 +192,8 @@ const MyOrders = () => {
       itemsTableRows += `
         <tr>
           <td style="text-align: center;">${i + 1}</td>
-          <td>${item.title || item.name || ""}</td>
-          <td style="text-align: center;">${item.hsnCode || "8203"}</td>
+          <td>${item.title || item.name || item.productId?.name || "Product Item"}</td>
+          <td style="text-align: center;">${item.hsnCode || item.productId?.hsnCode || "8203"}</td>
           <td style="text-align: center;">${qty}</td>
           <td style="text-align: center;">${item.unit || "PCS"}</td>
           <td style="text-align: right;">Rs. ${unitPrice.toFixed(2)}</td>
@@ -185,7 +210,7 @@ const MyOrders = () => {
       `;
     });
 
-    // Delivery / Shipping Charge Row
+    // Dedicated Row for Delivery Charge in Bill
     let rowCounter = itemsList.length + 1;
     if (shippingFee > 0) {
       itemsTableRows += `
@@ -210,7 +235,7 @@ const MyOrders = () => {
       rowCounter++;
     }
 
-    // Fill empty rows for standard template spacing
+    // Minimum rows alignment for invoice aesthetic layout
     const totalFilledRows = itemsList.length + (shippingFee > 0 ? 1 : 0);
     const minRows = Math.max(10, totalFilledRows);
     for (let i = totalFilledRows; i < minRows; i++) {
@@ -516,7 +541,7 @@ const MyOrders = () => {
                         >
                           <div className="w-14 h-14 sm:w-18 sm:h-18 rounded-lg sm:rounded-xl overflow-hidden bg-white border border-gray-100 flex-shrink-0">
                             <img
-                              src={item.image || item.images?.[0]}
+                              src={item.image || item.images?.[0] || item.productId?.images?.[0]}
                               alt={item.title || item.name}
                               className="w-full h-full object-contain p-1"
                               onError={(e) => {
@@ -526,7 +551,7 @@ const MyOrders = () => {
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
-                              {item.title || item.name}
+                              {item.title || item.name || item.productId?.name}
                             </h3>
                             <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1 text-xs sm:text-sm text-gray-500">
                               <span>Qty: {item.quantity}</span>
@@ -554,11 +579,6 @@ const MyOrders = () => {
                       {order.subTotal && (
                         <span>
                           Subtotal: <strong>₹{Number(order.subTotal).toLocaleString()}</strong>
-                        </span>
-                      )}
-                      {order.gst !== undefined && (
-                        <span>
-                          GST: <strong>₹{Number(order.gst).toLocaleString()}</strong>
                         </span>
                       )}
                       {shippingFee > 0 && (
