@@ -74,7 +74,7 @@ const MyOrders = () => {
     } catch (error) {
       console.log(error);
       toast.error("Failed to fetch orders");
-    } fontally {
+    } finally {
       setLoading(false);
     }
   };
