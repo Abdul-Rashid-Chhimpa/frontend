@@ -84,7 +84,10 @@ const MyOrders = () => {
       // 2. Fetch User Orders
       const { data } = await axios.get("https://backend-3-axez.onrender.com/api/orders/all");
       if (data.success) {
-        let myOrders = data.orders.filter((order) => order.userId === user?._id);
+       // MyOrders.jsx ke inside fetchOrders() me filter logic update:
+let myOrders = data.orders.filter(
+  (order) => order.userId === user?._id && !order.deletedByUser
+);
 
         // 3. Dynamic GST Injector based on Product ID or Name match
         myOrders = myOrders.map((order) => {
