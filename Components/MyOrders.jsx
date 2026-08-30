@@ -100,37 +100,36 @@ const MyOrders = () => {
     }
   };
 
-  // Pure Backend GST Extractor (No hardcoded rates applied)
+  // Improved Backend Dynamic GST Extractor
   const extractGstRate = (item) => {
     if (!item) return 0;
-    
-    const possibleGstValues = [
+
+    // Check directly in item object or inside nested productId object from backend
+    const checkTarget = [
       item.gst,
       item.gstRate,
       item.gstPercent,
       item.tax,
-      item.taxRate,
       item.productId?.gst,
       item.productId?.gstRate,
       item.productId?.gstPercent,
       item.productId?.tax,
+      item.product?.gst,
     ];
 
-    for (let rawVal of possibleGstValues) {
-      if (rawVal !== undefined && rawVal !== null && rawVal !== "") {
-        if (typeof rawVal === "string") {
-          rawVal = parseFloat(rawVal.replace(/[^0-9.]/g, ""));
-        }
-        if (!isNaN(rawVal) && rawVal >= 0) {
-          return Number(rawVal);
+    for (let val of checkTarget) {
+      if (val !== undefined && val !== null && val !== "") {
+        const parsedVal = Number(val);
+        if (!isNaN(parsedVal) && parsedVal > 0) {
+          return parsedVal;
         }
       }
     }
 
-    return 0; // Exactly 0% if absent or 0 in DB
+    return 0; // If backend has 0 or undefined, return 0
   };
 
-  // Dynamic Shipping Charge Extractor
+  // Shipping Fee Extractor
   const extractShippingFee = (order) => {
     let fee = Number(
       order.shippingCharge ??
@@ -199,6 +198,7 @@ const MyOrders = () => {
       const qty = Number(item.quantity || 1);
       const lineTotal = unitPrice * qty;
 
+      // Extract exact GST rate from backend
       const itemGstRate = extractGstRate(item);
       const totalTaxAmt = itemGstRate > 0 ? (lineTotal * itemGstRate) / 100 : 0;
 
