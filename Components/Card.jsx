@@ -21,6 +21,19 @@ import {
 import { CartContext } from "../Components/Context";
 
 // ======================================================
+// DESIGN TOKENS — kept consistent with the product grid card
+// ======================================================
+const INK = "#15181C";
+const MUTED = "#6B7280";
+const BORDER = "#E6E8EB";
+const SURFACE = "#FFFFFF";
+const BG = "#F5F6F4";
+const AMBER = "#F0A420";
+const AMBER_DARK = "#C97F0F";
+const STEEL = "#2B4A5E";
+const STEEL_DARK = "#17303E";
+
+// ======================================================
 // COMPONENT
 // ======================================================
 const Card = () => {
@@ -143,11 +156,17 @@ const Card = () => {
   // ======================================================
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-[60vh] sm:min-h-[70vh] bg-gradient-to-br from-slate-50 to-blue-50">
+      <div
+        className="flex justify-center items-center min-h-[60vh] sm:min-h-[70vh]"
+        style={{ background: BG }}
+      >
         <div className="text-center px-4">
-          <div className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <h2 className="mt-4 sm:mt-5 text-lg sm:text-xl font-semibold text-gray-700">
-            Loading Products...
+          <div
+            className="w-12 h-12 sm:w-16 sm:h-16 border-4 rounded-full animate-spin mx-auto"
+            style={{ borderColor: AMBER_DARK, borderTopColor: "transparent" }}
+          ></div>
+          <h2 className="mt-4 sm:mt-5 text-lg sm:text-xl font-semibold" style={{ color: INK }}>
+            Loading products…
           </h2>
         </div>
       </div>
@@ -166,7 +185,7 @@ const Card = () => {
         </div>
         <button
           onClick={() => setShowMobileFilter(false)}
-          className="lg:hidden p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition"
+          className="lg:hidden p-1.5 rounded-full bg-white/15 hover:bg-white/25 transition"
         >
           <X size={18} className="text-white" />
         </button>
@@ -175,10 +194,10 @@ const Card = () => {
       {/* Shop By Category */}
       <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
-          <h3 className="text-sm sm:text-base font-semibold text-white/90">
-            Shop By Category
+          <h3 className="text-sm sm:text-base font-semibold text-white/80">
+            Shop by category
           </h3>
-          <span className="text-xs bg-white/20 text-white px-2.5 py-1 rounded-full">
+          <span className="text-xs bg-white/15 text-white px-2.5 py-1 rounded-full">
             {categories.length}
           </span>
         </div>
@@ -186,13 +205,13 @@ const Card = () => {
         <div className="flex items-center gap-2 mb-3">
           <button
             onClick={() => scrollCategories("left")}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition active:scale-95"
+            className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition active:scale-95"
           >
             <ChevronLeft size={16} />
           </button>
           <button
             onClick={() => scrollCategories("right")}
-            className="p-1.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition active:scale-95"
+            className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition active:scale-95"
           >
             <ChevronRight size={16} />
           </button>
@@ -214,29 +233,25 @@ const Card = () => {
               <button
                 key={category}
                 onClick={() => handleCategory(category)}
-                className={`flex-shrink-0 w-20 sm:w-24 md:w-28 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 transition-all duration-300 border ${
+                className="flex-shrink-0 w-20 sm:w-24 md:w-28 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 transition-all duration-200 border"
+                style={
                   active
-                    ? "bg-white text-indigo-700 border-white shadow-lg ring-2 ring-indigo-300"
-                    : "bg-white/15 text-white border-white/30 hover:bg-white/25"
-                }`}
+                    ? { background: AMBER, color: "#1A1200", borderColor: AMBER }
+                    : { background: "rgba(255,255,255,0.08)", color: "#FFFFFF", borderColor: "rgba(255,255,255,0.18)" }
+                }
               >
                 <div
-                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full mx-auto flex items-center justify-center ${
-                    active ? "bg-indigo-100" : "bg-white/20"
-                  }`}
+                  className="w-9 h-9 sm:w-10 sm:h-10 rounded-full mx-auto flex items-center justify-center"
+                  style={{ background: active ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.12)" }}
                 >
-                  <Icon
-                    size={18}
-                    className={active ? "text-indigo-700" : "text-white"}
-                  />
+                  <Icon size={18} color={active ? "#1A1200" : "#FFFFFF"} />
                 </div>
                 <h4 className="mt-1.5 sm:mt-2 text-[10px] sm:text-[11px] md:text-xs font-semibold text-center truncate px-0.5">
                   {category}
                 </h4>
                 <p
-                  className={`mt-0.5 text-[9px] sm:text-[10px] text-center ${
-                    active ? "text-indigo-500" : "text-white/70"
-                  }`}
+                  className="mt-0.5 text-[9px] sm:text-[10px] text-center"
+                  style={{ color: active ? "rgba(26,18,0,0.7)" : "rgba(255,255,255,0.65)" }}
                 >
                   {totalProducts} item{totalProducts !== 1 ? "s" : ""}
                 </p>
@@ -249,10 +264,13 @@ const Card = () => {
       {/* Price Filter */}
       <div className="mb-5 sm:mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm sm:text-base font-semibold text-white/90">
-            Maximum Price
+          <h3 className="text-sm sm:text-base font-semibold text-white/80">
+            Maximum price
           </h3>
-          <span className="bg-white text-indigo-700 font-bold px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm shadow">
+          <span
+            className="font-bold px-2.5 sm:px-3 py-1 rounded-full text-xs sm:text-sm"
+            style={{ background: AMBER, color: "#1A1200" }}
+          >
             ₹{maxPrice}
           </span>
         </div>
@@ -263,9 +281,10 @@ const Card = () => {
           step="100"
           value={maxPrice}
           onChange={(e) => setMaxPrice(Number(e.target.value))}
-          className="w-full h-2 bg-white/30 rounded-lg appearance-none cursor-pointer accent-white"
+          className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+          style={{ background: "rgba(255,255,255,0.25)", accentColor: AMBER }}
         />
-        <div className="flex justify-between mt-2 text-[10px] sm:text-xs text-white/70">
+        <div className="flex justify-between mt-2 text-[10px] sm:text-xs text-white/60">
           <span>₹0</span>
           <span>₹5000+</span>
         </div>
@@ -277,9 +296,10 @@ const Card = () => {
             setSelectedCategory([]);
             setMaxPrice(5000);
           }}
-          className="w-full py-2.5 sm:py-3 rounded-xl bg-white/20 hover:bg-white/30 text-white font-semibold text-sm sm:text-base transition border border-white/30"
+          className="w-full py-2.5 sm:py-3 rounded-xl text-white font-semibold text-sm sm:text-base transition border"
+          style={{ background: "rgba(255,255,255,0.1)", borderColor: "rgba(255,255,255,0.2)" }}
         >
-          Clear All Filters
+          Clear all filters
         </button>
       )}
     </>
@@ -289,15 +309,16 @@ const Card = () => {
   // MAIN RENDER
   // ======================================================
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen" style={{ background: BG }}>
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
         {/* Heading */}
-        <div className="text-center mb-6 sm:mb-8 md:mb-10">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-extrabold bg-gradient-to-r from-indigo-700 via-purple-600 to-blue-600 bg-clip-text text-transparent">
-            Our Products
+        <div className="mb-6 sm:mb-8 md:mb-10">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight" style={{ color: INK }}>
+            Our products
           </h1>
-          <p className="text-gray-500 mt-2 sm:mt-3 text-xs sm:text-sm md:text-base px-2">
-            Browse our latest collection of quality tools & hardware
+          <div className="w-10 h-1 rounded-full mt-2.5 mb-3" style={{ background: AMBER }} />
+          <p className="text-xs sm:text-sm md:text-base" style={{ color: MUTED }}>
+            Browse the current collection of tools & hardware
           </p>
         </div>
 
@@ -305,17 +326,21 @@ const Card = () => {
         <div className="lg:hidden mb-5 sm:mb-6 flex justify-between items-center gap-3">
           <button
             onClick={() => setShowMobileFilter(true)}
-            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm sm:text-base shadow-lg"
+            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-white font-semibold text-sm sm:text-base"
+            style={{ background: STEEL }}
           >
             <Filter size={16} className="sm:w-[18px] sm:h-[18px]" />
             Filters
             {(selectedCategory.length > 0 || maxPrice < 5000) && (
-              <span className="ml-1 bg-white text-indigo-700 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full">
+              <span
+                className="ml-1 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full"
+                style={{ background: AMBER, color: "#1A1200" }}
+              >
                 {selectedCategory.length + (maxPrice < 5000 ? 1 : 0)}
               </span>
             )}
           </button>
-          <p className="text-xs sm:text-sm text-gray-500 shrink-0">
+          <p className="text-xs sm:text-sm shrink-0" style={{ color: MUTED }}>
             {filteredProducts.length} products
           </p>
         </div>
@@ -323,8 +348,11 @@ const Card = () => {
         <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           {/* Desktop Sidebar */}
           <div className="hidden lg:block lg:col-span-1">
-            <div className="sticky top-20 xl:top-24 rounded-2xl xl:rounded-3xl overflow-hidden shadow-2xl">
-              <div className="bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 p-5 xl:p-6 min-h-[420px] xl:min-h-[480px]">
+            <div className="sticky top-20 xl:top-24 rounded-2xl xl:rounded-3xl overflow-hidden shadow-sm">
+              <div
+                className="p-5 xl:p-6 min-h-[420px] xl:min-h-[480px]"
+                style={{ background: `linear-gradient(160deg, ${STEEL} 0%, ${STEEL_DARK} 100%)` }}
+              >
                 {renderFilterSection()}
               </div>
             </div>
@@ -334,10 +362,13 @@ const Card = () => {
           {showMobileFilter && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div
-                className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                className="absolute inset-0 bg-black/50"
                 onClick={() => setShowMobileFilter(false)}
               />
-              <div className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-t-3xl bg-gradient-to-br from-indigo-600 via-purple-600 to-blue-700 p-5 sm:p-6 shadow-2xl animate-slide-up">
+              <div
+                className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-t-3xl p-5 sm:p-6 shadow-2xl animate-slide-up"
+                style={{ background: `linear-gradient(160deg, ${STEEL} 0%, ${STEEL_DARK} 100%)` }}
+              >
                 {renderFilterSection()}
               </div>
             </div>
@@ -346,12 +377,15 @@ const Card = () => {
           {/* Products */}
           <div className="lg:col-span-3">
             {filteredProducts.length === 0 ? (
-              <div className="h-[320px] sm:h-[400px] md:h-[450px] flex flex-col justify-center items-center bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-gray-100 px-4">
-                <Package size={56} className="sm:w-[72px] sm:h-[72px] text-gray-300" />
-                <h2 className="mt-4 sm:mt-5 text-xl sm:text-2xl font-bold text-gray-700 text-center">
-                  No Products Found
+              <div
+                className="h-[320px] sm:h-[400px] md:h-[450px] flex flex-col justify-center items-center rounded-2xl sm:rounded-3xl px-4"
+                style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
+              >
+                <Package size={56} className="sm:w-[72px] sm:h-[72px]" style={{ color: "#C7CBCE" }} />
+                <h2 className="mt-4 sm:mt-5 text-xl sm:text-2xl font-bold text-center" style={{ color: INK }}>
+                  No products found
                 </h2>
-                <p className="text-gray-500 mt-2 text-sm sm:text-base text-center">
+                <p className="mt-2 text-sm sm:text-base text-center" style={{ color: MUTED }}>
                   No products match your current filters.
                   <br />
                   Try changing category or price range.
@@ -362,9 +396,10 @@ const Card = () => {
                     setMaxPrice(5000);
                     setShowMobileFilter(false);
                   }}
-                  className="mt-6 sm:mt-8 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm sm:text-base shadow-lg"
+                  className="mt-6 sm:mt-8 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl text-white font-semibold text-sm sm:text-base"
+                  style={{ background: STEEL }}
                 >
-                  Clear Filters
+                  Clear filters
                 </button>
               </div>
             ) : (
@@ -376,77 +411,81 @@ const Card = () => {
                       const lowestPrice = getLowestPrice(product);
                       const finalPrice =
                         lowestPrice || Number(product.price) || 0;
+                      const inStock = product.stock > 0;
 
                       return (
                         <div
                           key={product._id}
-                          className="group bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm
-                                     hover:shadow-xl hover:-translate-y-1 sm:hover:-translate-y-2 hover:border-indigo-200
-                                     transition-all duration-300 overflow-hidden"
+                          className="group rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1"
+                          style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
                         >
                           {/* Image */}
-                          <div className="relative h-44 sm:h-52 md:h-56 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
+                          <div className="relative h-44 sm:h-52 md:h-56 overflow-hidden" style={{ background: "#F1F2EF" }}>
                             <img
                               src={product.images?.[0] || "/no-image.png"}
                               alt={product.name}
-                              className="w-full h-full object-contain p-4 sm:p-5 group-hover:scale-105 sm:group-hover:scale-110 transition duration-500"
+                              className="w-full h-full object-contain p-4 sm:p-5 group-hover:scale-105 transition duration-500"
                               onError={(e) => {
                                 e.target.src = "/no-image.png";
                               }}
                             />
 
                             {product.offer > 0 && (
-                              <span className="absolute top-2 left-2 sm:top-3 sm:left-3 bg-gradient-to-r from-red-500 to-rose-600 text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow">
+                              <span
+                                className="absolute top-2 left-0 text-[10px] sm:text-xs font-bold text-white pl-2.5 pr-2 py-1"
+                                style={{
+                                  background: AMBER_DARK,
+                                  clipPath: "polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 60%)",
+                                }}
+                              >
                                 {product.offer}% OFF
                               </span>
                             )}
 
                             <span
-                              className={`absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow ${
-                                product.stock > 0
-                                  ? "bg-emerald-500 text-white"
-                                  : "bg-red-500 text-white"
-                              }`}
+                              className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full"
+                              style={
+                                inStock
+                                  ? { background: "#E4F3E9", color: "#1D7A43" }
+                                  : { background: "#FBE7E7", color: "#B4302F" }
+                              }
                             >
-                              {product.stock > 0 ? "In Stock" : "Out of Stock"}
+                              {inStock ? "In stock" : "Out of stock"}
                             </span>
                           </div>
 
                           {/* Body */}
                           <div className="p-3.5 sm:p-4 md:p-5">
-                            <h2 className="font-bold text-sm sm:text-base md:text-lg line-clamp-2 text-gray-800 group-hover:text-indigo-700 transition">
+                            <h2
+                              className="font-bold text-sm sm:text-base md:text-lg line-clamp-2"
+                              style={{ color: INK }}
+                            >
                               {product.name}
                             </h2>
 
                             <div className="mt-1.5 sm:mt-2 space-y-0.5">
-                              <p className="text-[11px] sm:text-xs md:text-sm text-gray-500">
-                                Brand:{" "}
-                                <span className="text-gray-700">
-                                  {product.brand || "N/A"}
-                                </span>
+                              <p className="text-[11px] sm:text-xs md:text-sm" style={{ color: MUTED }}>
+                                Brand: <span style={{ color: INK }}>{product.brand || "N/A"}</span>
                               </p>
-                              <p className="text-[11px] sm:text-xs md:text-sm text-gray-500">
-                                Material:{" "}
-                                <span className="text-gray-700">
-                                  {product.material || "N/A"}
-                                </span>
+                              <p className="text-[11px] sm:text-xs md:text-sm" style={{ color: MUTED }}>
+                                Material: <span style={{ color: INK }}>{product.material || "N/A"}</span>
                               </p>
                             </div>
 
                             <div className="flex justify-between items-end mt-3 sm:mt-4">
                               <div>
-                                <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-400 uppercase tracking-wide">
+                                <p className="text-[9px] sm:text-[10px] md:text-xs" style={{ color: MUTED }}>
                                   Price
                                 </p>
-                                <h3 className="text-lg sm:text-xl md:text-2xl font-extrabold text-indigo-700">
+                                <h3 className="text-lg sm:text-xl md:text-2xl font-extrabold" style={{ color: INK }}>
                                   ₹{finalPrice}
                                 </h3>
                               </div>
                               <div className="text-right">
-                                <p className="text-[9px] sm:text-[10px] md:text-xs text-gray-400 uppercase tracking-wide">
+                                <p className="text-[9px] sm:text-[10px] md:text-xs" style={{ color: MUTED }}>
                                   Stock
                                 </p>
-                                <h4 className="font-bold text-emerald-600 text-base sm:text-lg">
+                                <h4 className="font-bold text-base sm:text-lg" style={{ color: "#1D7A43" }}>
                                   {product.stock ?? 0}
                                 </h4>
                               </div>
@@ -460,9 +499,10 @@ const Card = () => {
                                     state: { product },
                                   })
                                 }
-                                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-semibold transition shadow-sm"
+                                className="text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-semibold transition"
+                                style={{ background: STEEL }}
                               >
-                                Buy Now
+                                Buy now
                               </button>
                               <button
                                 disabled={product.stock === 0}
@@ -473,9 +513,14 @@ const Card = () => {
                                     price: finalPrice,
                                   })
                                 }
-                                className="bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-semibold transition shadow-sm"
+                                className="rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-bold transition disabled:cursor-not-allowed"
+                                style={
+                                  product.stock === 0
+                                    ? { background: "#F1F2EF", color: MUTED }
+                                    : { background: AMBER, color: "#1A1200" }
+                                }
                               >
-                                Add Cart
+                                Add to cart
                               </button>
                             </div>
 
@@ -498,9 +543,10 @@ const Card = () => {
                                       }
                                     )
                                   }
-                                  className="w-full mt-2 sm:mt-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border-2 border-indigo-200 text-indigo-700 font-semibold text-xs sm:text-sm hover:bg-indigo-50 hover:border-indigo-400 transition"
+                                  className="w-full mt-2 sm:mt-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border font-semibold text-xs sm:text-sm transition"
+                                  style={{ borderColor: BORDER, color: STEEL }}
                                 >
-                                  View More Varieties
+                                  View more varieties
                                 </button>
                               )}
                           </div>
@@ -514,23 +560,24 @@ const Card = () => {
                   <div className="flex justify-center mt-8 sm:mt-10">
                     <button
                       onClick={() => setVisibleProducts((prev) => prev + 8)}
-                      className="px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-blue-600 text-white font-semibold text-sm sm:text-base shadow-xl hover:scale-105 transition"
+                      className="px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl text-white font-semibold text-sm sm:text-base transition"
+                      style={{ background: STEEL }}
                     >
-                      Load More Products
+                      Load more products
                     </button>
                   </div>
                 )}
 
-                <div className="mt-6 sm:mt-8 text-center text-xs sm:text-sm text-gray-500">
+                <div className="mt-6 sm:mt-8 text-center text-xs sm:text-sm" style={{ color: MUTED }}>
                   Showing{" "}
-                  <span className="font-bold text-indigo-600">
+                  <span className="font-bold" style={{ color: INK }}>
                     {Math.min(visibleProducts, filteredProducts.length)}
                   </span>{" "}
                   of{" "}
-                  <span className="font-bold text-indigo-600">
+                  <span className="font-bold" style={{ color: INK }}>
                     {filteredProducts.length}
                   </span>{" "}
-                  Products
+                  products
                 </div>
               </>
             )}
