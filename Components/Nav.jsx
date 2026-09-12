@@ -14,10 +14,20 @@ import {
   User
 } from "lucide-react";
 
+// Shared with the rest of the store's UI
+const INK = "#15181C";
+const MUTED = "#6B7280";
+const BORDER = "#E6E8EB";
+const SURFACE = "#FFFFFF";
+const AMBER = "#F0A420";
+const AMBER_TINT = "#FEF6E7";
+const AMBER_DARK = "#C97F0F";
+const STEEL = "#2B4A5E";
+
 const Nav = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  
+
   const navigate = useNavigate();
   const location = useLocation();
   const { cartCount, cart } = useContext(CartContext);
@@ -44,43 +54,32 @@ const Nav = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  // const navLinks = [
-  //   { to: "/", label: "Home", icon: <Home size={18} /> },
-  //   { to: "/about", label: "About", icon: <Info size={18} /> },
-  //   { to: "/contact", label: "Contact", icon: <Phone size={18} /> },
-  //   { to: "/orders", label: "Orders", icon: <Package size={18} /> },
-  // ];
   const navLinks = [
-  { to: "/", label: "Home", icon: <Home size={18} /> },
-  { to: "/about", label: "About", icon: <Info size={18} /> },
-  { to: "/contact", label: "Contact", icon: <Phone size={18} /> },
-  { to: "/orders", label: "Orders", icon: <Package size={18} /> },
-  { to: "/profile", label: "Profile", icon: <User size={18} /> }, // <-- Profile Added
-];
+    { to: "/", label: "Home", icon: <Home size={18} /> },
+    { to: "/about", label: "About", icon: <Info size={18} /> },
+    { to: "/contact", label: "Contact", icon: <Phone size={18} /> },
+    { to: "/orders", label: "Orders", icon: <Package size={18} /> },
+    { to: "/profile", label: "Profile", icon: <User size={18} /> },
+  ];
 
   return (
-    <nav className="sticky top-0 overflow-hidden z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
+    <nav
+      className="sticky top-0 overflow-hidden z-50 backdrop-blur-md"
+      style={{ background: "rgba(255,255,255,0.92)", borderBottom: `1px solid ${BORDER}` }}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 sm:h-18 flex items-center justify-between">
         {/* Logo */}
         <Link to="/" className="flex-shrink-0">
-          {/* <img
-            src="/logowithqoute.png"
-            alt="Logo"
-            className="h-20 sm:h-12 object-contain"
-            onError={(e) => {
-              e.target.style.display = "none";
-            }}
-          /> */}
           <div className="flex items-center">
-  <img
-    src="/logowithqoute.png"
-    alt="Logo"
-    className="h-12 sm:h-14 md:h-16 lg:h-20 xl:h-24 w-auto object-contain"
-    onError={(e) => {
-      e.target.style.display = "none";
-    }}
-  />
-</div>
+            <img
+              src="/logowithqoute.png"
+              alt="Logo"
+              className="h-12 sm:h-14 md:h-16 lg:h-20 xl:h-24 w-auto object-contain"
+              onError={(e) => {
+                e.target.style.display = "none";
+              }}
+            />
+          </div>
         </Link>
 
         {/* Desktop Menu */}
@@ -89,11 +88,12 @@ const Nav = () => {
             <Link
               key={link.to}
               to={link.to}
-              className={`flex items-center gap-1.5 px-3 lg:px-4 py-2 rounded-xl text-sm font-medium transition ${
+              className="flex items-center gap-1.5 px-3 lg:px-4 py-2 rounded-xl text-sm font-medium transition"
+              style={
                 isActive(link.to)
-                  ? "bg-indigo-50 text-indigo-700"
-                  : "text-gray-600 hover:bg-gray-50 hover:text-indigo-600"
-              }`}
+                  ? { background: AMBER_TINT, color: AMBER_DARK }
+                  : { color: MUTED }
+              }
             >
               {link.icon}
               {link.label}
@@ -103,12 +103,16 @@ const Nav = () => {
           {/* Cart */}
           <Link
             to="/cart"
-            className="relative flex items-center gap-1.5 px-3 lg:px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-indigo-600 transition"
+            className="relative flex items-center gap-1.5 px-3 lg:px-4 py-2 rounded-xl text-sm font-medium transition"
+            style={{ color: MUTED }}
           >
             <ShoppingBag size={18} />
             Cart
             {count > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold shadow">
+              <span
+                className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 text-white text-[11px] rounded-full flex items-center justify-center font-bold"
+                style={{ background: "#D64545" }}
+              >
                 {count > 99 ? "99+" : count}
               </span>
             )}
@@ -118,7 +122,8 @@ const Nav = () => {
           {isLoggedIn ? (
             <button
               onClick={logoutHandler}
-              className="ml-2 flex items-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-600 hover:to-rose-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition"
+              className="ml-2 flex items-center gap-2 text-white px-4 py-2 rounded-xl text-sm font-semibold transition"
+              style={{ background: STEEL }}
             >
               <LogOut size={16} />
               Logout
@@ -126,7 +131,8 @@ const Nav = () => {
           ) : (
             <Link
               to="/login"
-              className="ml-2 flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-sm transition"
+              className="ml-2 flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition"
+              style={{ background: AMBER, color: "#1A1200" }}
             >
               <LogIn size={16} />
               Login
@@ -136,10 +142,13 @@ const Nav = () => {
 
         {/* Mobile: Cart + Menu Button */}
         <div className="flex items-center gap-3 md:hidden">
-          <Link to="/cart" className="relative p-2 rounded-xl hover:bg-gray-50">
-            <ShoppingBag size={22} className="text-gray-700" />
+          <Link to="/cart" className="relative p-2 rounded-xl" style={{ color: INK }}>
+            <ShoppingBag size={22} />
             {count > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+              <span
+                className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 text-white text-[10px] rounded-full flex items-center justify-center font-bold"
+                style={{ background: "#D64545" }}
+              >
                 {count > 99 ? "99+" : count}
               </span>
             )}
@@ -147,7 +156,8 @@ const Nav = () => {
 
           <button
             onClick={() => setIsOpen(!isOpen)}
-            className="p-2 rounded-xl hover:bg-gray-50 text-gray-700"
+            className="p-2 rounded-xl"
+            style={{ color: INK }}
           >
             {isOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
@@ -156,18 +166,19 @@ const Nav = () => {
 
       {/* Mobile Menu */}
       {isOpen && (
-        <div className="md:hidden border-t border-gray-100 bg-white shadow-lg animate-slide-down">
+        <div className="md:hidden animate-slide-down" style={{ borderTop: `1px solid ${BORDER}`, background: SURFACE }}>
           <div className="flex flex-col p-4 gap-1">
             {navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
                 onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition ${
+                className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition"
+                style={
                   isActive(link.to)
-                    ? "bg-indigo-50 text-indigo-700"
-                    : "text-gray-700 hover:bg-gray-50"
-                }`}
+                    ? { background: AMBER_TINT, color: AMBER_DARK }
+                    : { color: INK }
+                }
               >
                 {link.icon}
                 {link.label}
@@ -177,12 +188,16 @@ const Nav = () => {
             <Link
               to="/cart"
               onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-700 hover:bg-gray-50"
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium"
+              style={{ color: INK }}
             >
               <ShoppingBag size={18} />
               Cart
               {count > 0 && (
-                <span className="ml-auto bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                <span
+                  className="ml-auto text-white text-xs font-bold px-2 py-0.5 rounded-full"
+                  style={{ background: "#D64545" }}
+                >
                   {count}
                 </span>
               )}
@@ -195,7 +210,8 @@ const Nav = () => {
                   setIsOpen(false);
                   logoutHandler();
                 }}
-                className="mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-red-500 to-rose-600 text-white py-3 rounded-xl text-sm font-semibold"
+                className="mt-2 flex items-center justify-center gap-2 text-white py-3 rounded-xl text-sm font-semibold"
+                style={{ background: STEEL }}
               >
                 <LogOut size={16} />
                 Logout
@@ -204,7 +220,8 @@ const Nav = () => {
               <Link
                 to="/login"
                 onClick={() => setIsOpen(false)}
-                className="mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl text-sm font-semibold"
+                className="mt-2 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-semibold"
+                style={{ background: AMBER, color: "#1A1200" }}
               >
                 <LogIn size={16} />
                 Login
