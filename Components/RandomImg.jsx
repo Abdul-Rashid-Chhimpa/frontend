@@ -1,97 +1,76 @@
-import { useState, useEffect } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-const images = ["02.jpeg", "03.jpg", "04.jpg", "05.jpg"];
+import { useRef, useState } from "react";
+import { Volume2, VolumeX } from "lucide-react";
 
 // Shared with the rest of the store's UI
-const BORDER = "#E6E8EB";
-const SURFACE_MUTED = "#F1F2EF";
+const STEEL_DARK = "#17303E";
 const AMBER = "#F0A420";
-const INK = "#15181C";
+
+// Replace this with your own hosted video (a direct .mp4/.webm link).
+// This must be a direct video file URL — YouTube/Vimeo links need their
+// embed player instead of a <video> tag, ask me if that's what you have.
+const VIDEO_SRC = "https://www.vecteezy.com/video/52873947-luthier-sanding-a-guitar-pan";
+const POSTER_SRC = "https://www.vecteezy.com/video/52873947-luthier-sanding-a-guitar-pan";
 
 const RandomImg = () => {
-  const [current, setCurrent] = useState(
-    Math.floor(Math.random() * images.length)
-  );
+  const videoRef = useRef(null);
+  const [muted, setMuted] = useState(true);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrent((prev) => (prev + 1) % images.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const goTo = (index) => setCurrent(((index % images.length) + images.length) % images.length);
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setMuted(videoRef.current.muted);
+    }
+  };
 
   return (
     <div className="w-full mt-6 sm:mt-8 md:mt-10">
-      {/* Banner */}
-      <div className="w-full max-w-6xl mx-auto px-3 sm:px-4">
+      <div className="relative w-full h-[55vh] sm:h-[65vh] md:h-[75vh] overflow-hidden">
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          src={VIDEO_SRC}
+          poster={POSTER_SRC}
+          autoPlay
+          loop
+          muted={muted}
+          playsInline
+        />
+
+        {/* Legibility gradient for the overlay copy */}
         <div
-          className="group relative w-full rounded-xl sm:rounded-2xl overflow-hidden flex items-center justify-center
-                      h-[200px] sm:h-[280px] md:h-[360px] lg:h-[420px] xl:h-[480px]"
-          style={{ background: SURFACE_MUTED, border: `1px solid ${BORDER}` }}
-        >
-          <img
-            key={current}
-            src={images[current]}
-            alt="Banner"
-            className="max-w-full max-h-full w-auto h-auto object-contain animate-fade"
-          />
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(0deg, ${STEEL_DARK}CC 0%, ${STEEL_DARK}66 35%, transparent 65%)`,
+          }}
+        />
 
-          {/* Prev / Next — visible on hover (desktop), always visible on touch devices */}
-          <button
-            onClick={() => goTo(current - 1)}
-            aria-label="Previous image"
-            className="absolute left-2 sm:left-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full
-                       flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ background: "rgba(255,255,255,0.9)", color: INK, border: `1px solid ${BORDER}` }}
+        {/* Overlay copy */}
+        <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-8 md:p-12">
+          <h2 className="text-white text-2xl sm:text-4xl md:text-5xl font-extrabold tracking-tight max-w-xl leading-tight">
+            Built to work as hard as you do
+          </h2>
+          <p className="text-white/80 text-sm sm:text-base mt-2 sm:mt-3 max-w-md">
+            Durable hand tools for every job, from the workshop to the job site.
+          </p>
+          <a
+            href="/"
+            className="inline-flex w-fit items-center gap-2 mt-4 sm:mt-6 px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl font-bold text-sm sm:text-base transition"
+            style={{ background: AMBER, color: "#1A1200" }}
           >
-            <ChevronLeft size={18} />
-          </button>
-          <button
-            onClick={() => goTo(current + 1)}
-            aria-label="Next image"
-            className="absolute right-2 sm:right-3 top-1/2 -translate-y-1/2 w-8 h-8 sm:w-9 sm:h-9 rounded-full
-                       flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-            style={{ background: "rgba(255,255,255,0.9)", color: INK, border: `1px solid ${BORDER}` }}
-          >
-            <ChevronRight size={18} />
-          </button>
+            Shop the collection
+          </a>
         </div>
-      </div>
 
-      {/* Progress ticks */}
-      <div className="flex justify-center gap-2 mt-4 sm:mt-5">
-        {images.map((_, index) => (
-          <button
-            key={index}
-            onClick={() => goTo(index)}
-            aria-label={`Go to slide ${index + 1}`}
-            className="h-1.5 rounded-full transition-all duration-300"
-            style={{
-              width: current === index ? "28px" : "10px",
-              background: current === index ? AMBER : "#D8DBD6",
-            }}
-          />
-        ))}
+        {/* Mute toggle */}
+        <button
+          onClick={toggleMute}
+          aria-label={muted ? "Unmute video" : "Mute video"}
+          className="absolute bottom-4 right-4 sm:bottom-6 sm:right-6 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition"
+          style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(6px)", color: "#FFFFFF", border: "1px solid rgba(255,255,255,0.25)" }}
+        >
+          {muted ? <VolumeX size={17} /> : <Volume2 size={17} />}
+        </button>
       </div>
-
-      <style>{`
-        @keyframes fade {
-          from {
-            opacity: 0;
-            transform: scale(1.03);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-        .animate-fade {
-          animation: fade 0.7s ease-in-out;
-        }
-      `}</style>
     </div>
   );
 };
