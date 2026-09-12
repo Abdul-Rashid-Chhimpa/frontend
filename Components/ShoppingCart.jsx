@@ -3,14 +3,16 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
+  ShoppingBag,
   Trash2,
   Plus,
   Minus,
   ArrowLeft,
-  PackageOpen,
-  Check,
+  Package,
+  CheckCircle2,
   X,
   Truck,
+  ShoppingBag as BagIcon,
 } from "lucide-react";
 import { CartContext } from "./Context";
 
@@ -23,27 +25,11 @@ const BORDER = "#E6E8EB";
 const SURFACE = "#FFFFFF";
 const SURFACE_MUTED = "#F1F2EF";
 const BG = "#F5F6F4";
-const PAPER = "#FBFAF8";
-const DASH = "#CDD1CB";
 const AMBER = "#F0A420";
 const AMBER_DARK = "#C97F0F";
+const AMBER_TINT = "#FEF6E7";
 const STEEL = "#2B4A5E";
-
-// A dashed rule with two punched "stub" notches — the visual seam between
-// the itemized rows and the totals, like tearing a receipt off a ticket.
-const TearLine = () => (
-  <div className="relative my-1">
-    <div style={{ borderTop: `2px dashed ${DASH}` }} />
-    <div
-      className="absolute -left-4 sm:-left-6 -top-2.5 w-5 h-5 rounded-full"
-      style={{ background: BG, border: `1px solid ${BORDER}` }}
-    />
-    <div
-      className="absolute -right-4 sm:-right-6 -top-2.5 w-5 h-5 rounded-full"
-      style={{ background: BG, border: `1px solid ${BORDER}` }}
-    />
-  </div>
-);
+const STEEL_TINT = "#EAF0F3";
 
 const ShoppingCart = () => {
   const navigate = useNavigate();
@@ -182,19 +168,18 @@ const ShoppingCart = () => {
 
   return (
     <div className="min-h-screen py-8 px-3 sm:px-6 relative" style={{ background: BG }}>
-      {/* EMPTY CART VIEW — a blank order form */}
+      {/* EMPTY CART VIEW */}
       {cart.length === 0 && !showOrderPopup ? (
-        <div className="max-w-lg mx-auto py-12">
-          <div
-            className="rounded-2xl p-10 sm:p-14 text-center"
-            style={{ background: PAPER, border: `2px dashed ${DASH}` }}
-          >
-            <PackageOpen size={40} className="mx-auto mb-4" style={{ color: MUTED }} />
-            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: INK }}>
-              No items on this ticket yet
+        <div className="max-w-2xl mx-auto py-12">
+          <div className="rounded-3xl p-8 sm:p-12 text-center" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: SURFACE_MUTED }}>
+              <ShoppingBag size={36} style={{ color: MUTED }} />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: INK }}>
+              Your cart is empty
             </h2>
             <p className="mt-2 text-sm" style={{ color: MUTED }}>
-              Add a few tools and they'll line up here.
+              Looks like you haven't added anything yet.
             </p>
             <button
               onClick={continueShopping}
@@ -207,15 +192,15 @@ const ShoppingCart = () => {
           </div>
         </div>
       ) : (
-        /* ACTIVE CART — one continuous order ticket */
-        <div className="max-w-4xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 mb-5">
+        /* ACTIVE CART VIEW */
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold" style={{ color: INK }}>
-                Your order
+              <h1 className="text-2xl sm:text-4xl font-extrabold" style={{ color: INK }}>
+                Shopping cart
               </h1>
               <p className="text-xs sm:text-sm mt-1" style={{ color: MUTED }}>
-                {totalItems} item{totalItems !== 1 ? "s" : ""} on this ticket
+                {totalItems} item{totalItems !== 1 ? "s" : ""} in your cart
               </p>
             </div>
             <button
@@ -228,9 +213,8 @@ const ShoppingCart = () => {
             </button>
           </div>
 
-          <div className="rounded-2xl overflow-hidden" style={{ background: PAPER, border: `1px solid ${BORDER}` }}>
-            {/* Itemized rows */}
-            <div className="p-3 sm:p-5 space-y-0">
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-4">
               {cart.map((item, index) => {
                 const itemId = getItemId(item);
                 const image = getImage(item);
@@ -241,21 +225,22 @@ const ShoppingCart = () => {
                 const unitPrice = Number(item.price || 0);
                 const qty = Number(item.quantity || 1);
                 const lineTotal = unitPrice * qty;
+                const itemGstRate =
+                  item.gst !== undefined && item.gst !== ""
+                    ? Number(item.gst)
+                    : 18;
 
                 return (
                   <div
                     key={`${itemId}-${optionQty}-${unitPrice}-${index}`}
-                    className="flex items-center gap-3 sm:gap-4 py-3 sm:py-4"
-                    style={index !== 0 ? { borderTop: `1px solid ${BORDER}` } : undefined}
+                    className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 transition"
+                    style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
                   >
-                    <div
-                      className="w-14 h-14 sm:w-16 sm:h-16 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
-                      style={{ background: SURFACE_MUTED }}
-                    >
+                    <div className="w-full sm:w-32 h-32 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: SURFACE_MUTED }}>
                       <img
                         src={image}
                         alt={name}
-                        className="w-full h-full object-contain p-1.5"
+                        className="w-full h-full object-contain p-2"
                         onError={(e) => {
                           e.target.src =
                             "https://via.placeholder.com/200?text=No+Image";
@@ -264,90 +249,138 @@ const ShoppingCart = () => {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <h2 className="text-sm sm:text-base font-bold truncate" style={{ color: INK }}>
+                      <h2 className="text-base sm:text-lg font-bold line-clamp-2" style={{ color: INK }}>
                         {name}
                       </h2>
-                      <p className="text-[11px] sm:text-xs mt-0.5" style={{ color: MUTED }}>
-                        {optionLabel} · ₹{unitPrice.toLocaleString()} / unit
+
+                      {item.brand && (
+                        <p className="text-xs mt-1" style={{ color: MUTED }}>
+                          Brand: {item.brand}
+                        </p>
+                      )}
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span
+                          className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full"
+                          style={{ background: STEEL_TINT, color: STEEL }}
+                        >
+                          <Package size={12} />
+                          {optionLabel}
+                        </span>
+                        <span
+                          className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
+                          style={{ background: SURFACE_MUTED, color: MUTED }}
+                        >
+                          GST: {itemGstRate}%
+                        </span>
+                      </div>
+
+                      <p className="text-xs mt-2" style={{ color: MUTED }}>
+                        Unit price:{" "}
+                        <span className="font-medium" style={{ color: INK }}>
+                          ₹{unitPrice.toLocaleString()}
+                        </span>
                       </p>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
+                        <div className="flex items-center rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+                          <button
+                            onClick={() => decreaseQty(itemId, optionQty)}
+                            className="w-8 h-8 flex items-center justify-center transition"
+                            style={{ background: SURFACE_MUTED, color: INK }}
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="w-10 text-center font-bold text-sm" style={{ color: INK }}>
+                            {qty}
+                          </span>
+                          <button
+                            onClick={() => increaseQty(itemId, optionQty)}
+                            className="w-8 h-8 flex items-center justify-center transition"
+                            style={{ background: SURFACE_MUTED, color: INK }}
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-[10px]" style={{ color: MUTED }}>Total</p>
+                          <p className="text-base font-extrabold" style={{ color: AMBER_DARK }}>
+                            ₹{lineTotal.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center rounded-lg overflow-hidden flex-shrink-0" style={{ border: `1px solid ${BORDER}` }}>
+                    <div className="flex sm:flex-col justify-end items-end pt-2 sm:pt-0 border-t sm:border-t-0" style={{ borderColor: BORDER }}>
                       <button
-                        onClick={() => decreaseQty(itemId, optionQty)}
-                        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center"
-                        style={{ background: SURFACE_MUTED, color: INK }}
+                        onClick={() => removeFromCart(itemId, optionQty)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
+                        style={{ color: "#B4302F" }}
                       >
-                        <Minus size={13} />
-                      </button>
-                      <span className="w-7 sm:w-9 text-center font-bold text-xs sm:text-sm font-mono" style={{ color: INK }}>
-                        {qty}
-                      </span>
-                      <button
-                        onClick={() => increaseQty(itemId, optionQty)}
-                        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center"
-                        style={{ background: SURFACE_MUTED, color: INK }}
-                      >
-                        <Plus size={13} />
+                        <Trash2 size={15} />
+                        Remove
                       </button>
                     </div>
-
-                    <div className="text-right flex-shrink-0 w-16 sm:w-20">
-                      <p className="text-sm sm:text-base font-extrabold font-mono" style={{ color: INK }}>
-                        ₹{lineTotal.toLocaleString()}
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => removeFromCart(itemId, optionQty)}
-                      aria-label="Remove item"
-                      className="flex-shrink-0 p-1.5 rounded-lg transition"
-                      style={{ color: "#B4302F" }}
-                    >
-                      <Trash2 size={16} />
-                    </button>
                   </div>
                 );
               })}
             </div>
 
-            <div className="px-4 sm:px-6">
-              <TearLine />
-            </div>
+            <div className="lg:col-span-1">
+              <div className="rounded-2xl p-5 sticky top-24" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                <h2 className="text-lg font-bold mb-4" style={{ color: INK }}>
+                  Order summary
+                </h2>
 
-            {/* Totals */}
-            <div className="p-4 sm:p-6 pt-4 sm:pt-5">
-              <div className="space-y-2 text-sm font-mono max-w-xs ml-auto">
-                <div className="flex justify-between" style={{ color: MUTED }}>
-                  <span className="font-sans">Subtotal</span>
-                  <span style={{ color: INK }}>₹{subTotal.toLocaleString()}</span>
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between" style={{ color: MUTED }}>
+                    <span>Total items</span>
+                    <span className="font-semibold" style={{ color: INK }}>
+                      {totalItems}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between" style={{ color: MUTED }}>
+                    <span>Subtotal</span>
+                    <span className="font-semibold" style={{ color: INK }}>
+                      ₹{subTotal.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between" style={{ color: MUTED }}>
+                    <span>Estimated GST</span>
+                    <span className="font-semibold" style={{ color: INK }}>
+                      ₹{Math.round(gst).toLocaleString()}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex justify-between" style={{ color: MUTED }}>
-                  <span className="font-sans">GST</span>
-                  <span style={{ color: INK }}>₹{Math.round(gst).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center pt-2" style={{ borderTop: `1px solid ${BORDER}` }}>
-                  <span className="font-sans font-bold text-base" style={{ color: INK }}>Total</span>
+
+                <hr className="my-4" style={{ borderColor: BORDER }} />
+
+                <div className="flex justify-between items-center mb-5">
+                  <span className="text-base font-bold" style={{ color: INK }}>
+                    Grand total
+                  </span>
                   <span className="text-xl font-extrabold" style={{ color: AMBER_DARK }}>
                     ₹{grandTotal.toLocaleString()}
                   </span>
                 </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mt-6">
                 <button
                   onClick={checkoutHandler}
                   disabled={loading || cart.length === 0}
-                  className="flex-1 py-3 rounded-xl font-semibold transition text-sm disabled:opacity-50"
+                  className="w-full py-3 rounded-xl font-semibold transition text-sm disabled:opacity-50"
                   style={{ background: AMBER, color: "#1A1200" }}
                 >
                   {loading ? "Placing order..." : "Proceed to checkout"}
                 </button>
+
                 <button
                   onClick={clearCart}
                   disabled={cart.length === 0}
-                  className="py-3 px-5 rounded-xl font-medium transition text-sm disabled:opacity-50"
-                  style={{ color: "#B4302F" }}
+                  className="w-full mt-2.5 py-2.5 rounded-xl font-semibold transition text-xs disabled:opacity-50"
+                  style={{ border: `1px solid #E9C7C6`, color: "#B4302F" }}
                 >
                   Clear cart
                 </button>
@@ -357,10 +390,11 @@ const ShoppingCart = () => {
         </div>
       )}
 
-      {/* ORDER CONFIRMED — packing-slip stub with a stamp mark */}
+      {/* ORDER CONFIRMED POPUP MODAL */}
       {showOrderPopup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60">
-          <div className="rounded-2xl max-w-sm w-full p-6 sm:p-8 text-center relative" style={{ background: PAPER, border: `1px solid ${BORDER}` }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
+          <div className="rounded-3xl max-w-md w-full p-6 text-center relative" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+            {/* Close Cross Button */}
             <button
               onClick={() => {
                 setShowOrderPopup(false);
@@ -372,61 +406,57 @@ const ShoppingCart = () => {
               <X size={18} />
             </button>
 
-            {/* Ink-stamp mark */}
-            <div
-              className="w-24 h-24 rounded-full flex flex-col items-center justify-center mx-auto mb-5"
-              style={{
-                border: `3px solid #1D7A43`,
-                color: "#1D7A43",
-                transform: "rotate(-8deg)",
-              }}
-            >
-              <Check size={26} strokeWidth={3} />
-              <span className="text-[9px] font-bold tracking-wide mt-0.5">CONFIRMED</span>
+            {/* Success Icon Badge */}
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#E4F3E9" }}>
+              <CheckCircle2 size={48} style={{ color: "#1D7A43" }} />
             </div>
 
-            <h2 className="text-xl sm:text-2xl font-extrabold mb-1" style={{ color: INK }}>
-              Order placed
+            <h2 className="text-2xl font-extrabold mb-1" style={{ color: INK }}>
+              Order confirmed!
             </h2>
             <p className="text-xs mb-6" style={{ color: MUTED }}>
-              Thanks for shopping with us.
+              Thank you for shopping with us. Your order has been placed.
             </p>
 
-            <div className="rounded-xl p-4 text-left space-y-2.5 mb-6 font-mono text-xs" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-              <div className="flex justify-between items-center">
-                <span className="font-sans" style={{ color: MUTED }}>Order ID</span>
+            {/* Order Details Card */}
+            <div className="rounded-2xl p-4 text-left space-y-3 mb-6" style={{ background: SURFACE_MUTED, border: `1px solid ${BORDER}` }}>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: MUTED }}>Order ID</span>
                 <span className="font-bold" style={{ color: INK }}>
                   #{confirmedOrderData?.orderId}
                 </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="font-sans" style={{ color: MUTED }}>Items</span>
-                <span style={{ color: INK }}>
-                  {confirmedOrderData?.totalItems}
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: MUTED }}>Items ordered</span>
+                <span className="font-semibold" style={{ color: INK }}>
+                  {confirmedOrderData?.totalItems} item(s)
                 </span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="font-sans" style={{ color: MUTED }}>Amount paid</span>
-                <span className="font-bold" style={{ color: AMBER_DARK }}>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: MUTED }}>Amount paid</span>
+                <span className="font-bold text-sm" style={{ color: AMBER_DARK }}>
                   ₹{confirmedOrderData?.totalAmount.toLocaleString()}
                 </span>
               </div>
-              <div className="pt-2 flex items-center gap-2 font-sans font-medium" style={{ borderTop: `1px solid ${BORDER}`, color: STEEL }}>
-                <Truck size={14} />
-                <span>Arriving soon at your doorstep</span>
+              <div className="pt-2 border-t flex items-center gap-2 text-xs font-medium" style={{ borderColor: BORDER, color: STEEL }}>
+                <Truck size={16} />
+                <span>Arriving soon at your doorstep!</span>
               </div>
             </div>
 
-            <button
-              onClick={() => {
-                setShowOrderPopup(false);
-                navigate("/");
-              }}
-              className="w-full font-semibold py-3 rounded-xl transition text-sm text-white"
-              style={{ background: STEEL }}
-            >
-              Continue shopping
-            </button>
+            {/* Actions */}
+            <div className="space-y-2.5">
+              <button
+                onClick={() => {
+                  setShowOrderPopup(false);
+                  navigate("/");
+                }}
+                className="w-full font-semibold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 text-white"
+                style={{ background: STEEL }}
+              >
+                <BagIcon size={16} /> Continue shopping
+              </button>
+            </div>
           </div>
         </div>
       )}
