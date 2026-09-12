@@ -24,6 +24,21 @@ import {
 import { CartContext } from "../Components/Context";
 import axios from "axios";
 
+// ======================================================
+// DESIGN TOKENS — shared with the rest of the store's UI
+// ======================================================
+const INK = "#15181C";
+const MUTED = "#6B7280";
+const BORDER = "#E6E8EB";
+const SURFACE = "#FFFFFF";
+const SURFACE_MUTED = "#F1F2EF";
+const BG = "#F5F6F4";
+const AMBER = "#F0A420";
+const AMBER_DARK = "#C97F0F";
+const AMBER_TINT = "#FEF6E7";
+const STEEL = "#2B4A5E";
+const STEEL_TINT = "#EAF0F3";
+
 const ProductDetails = () => {
   const { id } = useParams();
   const location = useLocation();
@@ -289,10 +304,13 @@ const ProductDetails = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: BG }}>
         <div className="text-center">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium text-sm sm:text-base">
+          <div
+            className="w-12 h-12 sm:w-14 sm:h-14 border-4 rounded-full animate-spin mx-auto"
+            style={{ borderColor: AMBER_DARK, borderTopColor: "transparent" }}
+          ></div>
+          <p className="mt-4 font-medium text-sm sm:text-base" style={{ color: MUTED }}>
             Loading product details...
           </p>
         </div>
@@ -302,45 +320,51 @@ const ProductDetails = () => {
 
   if (error || !product) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
-        <Package size={64} className="text-gray-300 mb-5 sm:mb-6" />
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 text-center">
-          Product Not Found
+      <div className="min-h-screen flex flex-col items-center justify-center px-4" style={{ background: BG }}>
+        <Package size={64} className="mb-5 sm:mb-6" style={{ color: "#C7CBCE" }} />
+        <h1 className="text-2xl sm:text-3xl font-bold mb-2 text-center" style={{ color: INK }}>
+          Product not found
         </h1>
-        <p className="text-gray-500 mb-6 sm:mb-8 text-center text-sm sm:text-base">
+        <p className="mb-6 sm:mb-8 text-center text-sm sm:text-base" style={{ color: MUTED }}>
           This product doesn't exist or was removed.
         </p>
         <button
           onClick={() => navigate("/")}
-          className="flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition text-sm sm:text-base"
+          className="flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 text-white rounded-xl font-semibold transition text-sm sm:text-base"
+          style={{ background: STEEL }}
         >
           <ArrowLeft size={18} />
-          Back To Home
+          Back to home
         </button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+    <div className="min-h-screen py-4 sm:py-6 md:py-8 px-3 sm:px-4" style={{ background: BG }}>
       <div className="max-w-6xl mx-auto">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium mb-4 sm:mb-6 transition text-sm sm:text-base"
+          className="flex items-center gap-2 font-medium mb-4 sm:mb-6 transition text-sm sm:text-base"
+          style={{ color: STEEL }}
         >
           <ArrowLeft size={18} />
           Back
         </button>
 
-        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden">
+        <div className="rounded-2xl sm:rounded-3xl overflow-hidden" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
             {/* LEFT - GALLERY */}
             <div
-              className="p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100"
+              className="p-4 sm:p-6 md:p-8"
+              style={{ background: SURFACE_MUTED }}
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
             >
-              <div className="relative bg-white rounded-xl sm:rounded-2xl border border-gray-100 overflow-hidden mb-4 sm:mb-5 flex items-center justify-center h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[460px] p-1">
+              <div
+                className="relative rounded-xl sm:rounded-2xl overflow-hidden mb-4 sm:mb-5 flex items-center justify-center h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[460px] p-1"
+                style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
+              >
                 <img
                   src={imagesList[selectedImage]}
                   alt={product.name}
@@ -350,7 +374,13 @@ const ProductDetails = () => {
                   }}
                 />
                 {product.offer > 0 && (
-                  <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full shadow">
+                  <span
+                    className="absolute top-0 left-3 text-[10px] sm:text-xs font-bold text-white px-2.5 py-1 sm:px-3 sm:py-1.5"
+                    style={{
+                      background: AMBER_DARK,
+                      clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%)",
+                    }}
+                  >
                     {product.offer}% OFF
                   </span>
                 )}
@@ -362,16 +392,17 @@ const ProductDetails = () => {
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}
-                      className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl overflow-hidden border transition-all duration-150 ${
-                        selectedImage === index
-                          ? "border-indigo-600 opacity-100"
-                          : "border-gray-200 opacity-60 hover:opacity-100"
-                      }`}
+                      className="flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl overflow-hidden border transition-all duration-150"
+                      style={{
+                        borderColor: selectedImage === index ? AMBER_DARK : BORDER,
+                        opacity: selectedImage === index ? 1 : 0.6,
+                      }}
                     >
                       <img
                         src={img}
                         alt={`Thumbnail ${index + 1}`}
-                        className="w-full h-full object-contain bg-white"
+                        className="w-full h-full object-contain"
+                        style={{ background: SURFACE }}
                         onError={(e) => {
                           e.target.src = "/no-image.png";
                         }}
@@ -382,18 +413,18 @@ const ProductDetails = () => {
               )}
 
               {/* TRUST BADGES & FEATURES */}
-              <div className="grid grid-cols-3 gap-2 mt-6 pt-6 border-t border-gray-200/80 text-center">
+              <div className="grid grid-cols-3 gap-2 mt-6 pt-6 border-t text-center" style={{ borderColor: BORDER }}>
                 <div className="flex flex-col items-center">
-                  <Truck size={20} className="text-indigo-600 mb-1" />
-                  <span className="text-[11px] font-medium text-gray-700">Fast Delivery</span>
+                  <Truck size={20} className="mb-1" style={{ color: STEEL }} />
+                  <span className="text-[11px] font-medium" style={{ color: INK }}>Fast delivery</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <ShieldCheck size={20} className="text-emerald-600 mb-1" />
-                  <span className="text-[11px] font-medium text-gray-700">100% Authentic</span>
+                  <ShieldCheck size={20} className="mb-1" style={{ color: STEEL }} />
+                  <span className="text-[11px] font-medium" style={{ color: INK }}>100% authentic</span>
                 </div>
                 <div className="flex flex-col items-center">
-                  <RotateCcw size={20} className="text-purple-600 mb-1" />
-                  <span className="text-[11px] font-medium text-gray-700">Easy Returns</span>
+                  <RotateCcw size={20} className="mb-1" style={{ color: STEEL }} />
+                  <span className="text-[11px] font-medium" style={{ color: INK }}>Easy returns</span>
                 </div>
               </div>
             </div>
@@ -401,25 +432,34 @@ const ProductDetails = () => {
             {/* RIGHT - DETAILS */}
             <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col">
               <div className="flex-1">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-3 sm:mb-4 leading-snug sm:leading-tight capitalize">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold mb-3 sm:mb-4 leading-snug sm:leading-tight capitalize" style={{ color: INK }}>
                   {product.name}
                 </h1>
 
                 {/* SPECIFICATIONS & BADGES */}
-                <div className="space-y-2 text-gray-600 mb-5 sm:mb-6 text-sm sm:text-base">
+                <div className="space-y-2 mb-5 sm:mb-6 text-sm sm:text-base" style={{ color: MUTED }}>
                   <div className="flex flex-wrap gap-2 mb-3">
                     {product.category && (
-                      <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full uppercase">
+                      <span
+                        className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                        style={{ background: STEEL_TINT, color: STEEL }}
+                      >
                         {product.category}
                       </span>
                     )}
                     {product.brand && (
-                      <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full uppercase">
+                      <span
+                        className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                        style={{ background: AMBER_TINT, color: AMBER_DARK }}
+                      >
                         {product.brand}
                       </span>
                     )}
                     {product.variantGroup && (
-                      <span className="bg-purple-50 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <span
+                        className="text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1"
+                        style={{ background: "#F1F2EF", color: MUTED }}
+                      >
                         <Layers size={12} />
                         Group: {product.variantGroup}
                       </span>
@@ -427,62 +467,61 @@ const ProductDetails = () => {
                   </div>
 
                   <p>
-                    <span className="font-semibold text-gray-800">Material:</span>{" "}
+                    <span className="font-semibold" style={{ color: INK }}>Material:</span>{" "}
                     {product.material || "N/A"}
                   </p>
 
                   {(product.size || product.weight) && (
-                    <div className="flex flex-wrap gap-4 pt-1 text-xs sm:text-sm text-gray-700">
+                    <div className="flex flex-wrap gap-4 pt-1 text-xs sm:text-sm" style={{ color: INK }}>
                       {product.size && (
-                        <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
-                          <Ruler size={14} className="text-gray-500" /> Size: {product.size}
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-md font-medium" style={{ background: SURFACE_MUTED }}>
+                          <Ruler size={14} style={{ color: MUTED }} /> Size: {product.size}
                         </span>
                       )}
                       {product.weight && (
-                        <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
-                          <Scale size={14} className="text-gray-500" /> Weight: {product.weight}
+                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-md font-medium" style={{ background: SURFACE_MUTED }}>
+                          <Scale size={14} style={{ color: MUTED }} /> Weight: {product.weight}
                         </span>
                       )}
                     </div>
                   )}
 
                   <p className="pt-1">
-                    <span className="font-semibold text-gray-800">Availability:</span>{" "}
+                    <span className="font-semibold" style={{ color: INK }}>Availability:</span>{" "}
                     <span
-                      className={
-                        product.stock > 0
-                          ? "text-emerald-600 font-semibold"
-                          : "text-red-600 font-semibold"
-                      }
+                      className="font-semibold"
+                      style={{ color: product.stock > 0 ? "#1D7A43" : "#B4302F" }}
                     >
                       {product.stock > 0
                         ? `${product.stock} units in stock`
-                        : "Out of Stock"}
+                        : "Out of stock"}
                     </span>
                   </p>
                 </div>
 
                 {/* DELIVERY PINCODE CHECKER */}
-                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                <div className="mb-6 p-4 rounded-2xl" style={{ background: SURFACE_MUTED, border: `1px solid ${BORDER}` }}>
                   <div className="flex items-center gap-2 mb-2.5">
-                    <MapPin size={18} className="text-indigo-600" />
-                    <h3 className="font-semibold text-gray-800 text-sm sm:text-base">
-                      Check Delivery & Serviceability
+                    <MapPin size={18} style={{ color: STEEL }} />
+                    <h3 className="font-semibold text-sm sm:text-base" style={{ color: INK }}>
+                      Check delivery & serviceability
                     </h3>
                   </div>
                   <form onSubmit={handleCheckDelivery} className="flex gap-2">
                     <input
                       type="text"
                       maxLength={6}
-                      placeholder="Enter 6-digit Pincode"
+                      placeholder="Enter 6-digit pincode"
                       value={pincode}
                       onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
-                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                      className="flex-1 rounded-xl px-3 py-2 text-sm outline-none"
+                      style={{ background: SURFACE, border: `1px solid ${BORDER}`, color: INK }}
                     />
                     <button
                       type="submit"
                       disabled={checkingPincode}
-                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium px-4 py-2 rounded-xl text-sm transition"
+                      className="font-medium px-4 py-2 rounded-xl text-sm transition text-white disabled:opacity-60"
+                      style={{ background: STEEL }}
                     >
                       {checkingPincode ? "Checking..." : "Check"}
                     </button>
@@ -490,9 +529,8 @@ const ProductDetails = () => {
 
                   {deliveryStatus && (
                     <div
-                      className={`mt-3 flex items-center gap-2 text-xs sm:text-sm font-medium ${
-                        deliveryStatus.success ? "text-emerald-700" : "text-red-600"
-                      }`}
+                      className="mt-3 flex items-center gap-2 text-xs sm:text-sm font-medium"
+                      style={{ color: deliveryStatus.success ? "#1D7A43" : "#B4302F" }}
                     >
                       {deliveryStatus.success ? (
                         <CheckCircle2 size={16} />
@@ -506,31 +544,39 @@ const ProductDetails = () => {
 
                 {/* DYNAMIC BACKEND DELIVERY OPTIONS */}
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
-                    Select Delivery Option
+                  <h3 className="font-semibold mb-3 text-sm sm:text-base" style={{ color: INK }}>
+                    Select delivery option
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setSelectedDeliveryMethod("standard")}
-                      className={`relative p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                      className="relative p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all"
+                      style={
                         selectedDeliveryMethod === "standard"
-                          ? "border-indigo-600 bg-indigo-50/70 shadow-sm ring-2 ring-indigo-500/20"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
-                      }`}
+                          ? { borderColor: AMBER_DARK, background: AMBER_TINT }
+                          : { borderColor: BORDER, background: SURFACE }
+                      }
                     >
-                      <div className={`p-2 rounded-lg ${selectedDeliveryMethod === "standard" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>
+                      <div
+                        className="p-2 rounded-lg"
+                        style={
+                          selectedDeliveryMethod === "standard"
+                            ? { background: AMBER_DARK, color: "#FFFFFF" }
+                            : { background: SURFACE_MUTED, color: MUTED }
+                        }
+                      >
                         <Truck size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-xs sm:text-sm text-gray-800">Standard Delivery</span>
-                          <span className="text-xs font-bold text-indigo-700">
+                          <span className="font-semibold text-xs sm:text-sm" style={{ color: INK }}>Standard delivery</span>
+                          <span className="text-xs font-bold" style={{ color: AMBER_DARK }}>
                             {backendDeliveryCharge === 0 ? "FREE" : `₹${backendDeliveryCharge}`}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-500">
-                          {product?.delivery?.time ? `Estimated: ${product.delivery.time} Days` : "Delivered in 3-5 Business Days"}
+                        <p className="text-[11px]" style={{ color: MUTED }}>
+                          {product?.delivery?.time ? `Estimated: ${product.delivery.time} days` : "Delivered in 3-5 business days"}
                         </p>
                       </div>
                     </button>
@@ -538,23 +584,31 @@ const ProductDetails = () => {
                     <button
                       type="button"
                       onClick={() => setSelectedDeliveryMethod("express")}
-                      className={`relative p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                      className="relative p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all"
+                      style={
                         selectedDeliveryMethod === "express"
-                          ? "border-indigo-600 bg-indigo-50/70 shadow-sm ring-2 ring-indigo-500/20"
-                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
-                      }`}
+                          ? { borderColor: AMBER_DARK, background: AMBER_TINT }
+                          : { borderColor: BORDER, background: SURFACE }
+                      }
                     >
-                      <div className={`p-2 rounded-lg ${selectedDeliveryMethod === "express" ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600"}`}>
+                      <div
+                        className="p-2 rounded-lg"
+                        style={
+                          selectedDeliveryMethod === "express"
+                            ? { background: AMBER_DARK, color: "#FFFFFF" }
+                            : { background: SURFACE_MUTED, color: MUTED }
+                        }
+                      >
                         <Zap size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-xs sm:text-sm text-gray-800">Express Delivery</span>
-                          <span className="text-xs font-bold text-indigo-700">
+                          <span className="font-semibold text-xs sm:text-sm" style={{ color: INK }}>Express delivery</span>
+                          <span className="text-xs font-bold" style={{ color: AMBER_DARK }}>
                             ₹{backendDeliveryCharge + 100}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-500">Faster Express Delivery</p>
+                        <p className="text-[11px]" style={{ color: MUTED }}>Faster express delivery</p>
                       </div>
                     </button>
                   </div>
@@ -562,8 +616,8 @@ const ProductDetails = () => {
 
                 {/* DYNAMIC BACKEND PAYMENT METHODS */}
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
-                    Select Payment Method
+                  <h3 className="font-semibold mb-3 text-sm sm:text-base" style={{ color: INK }}>
+                    Select payment method
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                     {availablePaymentMethods.map((method) => {
@@ -574,25 +628,36 @@ const ProductDetails = () => {
                           key={method.id}
                           type="button"
                           onClick={() => setSelectedPayment(method.id)}
-                          className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer text-left ${
+                          className="p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer text-left"
+                          style={
                             isSelected
-                              ? "border-indigo-600 bg-indigo-50/80 shadow-sm ring-2 ring-indigo-500/20"
-                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
-                          }`}
+                              ? { borderColor: AMBER_DARK, background: AMBER_TINT }
+                              : { borderColor: BORDER, background: SURFACE }
+                          }
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${isSelected ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"}`}>
+                            <div
+                              className="p-2 rounded-lg"
+                              style={
+                                isSelected
+                                  ? { background: AMBER_DARK, color: "#FFFFFF" }
+                                  : { background: SURFACE_MUTED, color: MUTED }
+                              }
+                            >
                               <Icon size={18} />
                             </div>
                             <div>
-                              <p className={`text-xs sm:text-sm font-semibold ${isSelected ? "text-indigo-900" : "text-gray-800"}`}>
+                              <p className="text-xs sm:text-sm font-semibold" style={{ color: INK }}>
                                 {method.label}
                               </p>
-                              <p className="text-[10px] text-gray-400">{method.desc}</p>
+                              <p className="text-[10px]" style={{ color: MUTED }}>{method.desc}</p>
                             </div>
                           </div>
                           {isSelected && (
-                            <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0">
+                            <div
+                              className="w-5 h-5 rounded-full text-white flex items-center justify-center flex-shrink-0"
+                              style={{ background: AMBER_DARK }}
+                            >
                               <Check size={12} strokeWidth={3} />
                             </div>
                           )}
@@ -604,8 +669,8 @@ const ProductDetails = () => {
 
                 {/* PRICING TIERS */}
                 <div className="mb-5 sm:mb-6">
-                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
-                    Quantity Wise Pricing
+                  <h3 className="font-semibold mb-3 text-sm sm:text-base" style={{ color: INK }}>
+                    Quantity-wise pricing
                   </h3>
 
                   <div
@@ -620,23 +685,23 @@ const ProductDetails = () => {
                           <div
                             key={index}
                             ref={isActive ? activeCardRef : null}
-                            className={`flex-shrink-0 w-[100px] px-2.5 py-3 rounded-xl border text-center transition-all duration-300 ${
+                            className="flex-shrink-0 w-[100px] px-2.5 py-3 rounded-xl border text-center transition-all duration-300"
+                            style={
                               isActive
-                                ? "border-indigo-500 bg-indigo-50 shadow-md scale-105"
-                                : "border-gray-200 bg-gray-50"
-                            }`}
+                                ? { borderColor: AMBER_DARK, background: AMBER_TINT, transform: "scale(1.05)" }
+                                : { borderColor: BORDER, background: SURFACE_MUTED }
+                            }
                           >
-                            <p className="text-[10px] text-gray-500 mb-1">
+                            <p className="text-[10px] mb-1" style={{ color: MUTED }}>
                               {tier.minQty}+ units
                             </p>
                             <p
-                              className={`text-sm font-bold leading-tight ${
-                                isActive ? "text-indigo-700" : "text-gray-800"
-                              }`}
+                              className="text-sm font-bold leading-tight"
+                              style={{ color: isActive ? AMBER_DARK : INK }}
                             >
                               ₹{tier.price}
                             </p>
-                            <p className="text-[9px] text-gray-400 mt-1">
+                            <p className="text-[9px] mt-1" style={{ color: MUTED }}>
                               / unit
                             </p>
                           </div>
@@ -649,10 +714,10 @@ const ProductDetails = () => {
                 {/* QUANTITY SELECTOR */}
                 <div className="mb-5 sm:mb-6">
                   <div className="flex items-center justify-between mb-2.5 sm:mb-3">
-                    <p className="text-sm font-medium text-gray-700">
-                      Select Quantity
+                    <p className="text-sm font-medium" style={{ color: INK }}>
+                      Select quantity
                     </p>
-                    <span className="text-xs sm:text-sm font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full">
+                    <span className="text-xs sm:text-sm font-bold px-2.5 py-1 rounded-full" style={{ color: AMBER_DARK, background: AMBER_TINT }}>
                       {quantity} units
                     </span>
                   </div>
@@ -664,7 +729,8 @@ const ProductDetails = () => {
                       max={maxStock}
                       value={quantity}
                       onChange={(e) => handleQuantityChange(e.target.value)}
-                      className="w-full border-2 border-gray-200 focus:border-indigo-500 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-semibold text-center outline-none transition"
+                      className="w-full rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-semibold text-center outline-none transition"
+                      style={{ border: `2px solid ${BORDER}`, color: INK }}
                       placeholder="Enter quantity"
                     />
                   </div>
@@ -676,7 +742,8 @@ const ProductDetails = () => {
                       max={maxStock}
                       value={quantity}
                       onChange={(e) => handleQuantityChange(e.target.value)}
-                      className="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+                      style={{ background: "#EAD9B8", accentColor: AMBER_DARK }}
                     />
                   </div>
 
@@ -685,11 +752,12 @@ const ProductDetails = () => {
                       <button
                         key={q}
                         onClick={() => setQuantity(q)}
-                        className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition ${
+                        className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition"
+                        style={
                           quantity === q
-                            ? "bg-indigo-600 text-white shadow"
-                            : "bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700"
-                        }`}
+                            ? { background: STEEL, color: "#FFFFFF" }
+                            : { background: SURFACE_MUTED, color: INK }
+                        }
                       >
                         {q === maxStock ? `Max (${q})` : q}
                       </button>
@@ -698,16 +766,16 @@ const ProductDetails = () => {
                 </div>
 
                 {/* TOTAL PRICE BREAKDOWN */}
-                <div className="mb-6 sm:mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 space-y-2">
-                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
+                <div className="mb-6 sm:mb-8 p-4 rounded-2xl space-y-2" style={{ background: SURFACE_MUTED, border: `1px solid ${BORDER}` }}>
+                  <div className="flex justify-between items-center text-xs sm:text-sm" style={{ color: MUTED }}>
                     <span>
-                      Unit Price (₹{unitPrice} × {quantity})
+                      Unit price (₹{unitPrice} × {quantity})
                     </span>
-                    <span className="font-medium">₹{totalPrice.toLocaleString()}</span>
+                    <span className="font-medium" style={{ color: INK }}>₹{totalPrice.toLocaleString()}</span>
                   </div>
 
                   {product.gst > 0 && (
-                    <div className="flex justify-between items-center text-xs sm:text-sm text-indigo-700">
+                    <div className="flex justify-between items-center text-xs sm:text-sm" style={{ color: STEEL }}>
                       <span className="flex items-center gap-1">
                         <Percent size={13} /> GST ({product.gst}%)
                       </span>
@@ -715,18 +783,18 @@ const ProductDetails = () => {
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
-                    <span>Delivery Charge</span>
-                    <span className="font-medium">
+                  <div className="flex justify-between items-center text-xs sm:text-sm" style={{ color: MUTED }}>
+                    <span>Delivery charge</span>
+                    <span className="font-medium" style={{ color: INK }}>
                       {deliveryCharge === 0 ? "FREE" : `+ ₹${deliveryCharge}`}
                     </span>
                   </div>
 
-                  <div className="border-t border-indigo-200/60 pt-2 flex justify-between items-center">
-                    <span className="text-gray-800 font-bold text-sm sm:text-base">
-                      Grand Total
+                  <div className="border-t pt-2 flex justify-between items-center" style={{ borderColor: BORDER }}>
+                    <span className="font-bold text-sm sm:text-base" style={{ color: INK }}>
+                      Grand total
                     </span>
-                    <span className="text-xl sm:text-2xl font-extrabold text-indigo-700">
+                    <span className="text-xl sm:text-2xl font-extrabold" style={{ color: AMBER_DARK }}>
                       ₹{grandTotal.toLocaleString()}
                     </span>
                   </div>
@@ -735,10 +803,10 @@ const ProductDetails = () => {
                 {/* DESCRIPTION */}
                 {product.description && (
                   <div className="mb-5 sm:mb-6">
-                    <h3 className="font-semibold text-gray-800 mb-1.5 sm:mb-2 text-base sm:text-lg">
+                    <h3 className="font-semibold mb-1.5 sm:mb-2 text-base sm:text-lg" style={{ color: INK }}>
                       Description
                     </h3>
-                    <p className="text-gray-600 leading-relaxed text-sm sm:text-base whitespace-pre-line">
+                    <p className="leading-relaxed text-sm sm:text-base whitespace-pre-line" style={{ color: MUTED }}>
                       {product.description}
                     </p>
                   </div>
@@ -750,22 +818,34 @@ const ProductDetails = () => {
                 <button
                   disabled={product.stock === 0}
                   onClick={handleAddToCart}
-                  className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition shadow-lg"
+                  className="flex-1 flex items-center justify-center gap-2 py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition disabled:cursor-not-allowed"
+                  style={
+                    product.stock === 0
+                      ? { background: SURFACE_MUTED, color: MUTED }
+                      : { background: AMBER, color: "#1A1200" }
+                  }
                 >
                   <ShoppingCart size={18} />
-                  Add to Cart
+                  Add to cart
                 </button>
                 <button
                   onClick={() => navigate("/cart")}
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition shadow-lg"
+                  className="flex-1 text-white py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition"
+                  style={{ background: STEEL }}
                 >
-                  Go to Cart
+                  Go to cart
                 </button>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      <style>{`
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .price-scroll::-webkit-scrollbar { height: 4px; }
+        .price-scroll::-webkit-scrollbar-thumb { background: ${BORDER}; border-radius: 4px; }
+      `}</style>
     </div>
   );
 };
