@@ -8,8 +8,8 @@ const AMBER = "#F0A420";
 // Replace this with your own hosted video (a direct .mp4/.webm link).
 // This must be a direct video file URL — YouTube/Vimeo links need their
 // embed player instead of a <video> tag, ask me if that's what you have.
-const VIDEO_SRC = "https://www.vecteezy.com/video/52873947-luthier-sanding-a-guitar-pan";
-const POSTER_SRC = "https://www.vecteezy.com/video/52873947-luthier-sanding-a-guitar-pan";
+const VIDEO_SRC = "/video.mp4";
+const POSTER_SRC = "/video.mp4";
 
 const RandomImg = () => {
   const videoRef = useRef(null);
