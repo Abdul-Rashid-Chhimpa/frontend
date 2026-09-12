@@ -2,19 +2,48 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
-  Package,
   Hash,
-  IndianRupee,
   Clock,
   Truck,
   CheckCircle,
   XCircle,
-  Calendar,
-  ShoppingBag,
+  Package,
+  PackageOpen,
   Download,
   Trash2,
   Printer,
 } from "lucide-react";
+
+// ======================================================
+// DESIGN TOKENS — shared with the rest of the store's UI
+// ======================================================
+const INK = "#15181C";
+const MUTED = "#6B7280";
+const BORDER = "#E6E8EB";
+const SURFACE = "#FFFFFF";
+const SURFACE_MUTED = "#F1F2EF";
+const BG = "#F5F6F4";
+const PAPER = "#FBFAF8";
+const DASH = "#CDD1CB";
+const AMBER = "#F0A420";
+const AMBER_DARK = "#C97F0F";
+const STEEL = "#2B4A5E";
+const STEEL_TINT = "#EAF0F3";
+
+// Same punched-notch tear line used on the cart ticket
+const TearLine = () => (
+  <div className="relative my-1">
+    <div style={{ borderTop: `2px dashed ${DASH}` }} />
+    <div
+      className="absolute -left-4 sm:-left-6 -top-2.5 w-5 h-5 rounded-full"
+      style={{ background: BG, border: `1px solid ${BORDER}` }}
+    />
+    <div
+      className="absolute -right-4 sm:-right-6 -top-2.5 w-5 h-5 rounded-full"
+      style={{ background: BG, border: `1px solid ${BORDER}` }}
+    />
+  </div>
+);
 
 // Helper function: Convert number to Words (Indian Currency Format)
 const numberToWords = (num) => {
@@ -70,7 +99,7 @@ const MyOrders = () => {
       try {
         const productRes = await axios.get("https://backend-3-axez.onrender.com/api/products");
         const productList = productRes.data.products || productRes.data || [];
-        
+
         productList.forEach((prod) => {
           const id = String(prod._id);
           gstMap[id] = prod.gst !== undefined ? Number(prod.gst) : 0;
@@ -91,7 +120,7 @@ const MyOrders = () => {
             const targetId = String(
               item.productId?._id || item.productId || item.id || item._id || ""
             );
-            
+
             let finalGst = 0;
             if (item.gst !== undefined && item.gst !== null && Number(item.gst) > 0) {
               finalGst = Number(item.gst);
@@ -132,7 +161,7 @@ const MyOrders = () => {
       setDeletingId(orderId);
       // HARD DELETE ko replace karke user-delete PUT route call kiya hai
       const { data } = await axios.put(`https://backend-3-axez.onrender.com/api/orders/user-delete/${orderId}`);
-      
+
       if (data.success || data.message) {
         toast.success("Order removed from dashboard");
         setOrders((prev) => prev.filter((item) => item._id !== orderId));
@@ -428,45 +457,45 @@ const MyOrders = () => {
     printWindow.document.close();
   };
 
+  // Status → color + icon, using the same palette everywhere else
   const getStatusStyle = (status) => {
     switch (status) {
       case "Pending":
-        return { bg: "bg-amber-50", border: "border-amber-200", badge: "bg-amber-500", icon: <Clock size={16} /> };
+        return { tint: "#FEF6E7", text: AMBER_DARK, icon: <Clock size={14} /> };
       case "Shipped":
-        return { bg: "bg-blue-50", border: "border-blue-200", badge: "bg-blue-600", icon: <Truck size={16} /> };
+        return { tint: STEEL_TINT, text: STEEL, icon: <Truck size={14} /> };
       case "Delivered":
-        return { bg: "bg-emerald-50", border: "border-emerald-200", badge: "bg-emerald-600", icon: <CheckCircle size={16} /> };
+        return { tint: "#E4F3E9", text: "#1D7A43", icon: <CheckCircle size={14} /> };
       case "Cancelled":
-        return { bg: "bg-red-50", border: "border-red-200", badge: "bg-red-600", icon: <XCircle size={16} /> };
+        return { tint: "#FBE7E7", text: "#B4302F", icon: <XCircle size={14} /> };
       default:
-        return { bg: "bg-gray-50", border: "border-gray-200", badge: "bg-gray-500", icon: <Package size={16} /> };
+        return { tint: SURFACE_MUTED, text: MUTED, icon: <Package size={14} /> };
     }
   };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <p className="text-gray-500 font-medium">Loading Orders...</p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: BG }}>
+        <p className="font-medium" style={{ color: MUTED }}>Loading orders...</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8" style={{ background: BG }}>
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">My Orders</h1>
-          <span className="text-sm text-gray-500 font-medium">
+          <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: INK }}>My orders</h1>
+          <span className="text-sm font-medium" style={{ color: MUTED }}>
             {orders.length} order{orders.length !== 1 ? "s" : ""} placed
           </span>
         </div>
 
         {orders.length === 0 ? (
-          <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-10 sm:p-14 text-center">
-            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5">
-              <ShoppingBag size={36} className="text-indigo-400" />
-            </div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-800">No Orders Found</h2>
+          <div className="rounded-2xl p-10 sm:p-14 text-center" style={{ background: PAPER, border: `2px dashed ${DASH}` }}>
+            <PackageOpen size={40} className="mx-auto mb-4" style={{ color: MUTED }} />
+            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: INK }}>No orders yet</h2>
+            <p className="mt-2 text-sm" style={{ color: MUTED }}>Once you place an order, it'll show up here.</p>
           </div>
         ) : (
           <div className="space-y-5 sm:space-y-6">
@@ -476,66 +505,104 @@ const MyOrders = () => {
               const shippingFee = extractShippingFee(order);
 
               return (
-                <div key={order._id} className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden">
-                  <div className={`px-4 sm:px-6 py-4 border-b ${statusStyle.border} ${statusStyle.bg}`}>
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                          <Hash size={14} />
-                          <span className="font-mono">{order._id}</span>
-                        </div>
-                        <div className="flex items-center gap-4 text-xs sm:text-sm">
-                          <span className="font-semibold text-gray-800">₹{Number(order.totalAmount || 0).toLocaleString()}</span>
-                          {order.createdAt && (
-                            <span className="text-gray-500">
-                              {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                            </span>
-                          )}
-                        </div>
+                <div key={order._id} className="rounded-2xl overflow-hidden" style={{ background: PAPER, border: `1px solid ${BORDER}` }}>
+                  {/* Header strip */}
+                  <div className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm" style={{ color: MUTED }}>
+                        <Hash size={13} />
+                        <span className="font-mono">{order._id}</span>
                       </div>
+                      <div className="flex items-center gap-3 text-xs sm:text-sm">
+                        <span className="font-semibold font-mono" style={{ color: INK }}>
+                          ₹{Number(order.totalAmount || 0).toLocaleString()}
+                        </span>
+                        {order.createdAt && (
+                          <span style={{ color: MUTED }}>
+                            {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                      <div className="flex items-center gap-2">
-                        <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-white text-xs font-semibold ${statusStyle.badge}`}>
-                          {statusStyle.icon}
-                          {order.status}
-                        </div>
-                        <button onClick={() => handleDeleteOrder(order._id)} className="p-1.5 text-red-500 hover:bg-red-100 rounded-lg">
-                          <Trash2 size={17} />
-                        </button>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+                        style={{ background: statusStyle.tint, color: statusStyle.text }}
+                      >
+                        {statusStyle.icon}
+                        {order.status}
                       </div>
+                      <button
+                        onClick={() => handleDeleteOrder(order._id)}
+                        disabled={deletingId === order._id}
+                        className="p-1.5 rounded-lg transition disabled:opacity-50"
+                        style={{ color: "#B4302F" }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="px-4 sm:px-6 py-4 space-y-3">
+                  {/* Itemized rows */}
+                  <div className="px-4 sm:px-6 py-2">
                     {order.items?.map((item, index) => (
-                      <div key={index} className="flex gap-3 items-center p-3 rounded-xl border border-gray-100 bg-gray-50/60">
-                        <img src={item.image || item.images?.[0] || item.productId?.images?.[0]} className="w-14 h-14 object-contain" alt="" />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 text-sm">{item.title || item.name || item.productId?.name}</h3>
-                          <div className="flex items-center gap-2 text-xs text-gray-500 mt-1">
-                            <span>Qty: {item.quantity}</span>
-                            <span>•</span>
-                            <span>₹{item.price} / unit</span>
-                            <span>•</span>
-                            <span className="font-bold text-indigo-600">GST: {item.gst}%</span>
-                          </div>
+                      <div
+                        key={index}
+                        className="flex gap-3 items-center py-3"
+                        style={index !== 0 ? { borderTop: `1px solid ${BORDER}` } : undefined}
+                      >
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: SURFACE_MUTED }}>
+                          <img
+                            src={item.image || item.images?.[0] || item.productId?.images?.[0]}
+                            className="w-full h-full object-contain p-1.5"
+                            alt=""
+                          />
                         </div>
-                        <p className="font-bold text-gray-900 text-sm">₹{item.price * item.quantity}</p>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-sm truncate" style={{ color: INK }}>
+                            {item.title || item.name || item.productId?.name}
+                          </h3>
+                          <p className="text-xs mt-0.5" style={{ color: MUTED }}>
+                            Qty: {item.quantity} · ₹{item.price}/unit · GST {item.gst}%
+                          </p>
+                        </div>
+                        <p className="font-bold text-sm font-mono flex-shrink-0" style={{ color: INK }}>
+                          ₹{item.price * item.quantity}
+                        </p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="px-4 sm:px-6 py-3 bg-gray-50 border-t border-gray-100 flex justify-between items-center text-xs sm:text-sm">
-                    <div>
-                      {shippingFee > 0 && <span>Delivery Fee: <strong>₹{shippingFee}</strong> • </span>}
-                      <span className="font-bold text-emerald-600">Grand Total: ₹{order.totalAmount}</span>
+                  <div className="px-4 sm:px-6">
+                    <TearLine />
+                  </div>
+
+                  {/* Footer totals + actions */}
+                  <div className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="text-xs sm:text-sm" style={{ color: MUTED }}>
+                      {shippingFee > 0 && (
+                        <span>Delivery fee: <strong style={{ color: INK }}>₹{shippingFee}</strong> · </span>
+                      )}
+                      <span className="font-bold" style={{ color: AMBER_DARK }}>
+                        Grand total: ₹{order.totalAmount}
+                      </span>
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => handleDownloadInvoice(order)} disabled={!isDelivered} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold">
-                        <Download size={15} /> Download Invoice
+                      <button
+                        onClick={() => handleDownloadInvoice(order)}
+                        disabled={!isDelivered}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50"
+                        style={{ background: AMBER, color: "#1A1200" }}
+                      >
+                        <Download size={15} /> Invoice
                       </button>
                       {isDelivered && (
-                        <button onClick={() => handleDownloadInvoice(order)} className="flex items-center gap-2 px-3 py-2 bg-gray-200 text-gray-800 rounded-xl font-semibold">
+                        <button
+                          onClick={() => handleDownloadInvoice(order)}
+                          className="flex items-center gap-2 px-3 py-2 rounded-xl font-semibold text-sm transition"
+                          style={{ background: SURFACE_MUTED, color: INK }}
+                        >
                           <Printer size={15} /> Print
                         </button>
                       )}
