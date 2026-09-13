@@ -1,5 +1,6 @@
 import { Navigate } from "react-router-dom";
 
+
 // ======================================================
 // ProtectedRoute
 // - Blocks access if the user isn't logged in (no token/user)
