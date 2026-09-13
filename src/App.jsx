@@ -13,7 +13,7 @@ import ShoppingCart from "../Components/ShoppingCart";
 import AdminSidebar from "../Components/AdminSidebar";
 import MyOrders from "../Components/MyOrders";
 import ResetPassword from "../Components/ResetPassword";
-import OrderStatus from "./OrderStatus"; // Order status component
+import OrderStatus from "../Components/OrderStatus"; // Order status component
 import Profile from "../Components/Profile";
 
 import CartProvider from "../Components/Context";
