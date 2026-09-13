@@ -76,6 +76,7 @@ function App() {
           />
 
           {/* ================= ADMIN-ONLY ROUTES ================= */}
+          
           <Route
             path="/add-product"
             element={
