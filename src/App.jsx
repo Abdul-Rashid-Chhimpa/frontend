@@ -13,9 +13,8 @@ import ShoppingCart from "../Components/ShoppingCart";
 import AdminSidebar from "../Components/AdminSidebar";
 import MyOrders from "../Components/MyOrders";
 import ResetPassword from "../Components/ResetPassword";
-
+import OrderStatus from "./OrderStatus"; // Order status component
 import Profile from "../Components/Profile";
-
 
 import CartProvider from "../Components/Context";
 import { Toaster } from "react-hot-toast";
@@ -48,6 +47,9 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/varieties/:group" element={<Varieties />} />
+          
+          {/* Cashfree Payment Redirect Route */}
+          <Route path="/order-status" element={<OrderStatus />} />
 
           {/* ================= LOGGED-IN USER ROUTES ================= */}
           <Route
