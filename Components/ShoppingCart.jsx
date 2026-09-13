@@ -1,7 +1,8 @@
-import { useContext, useMemo, useState } from "react";
+import { useContext, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
+import { load } from "@cashfreepayments/cashfree-js";
 
 import {
   ShoppingBag,
@@ -28,7 +29,6 @@ const SURFACE_MUTED = "#F1F2EF";
 const BG = "#F5F6F4";
 const AMBER = "#F0A420";
 const AMBER_DARK = "#C97F0F";
-const AMBER_TINT = "#FEF6E7";
 const STEEL = "#2B4A5E";
 const STEEL_TINT = "#EAF0F3";
 
@@ -40,6 +40,22 @@ const ShoppingCart = () => {
   const [loading, setLoading] = useState(false);
   const [showOrderPopup, setShowOrderPopup] = useState(false);
   const [confirmedOrderData, setConfirmedOrderData] = useState(null);
+  const [cashfree, setCashfree] = useState(null);
+
+  // Initialize Cashfree SDK on component mount
+  useEffect(() => {
+    const initCashfree = async () => {
+      try {
+        const cashfreeInstance = await load({
+          mode: "production", // Set to "sandbox" for testing mode
+        });
+        setCashfree(cashfreeInstance);
+      } catch (error) {
+        console.error("Failed to initialize Cashfree SDK:", error);
+      }
+    };
+    initCashfree();
+  }, []);
 
   const totalItems = useMemo(() => {
     return cart.reduce((total, item) => total + Number(item.quantity || 1), 0);
@@ -105,13 +121,19 @@ const ShoppingCart = () => {
         return;
       }
 
+      if (!cashfree) {
+        toast.error("Payment gateway initializing. Please try again in a moment.");
+        return;
+      }
+
       setLoading(true);
 
+      // 1. First, create order record in backend database
       const orderData = {
         userId: user._id,
         customerName: user.name,
-        customerEmail: user.email || "N/A",
-        customerPhone: user.phone || "N/A",
+        customerEmail: user.email || "customer@pedwal.in",
+        customerPhone: user.phone || "9999999999",
         items: cart.map((item) => {
           const gstRate =
             item.gst !== undefined && item.gst !== "" ? Number(item.gst) : 18;
@@ -138,30 +160,46 @@ const ShoppingCart = () => {
         totalAmount: Number(grandTotal),
       };
 
-      const { data } = await axios.post(
+      const { data: dbOrderData } = await axios.post(
         "https://backend-3-axez.onrender.com/api/orders/create",
         orderData
       );
 
-      if (data.success || data.order) {
-        const orderId =
-          data.order?._id || `ORD-${Date.now().toString().slice(-6)}`;
+      const dbOrderId = dbOrderData?.order?._id || `ORD-${Date.now()}`;
 
+      // 2. Create Cashfree Payment Session
+      const { data: paymentSessionRes } = await axios.post(
+        "https://backend-3-axez.onrender.com/api/payments/create-session",
+        {
+          amount: grandTotal,
+          customerId: user._id,
+          customerName: user.name,
+          customerEmail: user.email || "customer@pedwal.in",
+          customerPhone: user.phone || "9999999999",
+        }
+      );
+
+      if (paymentSessionRes.success && paymentSessionRes.payment_session_id) {
         setConfirmedOrderData({
-          orderId,
+          orderId: paymentSessionRes.order_id || dbOrderId,
           totalAmount: grandTotal,
           totalItems,
         });
 
-        // Clear cart & show success popup modal
+        // 3. Open Cashfree Seamless Modal/Redirect
+        const checkoutOptions = {
+          paymentSessionId: paymentSessionRes.payment_session_id,
+          redirectTarget: "_self", // Seamless popup or redirect flow
+        };
+
+        cashfree.checkout(checkoutOptions);
         clearCart();
-        setShowOrderPopup(true);
       } else {
-        toast.error(data.message || "Order Failed");
+        toast.error("Could not initiate payment session.");
       }
     } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Unable to place order");
+      console.error("Checkout error:", err);
+      toast.error(err.response?.data?.message || "Unable to proceed to payment");
     } finally {
       setLoading(false);
     }
@@ -374,7 +412,7 @@ const ShoppingCart = () => {
                   className="w-full py-3 rounded-xl font-semibold transition text-sm disabled:opacity-50"
                   style={{ background: AMBER, color: "#1A1200" }}
                 >
-                  {loading ? "Placing order..." : "Proceed to checkout"}
+                  {loading ? "Processing..." : "Pay via Cashfree"}
                 </button>
 
                 <button
@@ -395,7 +433,6 @@ const ShoppingCart = () => {
       {showOrderPopup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
           <div className="rounded-3xl max-w-md w-full p-6 text-center relative" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
-            {/* Close Cross Button */}
             <button
               onClick={() => {
                 setShowOrderPopup(false);
@@ -407,7 +444,6 @@ const ShoppingCart = () => {
               <X size={18} />
             </button>
 
-            {/* Success Icon Badge */}
             <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#E4F3E9" }}>
               <CheckCircle2 size={48} style={{ color: "#1D7A43" }} />
             </div>
@@ -416,10 +452,9 @@ const ShoppingCart = () => {
               Order confirmed!
             </h2>
             <p className="text-xs mb-6" style={{ color: MUTED }}>
-              Thank you for shopping with us. Your order has been placed.
+              Thank you for shopping with us. Your payment has been processed.
             </p>
 
-            {/* Order Details Card */}
             <div className="rounded-2xl p-4 text-left space-y-3 mb-6" style={{ background: SURFACE_MUTED, border: `1px solid ${BORDER}` }}>
               <div className="flex justify-between items-center text-xs">
                 <span style={{ color: MUTED }}>Order ID</span>
@@ -445,7 +480,6 @@ const ShoppingCart = () => {
               </div>
             </div>
 
-            {/* Actions */}
             <div className="space-y-2.5">
               <button
                 onClick={() => {
