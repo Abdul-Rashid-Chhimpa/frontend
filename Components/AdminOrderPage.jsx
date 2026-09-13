@@ -7,12 +7,14 @@ import {
   IndianRupee,
   Truck,
   CheckCircle,
+  CheckCircle2,
   Clock,
   XCircle,
   RefreshCw,
   ShoppingBag,
   AlertTriangle,
   Trash2,
+  Calendar,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
@@ -48,7 +50,7 @@ const AdminOrders = () => {
         error.response?.data?.message ||
           "Failed to load orders. Make sure to remove .populate('items.product') from backend controller."
       );
-    } finally {
+    } fontFinally: {
       setLoading(false);
     }
   };
@@ -60,8 +62,20 @@ const AdminOrders = () => {
   const updateStatus = async (id, status) => {
     try {
       setUpdatingId(id);
-      await axios.put(`${API_BASE}/orders/${id}`, { status });
-      await fetchOrders();
+      const updatedAt = new Date().toLocaleString("en-IN", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      });
+
+      // Sends both the updated status and timestamp to backend
+      await axios.put(`${API_BASE}/orders/${id}`, { status, statusUpdatedAt: updatedAt });
+      
+      // Update local state immediately for fast UI feedback
+      setOrders((prevOrders) =>
+        prevOrders.map((o) =>
+          o._id === id ? { ...o, status, statusUpdatedAt: updatedAt } : o
+        )
+      );
     } catch (error) {
       console.error("Update Status Error:", error);
       alert(error.response?.data?.message || "Failed to update order status");
@@ -70,7 +84,6 @@ const AdminOrders = () => {
     }
   };
 
-  // Delete Order Handler (Fixed Typo)
   const handleDeleteOrder = async () => {
     if (!orderToDelete) return;
     try {
@@ -96,6 +109,14 @@ const AdminOrders = () => {
           border: "border-amber-200",
           badge: "bg-amber-500",
           icon: <Clock size={14} />,
+        };
+      case "Order Confirmed":
+        return {
+          bg: "bg-indigo-50",
+          text: "text-indigo-700",
+          border: "border-indigo-200",
+          badge: "bg-indigo-600",
+          icon: <CheckCircle2 size={14} />,
         };
       case "Shipped":
         return {
@@ -235,11 +256,20 @@ const AdminOrders = () => {
                         </div>
                       </div>
 
-                      <div
-                        className={`inline-flex items-center gap-1.5 self-start lg:self-center px-3.5 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
-                      >
-                        {statusStyle.icon}
-                        {currentStatus}
+                      {/* Status Badge & Timestamp */}
+                      <div className="flex flex-col items-start lg:items-end gap-1">
+                        <div
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
+                        >
+                          {statusStyle.icon}
+                          {currentStatus}
+                        </div>
+                        {order.statusUpdatedAt && (
+                          <div className="flex items-center gap-1 text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5">
+                            <Calendar size={12} className="text-gray-400" />
+                            <span>Updated: {order.statusUpdatedAt}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -310,6 +340,15 @@ const AdminOrders = () => {
                         >
                           <Clock size={14} />
                           Pending
+                        </button>
+
+                        <button
+                          disabled={currentStatus === "Order Confirmed" || isUpdating || isDeleting}
+                          onClick={() => updateStatus(order._id, "Order Confirmed")}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+                        >
+                          <CheckCircle2 size={14} />
+                          Confirm Order
                         </button>
 
                         <button
