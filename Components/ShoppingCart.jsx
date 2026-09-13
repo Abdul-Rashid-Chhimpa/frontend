@@ -133,7 +133,7 @@ const ShoppingCart = () => {
         userId: user._id,
         customerName: user.name,
         customerEmail: user.email || "customer@pedwal.in",
-        customerPhone: user.phone || "9999999999",
+        customerPhone: user.mobile || "9999999999",
         items: cart.map((item) => {
           const gstRate =
             item.gst !== undefined && item.gst !== "" ? Number(item.gst) : 18;
