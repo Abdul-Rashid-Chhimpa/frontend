@@ -152,25 +152,167 @@ const Card = () => {
   };
 
   // ======================================================
+  // GLASSMORPHISM SKELETON LOADER
+  // ======================================================
+  const renderSkeletonCard = (key) => (
+    <div
+      key={key}
+      className="relative rounded-xl sm:rounded-2xl overflow-hidden"
+      style={{
+        background: "rgba(255, 255, 255, 0.45)",
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
+        border: "1px solid rgba(255, 255, 255, 0.6)",
+        boxShadow: "0 8px 24px rgba(21, 24, 28, 0.06)",
+      }}
+    >
+      {/* Image placeholder */}
+      <div
+        className="relative h-44 sm:h-52 md:h-56 overflow-hidden shimmer"
+        style={{ background: "rgba(230, 232, 235, 0.6)" }}
+      />
+
+      {/* Body placeholder */}
+      <div className="p-3.5 sm:p-4 md:p-5">
+        <div
+          className="h-4 sm:h-5 w-3/4 rounded-md shimmer"
+          style={{ background: "rgba(230, 232, 235, 0.7)" }}
+        />
+        <div
+          className="h-3 w-1/2 rounded-md shimmer mt-2.5"
+          style={{ background: "rgba(230, 232, 235, 0.6)" }}
+        />
+        <div
+          className="h-3 w-2/5 rounded-md shimmer mt-1.5"
+          style={{ background: "rgba(230, 232, 235, 0.6)" }}
+        />
+
+        <div className="flex justify-between items-end mt-4 sm:mt-5">
+          <div
+            className="h-6 sm:h-7 w-16 sm:w-20 rounded-md shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.7)" }}
+          />
+          <div
+            className="h-6 sm:h-7 w-10 rounded-md shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.6)" }}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mt-4 sm:mt-5">
+          <div
+            className="h-9 sm:h-10 rounded-lg sm:rounded-xl shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.7)" }}
+          />
+          <div
+            className="h-9 sm:h-10 rounded-lg sm:rounded-xl shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.6)" }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderLoadingState = () => (
+    <div className="min-h-screen" style={{ background: BG }}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
+        {/* Heading placeholder */}
+        <div className="mb-6 sm:mb-8 md:mb-10">
+          <div
+            className="h-7 sm:h-9 w-40 sm:w-52 rounded-lg shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.7)" }}
+          />
+          <div className="w-10 h-1 rounded-full mt-3 mb-3" style={{ background: AMBER }} />
+          <div
+            className="h-3.5 sm:h-4 w-56 sm:w-72 rounded-md shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.6)" }}
+          />
+        </div>
+
+        <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          {/* Sidebar glass panel */}
+          <div className="hidden lg:block lg:col-span-1">
+            <div
+              className="sticky top-20 xl:top-24 rounded-2xl xl:rounded-3xl overflow-hidden p-5 xl:p-6 min-h-[420px] xl:min-h-[480px]"
+              style={{
+                background: "rgba(43, 74, 94, 0.55)",
+                backdropFilter: "blur(16px)",
+                WebkitBackdropFilter: "blur(16px)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-6">
+                <Filter size={20} className="text-white/70" />
+                <div
+                  className="h-5 w-20 rounded-md shimmer"
+                  style={{ background: "rgba(255,255,255,0.25)" }}
+                />
+              </div>
+              <div
+                className="h-4 w-32 rounded-md shimmer mb-4"
+                style={{ background: "rgba(255,255,255,0.2)" }}
+              />
+              <div className="flex gap-2.5 mb-8">
+                {[1, 2, 3].map((i) => (
+                  <div
+                    key={i}
+                    className="w-20 h-24 rounded-2xl shimmer"
+                    style={{ background: "rgba(255,255,255,0.15)" }}
+                  />
+                ))}
+              </div>
+              <div
+                className="h-4 w-28 rounded-md shimmer mb-3"
+                style={{ background: "rgba(255,255,255,0.2)" }}
+              />
+              <div
+                className="h-2 w-full rounded-full shimmer"
+                style={{ background: "rgba(255,255,255,0.2)" }}
+              />
+            </div>
+          </div>
+
+          {/* Product skeleton grid */}
+          <div className="lg:col-span-3">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+              {Array.from({ length: 6 }).map((_, i) => renderSkeletonCard(i))}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .shimmer {
+          position: relative;
+          overflow: hidden;
+        }
+        .shimmer::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          transform: translateX(-100%);
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.55) 50%,
+            rgba(255, 255, 255, 0) 100%
+          );
+          animation: shimmer-sweep 1.6s infinite;
+        }
+        @keyframes shimmer-sweep {
+          100% { transform: translateX(100%); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .shimmer::after { animation: none; }
+        }
+      `}</style>
+    </div>
+  );
+
+  // ======================================================
   // LOADING
   // ======================================================
   if (loading) {
-    return (
-      <div
-        className="flex justify-center items-center min-h-[60vh] sm:min-h-[70vh]"
-        style={{ background: BG }}
-      >
-        <div className="text-center px-4">
-          <div
-            className="w-12 h-12 sm:w-16 sm:h-16 border-4 rounded-full animate-spin mx-auto"
-            style={{ borderColor: AMBER_DARK, borderTopColor: "transparent" }}
-          ></div>
-          <h2 className="mt-4 sm:mt-5 text-lg sm:text-xl font-semibold" style={{ color: INK }}>
-            Loading products…
-          </h2>
-        </div>
-      </div>
-    );
+    return renderLoadingState();
   }
 
   // ======================================================
