@@ -11,7 +11,20 @@ import {
   Layers,
   Truck,
   CreditCard,
+  Tag,
 } from "lucide-react";
+
+// ======================================================
+// DESIGN TOKENS — shared with the storefront + admin console
+// ======================================================
+const INK = "#15181C";
+const MUTED = "#6B7280";
+const BORDER = "#E6E8EB";
+const SURFACE = "#FFFFFF";
+const BG = "#F5F6F4";
+const AMBER = "#F0A420";
+const STEEL = "#2B4A5E";
+const STEEL_DARK = "#17303E";
 
 const GetAllProducts = () => {
   const [products, setProducts] = useState([]);
@@ -240,45 +253,89 @@ const GetAllProducts = () => {
     }
   };
 
+  // ======================================================
+  // LOADING — flat skeleton grid, consistent with storefront
+  // ======================================================
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="mt-4 text-gray-600 font-medium">Loading Products...</p>
+      <div className="min-h-screen py-6 sm:py-8 px-3 sm:px-6" style={{ background: BG }}>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+            <div>
+              <div className="h-7 sm:h-9 w-40 rounded-lg shimmer" style={{ background: BORDER }} />
+              <div className="h-3.5 w-32 rounded-md shimmer mt-2.5" style={{ background: BORDER }} />
+            </div>
+            <div className="h-10 w-28 rounded-xl shimmer" style={{ background: BORDER }} />
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-2xl overflow-hidden border" style={{ background: SURFACE, borderColor: BORDER }}>
+                <div className="h-48 sm:h-52 shimmer" style={{ background: "#F1F2EF" }} />
+                <div className="p-4 sm:p-5">
+                  <div className="h-4 w-3/4 rounded-md shimmer" style={{ background: BORDER }} />
+                  <div className="h-3 w-1/2 rounded-md shimmer mt-3" style={{ background: BORDER }} />
+                  <div className="h-3 w-2/5 rounded-md shimmer mt-2" style={{ background: BORDER }} />
+                  <div className="h-16 rounded-xl shimmer mt-4" style={{ background: BG }} />
+                  <div className="grid grid-cols-2 gap-2.5 mt-4">
+                    <div className="h-10 rounded-xl shimmer" style={{ background: BORDER }} />
+                    <div className="h-10 rounded-xl shimmer" style={{ background: BORDER }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
+
+        <style>{`
+          .shimmer { position: relative; overflow: hidden; }
+          .shimmer::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            transform: translateX(-100%);
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%);
+            animation: shimmer-sweep 1.6s infinite;
+          }
+          @keyframes shimmer-sweep { 100% { transform: translateX(100%); } }
+          @media (prefers-reduced-motion: reduce) { .shimmer::after { animation: none; } }
+        `}</style>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-indigo-50 to-purple-50 py-6 sm:py-8 px-3 sm:px-6">
+    <div className="min-h-screen py-6 sm:py-8 px-3 sm:px-6" style={{ background: BG }}>
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900">
-              All Products
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight" style={{ color: INK }}>
+              All products
             </h1>
-            <p className="text-gray-500 mt-1 text-sm sm:text-base">
+            <p className="mt-1 text-sm sm:text-base" style={{ color: MUTED }}>
               {products.length} product{products.length !== 1 ? "s" : ""} found
             </p>
           </div>
           <button
             onClick={fetchProducts}
-            className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition font-medium text-sm shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border font-medium text-sm transition"
+            style={{ background: SURFACE, borderColor: BORDER, color: INK }}
           >
-            <RefreshCw size={16} />
+            <RefreshCw size={16} style={{ color: STEEL }} />
             Refresh
           </button>
         </div>
 
         {products.length === 0 ? (
-          <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-12 text-center">
-            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5">
-              <Boxes size={36} className="text-indigo-400" />
+          <div className="rounded-2xl border p-12 text-center" style={{ background: SURFACE, borderColor: BORDER }}>
+            <div
+              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
+              style={{ background: BG }}
+            >
+              <Boxes size={36} style={{ color: STEEL }} />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">No Products Found</h2>
-            <p className="text-gray-500 mt-2">Add products to see them here.</p>
+            <h2 className="text-2xl font-bold" style={{ color: INK }}>No products found</h2>
+            <p className="mt-2" style={{ color: MUTED }}>Add products to see them here.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
@@ -305,9 +362,10 @@ const GetAllProducts = () => {
               return (
                 <div
                   key={product._id}
-                  className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col"
+                  className="rounded-2xl overflow-hidden border transition-all duration-200 hover:-translate-y-1 flex flex-col"
+                  style={{ background: SURFACE, borderColor: BORDER }}
                 >
-                  <div className="relative h-48 sm:h-52 bg-gradient-to-br from-gray-50 to-gray-100">
+                  <div className="relative h-48 sm:h-52" style={{ background: "#F1F2EF" }}>
                     <img
                       src={product.images?.[0] || "https://via.placeholder.com/500x400?text=No+Image"}
                       alt={product.name}
@@ -316,7 +374,10 @@ const GetAllProducts = () => {
                         e.target.src = "https://via.placeholder.com/500x400?text=No+Image";
                       }}
                     />
-                    <span className="absolute top-3 right-3 bg-white/90 backdrop-blur text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm text-gray-700">
+                    <span
+                      className="absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full border"
+                      style={{ background: SURFACE, borderColor: BORDER, color: INK }}
+                    >
                       Stock: {product.stock ?? 0}
                     </span>
                   </div>
@@ -328,86 +389,95 @@ const GetAllProducts = () => {
                           key={index}
                           src={img}
                           alt=""
-                          className="w-12 h-12 rounded-lg border border-gray-200 object-cover flex-shrink-0"
+                          className="w-12 h-12 rounded-lg border object-cover flex-shrink-0"
+                          style={{ borderColor: BORDER }}
                         />
                       ))}
                     </div>
                   )}
 
                   <div className="p-4 sm:p-5 flex-1 flex flex-col">
-                    <h2 className="font-bold text-lg text-gray-900 line-clamp-2">
+                    <h2 className="font-bold text-lg line-clamp-2" style={{ color: INK }}>
                       {product.name}
                     </h2>
 
-                    <div className="flex flex-wrap gap-2 mt-2">
+                    <div className="flex flex-wrap gap-2 mt-2.5">
                       {product.category && (
-                        <span className="bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                        <span
+                          className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border"
+                          style={{ background: BG, borderColor: BORDER, color: INK }}
+                        >
+                          <Tag size={11} style={{ color: STEEL }} />
                           {product.category}
                         </span>
                       )}
                       {product.brand && (
-                        <span className="bg-emerald-50 text-emerald-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                        <span
+                          className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-lg border"
+                          style={{ background: BG, borderColor: BORDER, color: INK }}
+                        >
                           {product.brand}
                         </span>
                       )}
                       {product.variantGroup && (
-                        <span className="bg-purple-50 text-purple-700 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1">
-                          <Layers size={12} />
+                        <span
+                          className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border"
+                          style={{ background: BG, borderColor: BORDER, color: INK }}
+                        >
+                          <Layers size={11} style={{ color: STEEL }} />
                           {product.variantGroup}
                         </span>
                       )}
                     </div>
 
-                    <div className="mt-3 text-sm text-gray-600 space-y-0.5">
+                    <div className="mt-3 text-sm space-y-0.5" style={{ color: MUTED }}>
                       <p>
-                        <span className="font-medium text-gray-800">Material:</span>{" "}
+                        <span className="font-medium" style={{ color: INK }}>Material:</span>{" "}
                         {product.material || "—"}
                       </p>
                       {(product.size || product.weight) && (
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs">
                           {product.size && <span>Size: {product.size} </span>}
                           {product.weight && <span>| Weight: {product.weight}</span>}
                         </p>
                       )}
                       {product.gst !== undefined && product.gst !== null && (
-                        <p className="text-xs text-indigo-600 font-medium">
+                        <p className="text-xs font-medium" style={{ color: STEEL }}>
                           GST: {product.gst}%
                         </p>
                       )}
-                      <p className="text-emerald-600 font-bold text-base mt-1">
+                      <p className="font-bold text-base mt-1" style={{ color: "#1D7A43" }}>
                         From ₹{lowestPrice.toLocaleString()}
                       </p>
                     </div>
 
                     {/* Delivery & Payment Details */}
-                    <div className="mt-3 pt-3 border-t border-gray-100 text-xs space-y-2 bg-slate-50 p-2.5 rounded-xl">
-                      <div className="flex items-start gap-1.5 text-gray-700">
-                        <Truck size={15} className="text-indigo-600 flex-shrink-0 mt-0.5" />
+                    <div className="mt-3 pt-3 border-t text-xs space-y-2 p-2.5 rounded-xl" style={{ borderColor: BORDER, background: BG }}>
+                      <div className="flex items-start gap-1.5" style={{ color: INK }}>
+                        <Truck size={15} style={{ color: STEEL }} className="flex-shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-semibold text-gray-900">Delivery: </span>
+                          <span className="font-semibold">Delivery: </span>
                           {deliveryCharge === 0 || deliveryCharge === "0" ? (
-                            <span className="text-emerald-600 font-bold">Free Delivery</span>
+                            <span className="font-bold" style={{ color: "#1D7A43" }}>Free delivery</span>
                           ) : deliveryCharge ? (
-                            <span className="font-medium text-gray-800">₹{deliveryCharge} Charge</span>
+                            <span className="font-medium">₹{deliveryCharge} charge</span>
                           ) : (
-                            <span className="text-gray-400 italic">Not Specified</span>
+                            <span className="italic" style={{ color: MUTED }}>Not specified</span>
                           )}
                           {deliveryTime && (
-                            <span className="text-gray-500 font-normal"> ({deliveryTime})</span>
+                            <span style={{ color: MUTED }}> ({deliveryTime})</span>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex items-start gap-1.5 text-gray-700">
-                        <CreditCard size={15} className="text-emerald-600 flex-shrink-0 mt-0.5" />
+                      <div className="flex items-start gap-1.5" style={{ color: INK }}>
+                        <CreditCard size={15} style={{ color: STEEL }} className="flex-shrink-0 mt-0.5" />
                         <div>
-                          <span className="font-semibold text-gray-900">Payment: </span>
+                          <span className="font-semibold">Payment: </span>
                           {paymentMethods.length > 0 ? (
-                            <span className="text-gray-700 font-medium">
-                              {paymentMethods.join(", ")}
-                            </span>
+                            <span className="font-medium">{paymentMethods.join(", ")}</span>
                           ) : (
-                            <span className="text-amber-600 italic font-medium">No methods specified</span>
+                            <span className="italic font-medium" style={{ color: "#B4691F" }}>No methods specified</span>
                           )}
                         </div>
                       </div>
@@ -416,31 +486,32 @@ const GetAllProducts = () => {
                     {matchingVarieties.length > 0 && (
                       <button
                         type="button"
-                        className="w-full mt-3 py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold rounded-xl border border-purple-200 transition flex items-center justify-center gap-1.5"
+                        className="w-full mt-3 py-2 px-3 text-xs font-semibold rounded-xl border transition flex items-center justify-center gap-1.5"
+                        style={{ background: BG, borderColor: BORDER, color: STEEL }}
                       >
                         <Layers size={14} />
-                        View More Varieties ({matchingVarieties.length + 1} items)
+                        View more varieties ({matchingVarieties.length + 1} items)
                       </button>
                     )}
 
                     {product.pricing?.length > 0 && (
                       <div className="mt-4">
-                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
-                          Quantity Pricing
+                        <h3 className="text-xs font-semibold mb-2" style={{ color: MUTED }}>
+                          Quantity pricing
                         </h3>
-                        <div className="border border-gray-100 rounded-xl overflow-hidden">
+                        <div className="rounded-xl overflow-hidden border" style={{ borderColor: BORDER }}>
                           <table className="w-full text-sm">
-                            <thead className="bg-gray-50">
+                            <thead style={{ background: BG }}>
                               <tr>
-                                <th className="py-2 px-3 text-left text-gray-600 font-medium">Qty</th>
-                                <th className="py-2 px-3 text-right text-gray-600 font-medium">Price</th>
+                                <th className="py-2 px-3 text-left font-medium" style={{ color: MUTED }}>Qty</th>
+                                <th className="py-2 px-3 text-right font-medium" style={{ color: MUTED }}>Price</th>
                               </tr>
                             </thead>
                             <tbody>
                               {product.pricing.map((price, index) => (
-                                <tr key={index} className="border-t border-gray-50">
-                                  <td className="py-2 px-3 text-gray-700">{price.quantity}+</td>
-                                  <td className="py-2 px-3 text-right font-semibold text-emerald-600">
+                                <tr key={index} className="border-t" style={{ borderColor: BORDER }}>
+                                  <td className="py-2 px-3" style={{ color: INK }}>{price.quantity}+</td>
+                                  <td className="py-2 px-3 text-right font-semibold" style={{ color: "#1D7A43" }}>
                                     ₹{Number(price.price).toLocaleString()}
                                   </td>
                                 </tr>
@@ -452,16 +523,17 @@ const GetAllProducts = () => {
                     )}
 
                     {product.description && (
-                      <div className="mt-3 text-sm text-gray-600 leading-relaxed">
+                      <div className="mt-3 text-sm leading-relaxed" style={{ color: MUTED }}>
                         {expanded
                           ? product.description
                           : product.description.slice(0, 80)}
                         {product.description.length > 80 && (
                           <button
                             onClick={() => toggleDescription(product._id)}
-                            className="text-indigo-600 ml-1 font-medium hover:underline"
+                            className="ml-1 font-medium hover:underline"
+                            style={{ color: STEEL }}
                           >
-                            {expanded ? "Show Less" : "...Read More"}
+                            {expanded ? "Show less" : "...Read more"}
                           </button>
                         )}
                       </div>
@@ -478,14 +550,16 @@ const GetAllProducts = () => {
                             newImages: [],
                           })
                         }
-                        className="flex-1 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition text-white"
+                        style={{ background: STEEL }}
                       >
                         <Pencil size={15} />
                         Edit
                       </button>
                       <button
                         onClick={() => deleteProduct(product._id)}
-                        className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl text-sm font-semibold transition shadow-sm"
+                        className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition border"
+                        style={{ borderColor: "#F0BABA", color: "#B4302F", background: "#FBEEEE" }}
                       >
                         <Trash2 size={15} />
                         Delete
@@ -501,15 +575,19 @@ const GetAllProducts = () => {
 
       {/* ================= EDIT MODAL ================= */}
       {editProduct && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-5">
-          <div className="bg-white w-full max-w-3xl rounded-2xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-100 px-5 sm:px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl sm:rounded-t-3xl">
-              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">
-                Edit Product
+        <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-5">
+          <div className="w-full max-w-3xl rounded-2xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: SURFACE }}>
+            <div
+              className="sticky top-0 border-b px-5 sm:px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl sm:rounded-t-3xl"
+              style={{ background: SURFACE, borderColor: BORDER }}
+            >
+              <h2 className="text-xl sm:text-2xl font-bold" style={{ color: INK }}>
+                Edit product
               </h2>
               <button
                 onClick={closeEditModal}
-                className="p-2 rounded-xl hover:bg-gray-100 text-gray-500 transition"
+                className="p-2 rounded-xl transition"
+                style={{ color: MUTED }}
               >
                 <X size={20} />
               </button>
@@ -518,9 +596,9 @@ const GetAllProducts = () => {
             <div className="p-5 sm:p-6 space-y-6">
               {/* Images */}
               <div>
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                  <ImagePlus size={18} />
-                  Product Images
+                <h3 className="font-semibold mb-3 flex items-center gap-2" style={{ color: INK }}>
+                  <ImagePlus size={18} style={{ color: STEEL }} />
+                  Product images
                 </h3>
                 <div className="flex flex-wrap gap-3">
                   {editProduct.images?.map((img, index) => (
@@ -528,16 +606,21 @@ const GetAllProducts = () => {
                       <img
                         src={img}
                         alt=""
-                        className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl object-cover border border-gray-200"
+                        className="w-24 h-24 sm:w-28 sm:h-28 rounded-xl object-cover border"
+                        style={{ borderColor: BORDER }}
                       />
                       <button
                         type="button"
                         onClick={() => deleteImage(index)}
-                        className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow"
+                        className="absolute -top-2 -right-2 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow"
+                        style={{ background: "#B4302F" }}
                       >
                         ✕
                       </button>
-                      <label className="absolute bottom-1 left-1 right-1 bg-indigo-600 text-white text-[10px] sm:text-xs py-1 rounded text-center cursor-pointer opacity-90 hover:opacity-100">
+                      <label
+                        className="absolute bottom-1 left-1 right-1 text-white text-[10px] sm:text-xs py-1 rounded text-center cursor-pointer opacity-90 hover:opacity-100"
+                        style={{ background: STEEL }}
+                      >
                         Replace
                         <input
                           hidden
@@ -552,7 +635,10 @@ const GetAllProducts = () => {
                     </div>
                   ))}
 
-                  <label className="w-24 h-24 sm:w-28 sm:h-28 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition text-gray-400">
+                  <label
+                    className="w-24 h-24 sm:w-28 sm:h-28 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition"
+                    style={{ borderColor: BORDER, color: MUTED }}
+                  >
                     <Plus size={24} />
                     <span className="text-[10px] mt-1">Add</span>
                     <input
@@ -570,15 +656,15 @@ const GetAllProducts = () => {
               {/* Basic Fields */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 {[
-                  { name: "name", placeholder: "Product Name" },
+                  { name: "name", placeholder: "Product name" },
                   { name: "brand", placeholder: "Brand" },
                   { name: "category", placeholder: "Category" },
                   { name: "material", placeholder: "Material" },
                   { name: "stock", placeholder: "Stock", type: "number" },
                   { name: "size", placeholder: "Size (e.g. XL, 10 inch)" },
                   { name: "weight", placeholder: "Weight (e.g. 500g, 1kg)" },
-                  { name: "gst", placeholder: "GST Percentage (%)", type: "number" },
-                  { name: "variantGroup", placeholder: "Variant Group" },
+                  { name: "gst", placeholder: "GST percentage (%)", type: "number" },
+                  { name: "variantGroup", placeholder: "Variant group" },
                 ].map((field) => (
                   <input
                     key={field.name}
@@ -587,16 +673,17 @@ const GetAllProducts = () => {
                     value={editProduct[field.name] ?? ""}
                     onChange={handleEditChange}
                     placeholder={field.placeholder}
-                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                    className="rounded-xl px-4 py-3 text-sm outline-none border focus:ring-2 transition"
+                    style={{ borderColor: BORDER, color: INK }}
                   />
                 ))}
               </div>
 
               {/* Delivery Details */}
               <div>
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2 text-sm">
-                  <Truck size={18} className="text-indigo-600" />
-                  Delivery Details
+                <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm" style={{ color: INK }}>
+                  <Truck size={18} style={{ color: STEEL }} />
+                  Delivery details
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <input
@@ -604,25 +691,27 @@ const GetAllProducts = () => {
                     name="deliveryCharge"
                     value={editProduct.deliveryCharge ?? ""}
                     onChange={handleEditChange}
-                    placeholder="Delivery Charge (₹, 0 for Free)"
-                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                    placeholder="Delivery charge (₹, 0 for free)"
+                    className="rounded-xl px-4 py-3 text-sm outline-none border transition"
+                    style={{ borderColor: BORDER, color: INK }}
                   />
                   <input
                     type="text"
                     name="deliveryTime"
                     value={editProduct.deliveryTime ?? ""}
                     onChange={handleEditChange}
-                    placeholder="Estimated Delivery Time (e.g. 3-5 Business Days)"
-                    className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                    placeholder="Estimated delivery time (e.g. 3-5 business days)"
+                    className="rounded-xl px-4 py-3 text-sm outline-none border transition"
+                    style={{ borderColor: BORDER, color: INK }}
                   />
                 </div>
               </div>
 
               {/* Payment Methods */}
               <div>
-                <h3 className="font-semibold text-gray-800 mb-3 flex items-center gap-2 text-sm">
-                  <CreditCard size={18} className="text-emerald-600" />
-                  Accepted Payment Methods
+                <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm" style={{ color: INK }}>
+                  <CreditCard size={18} style={{ color: STEEL }} />
+                  Accepted payment methods
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {AVAILABLE_PAYMENT_METHODS.map((method) => {
@@ -630,17 +719,19 @@ const GetAllProducts = () => {
                     return (
                       <label
                         key={method}
-                        className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-sm font-medium ${
+                        className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-sm font-medium"
+                        style={
                           isSelected
-                            ? "border-emerald-500 bg-emerald-50/50 text-emerald-900"
-                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                        }`}
+                            ? { borderColor: STEEL, background: `${STEEL}0D`, color: INK }
+                            : { borderColor: BORDER, color: MUTED }
+                        }
                       >
                         <input
                           type="checkbox"
                           checked={!!isSelected}
                           onChange={() => handlePaymentMethodToggle(method)}
-                          className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500 border-gray-300"
+                          className="w-4 h-4 rounded"
+                          style={{ accentColor: STEEL }}
                         />
                         {method}
                       </label>
@@ -652,16 +743,17 @@ const GetAllProducts = () => {
               {/* Quantity Wise Pricing */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-gray-800">
-                    Quantity Wise Pricing *
+                  <h3 className="font-semibold" style={{ color: INK }}>
+                    Quantity wise pricing *
                   </h3>
                   <button
                     type="button"
                     onClick={addPriceRow}
-                    className="flex items-center gap-1.5 text-sm bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg transition"
+                    className="flex items-center gap-1.5 text-sm text-white px-3 py-1.5 rounded-lg transition"
+                    style={{ background: STEEL }}
                   >
                     <Plus size={14} />
-                    Add Price
+                    Add price
                   </button>
                 </div>
 
@@ -675,11 +767,12 @@ const GetAllProducts = () => {
                         type="number"
                         min="1"
                         value={item.quantity ?? ""}
-                        placeholder="Min Qty (min 1)"
+                        placeholder="Min qty (min 1)"
                         onChange={(e) =>
                           handlePriceChange(index, "quantity", e.target.value)
                         }
-                        className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
+                        className="col-span-5 rounded-xl px-3 py-2.5 text-sm outline-none border"
+                        style={{ borderColor: BORDER, color: INK }}
                       />
                       <input
                         type="number"
@@ -689,12 +782,14 @@ const GetAllProducts = () => {
                         onChange={(e) =>
                           handlePriceChange(index, "price", e.target.value)
                         }
-                        className="col-span-5 border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-500"
+                        className="col-span-5 rounded-xl px-3 py-2.5 text-sm outline-none border"
+                        style={{ borderColor: BORDER, color: INK }}
                       />
                       <button
                         type="button"
                         onClick={() => removePriceRow(index)}
-                        className="col-span-2 bg-red-500 hover:bg-red-600 text-white rounded-xl py-2.5 text-sm transition"
+                        className="col-span-2 rounded-xl py-2.5 text-sm transition border"
+                        style={{ borderColor: "#F0BABA", color: "#B4302F", background: "#FBEEEE" }}
                       >
                         <Trash2 size={14} className="mx-auto" />
                       </button>
@@ -705,7 +800,7 @@ const GetAllProducts = () => {
 
               {/* Description */}
               <div>
-                <label className="font-semibold text-gray-800 text-sm mb-2 block">
+                <label className="font-semibold text-sm mb-2 block" style={{ color: INK }}>
                   Description
                 </label>
                 <textarea
@@ -714,7 +809,8 @@ const GetAllProducts = () => {
                   value={editProduct.description || ""}
                   onChange={handleEditChange}
                   placeholder="Product description..."
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition resize-none"
+                  className="w-full rounded-xl px-4 py-3 text-sm outline-none border resize-none transition"
+                  style={{ borderColor: BORDER, color: INK }}
                 />
               </div>
 
@@ -724,14 +820,16 @@ const GetAllProducts = () => {
                   type="button"
                   onClick={updateProduct}
                   disabled={updating}
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-400 text-white py-3 rounded-xl font-semibold transition shadow-sm"
+                  className="flex-1 text-white py-3 rounded-xl font-semibold transition disabled:opacity-60"
+                  style={{ background: updating ? MUTED : STEEL_DARK }}
                 >
-                  {updating ? "Saving..." : "Save Changes"}
+                  {updating ? "Saving..." : "Save changes"}
                 </button>
                 <button
                   type="button"
                   onClick={closeEditModal}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3 rounded-xl font-semibold transition"
+                  className="flex-1 py-3 rounded-xl font-semibold transition border"
+                  style={{ borderColor: BORDER, color: INK, background: BG }}
                 >
                   Cancel
                 </button>
