@@ -47,7 +47,7 @@ const ShoppingCart = () => {
     const initCashfree = async () => {
       try {
         const cashfreeInstance = await load({
-          mode: "production", // Set to "sandbox" for testing mode
+          mode: "sandbox", // Set to "sandbox" for testing mode
         });
         setCashfree(cashfreeInstance);
       } catch (error) {
