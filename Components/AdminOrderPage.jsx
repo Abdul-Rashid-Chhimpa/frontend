@@ -342,14 +342,15 @@ const AdminOrders = () => {
                           Pending
                         </button>
 
-                        <button
-                          disabled={currentStatus === "Order Confirmed" || isUpdating || isDeleting}
-                          onClick={() => updateStatus(order._id, "Order Confirmed")}
-                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
-                        >
-                          <CheckCircle2 size={14} />
-                          Confirm Order
-                        </button>
+                     <button
+  disabled={currentStatus === "Order Confirmed" || isUpdating || isDeleting}
+  // Change "Order Confirmed" to match your backend enum value (e.g., "Confirmed" or "Processing")
+  onClick={() => updateStatus(order._id, "Confirmed")}
+  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+>
+  <CheckCircle2 size={14} />
+  Confirm Order
+</button>
 
                         <button
                           disabled={currentStatus === "Shipped" || isUpdating || isDeleting}
