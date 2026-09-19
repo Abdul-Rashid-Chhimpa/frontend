@@ -252,8 +252,9 @@ const ShoppingCart = () => {
             </button>
           </div>
 
-          <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-4">
+          <div className="grid lg:grid-cols-3 gap-6 items-start">
+            {/* Scrollable Products List */}
+            <div className="lg:col-span-2 space-y-4 max-h-[calc(100vh-140px)] overflow-y-auto pr-1">
               {cart.map((item, index) => {
                 const itemId = getItemId(item);
                 const image = getImage(item);
@@ -366,8 +367,9 @@ const ShoppingCart = () => {
               })}
             </div>
 
-            <div className="lg:col-span-1">
-              <div className="rounded-2xl p-5 sticky top-24" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+            {/* Fixed Order Summary Card */}
+            <div className="lg:col-span-1 lg:sticky lg:top-8">
+              <div className="rounded-2xl p-5" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
                 <h2 className="text-lg font-bold mb-4" style={{ color: INK }}>
                   Order summary
                 </h2>
