@@ -167,18 +167,15 @@ const getStepTime = (stepKey, order, currentStatus) => {
   return null;
 };
 
-useEffect(() => {
-  fetchOrders();
 
-  // Poll every 20s so admin status/time updates appear
-  const interval = setInterval(() => {
-    fetchOrders(true); // silent refresh
-  }, 20000);
+const OrderStepper = ({ status, order }) => {
+  const currentStatus = normalizeStatus(status);
+  const currentIndex = getStepIndex(currentStatus);
 
-  return () => clearInterval(interval);
-}, []);
   const progressPercent =
-    currentIndex <= 0 ? 0 : (currentIndex / (STEPPER_STEPS.length - 1)) * 100;
+    currentIndex <= 0
+      ? 0
+      : (currentIndex / (STEPPER_STEPS.length - 1)) * 100;
 
   return (
     <div className="w-full px-1 sm:px-3 py-4 sm:py-5">
@@ -199,32 +196,51 @@ useEffect(() => {
             const Icon = step.icon;
             const isCompleted = index < currentIndex;
             const isActive = index === currentIndex;
-            const timeLabel = getStepTime(step.key, order, currentStatus);
+            const timeLabel = getStepTime(
+              step.key,
+              order,
+              currentStatus
+            );
 
             return (
               <div
                 key={step.key}
                 className="flex flex-col items-center flex-1 min-w-0 px-0.5"
-                style={{ animation: `stepPop 0.45s ease ${index * 0.08}s both` }}
+                style={{
+                  animation: `stepPop 0.45s ease ${index * 0.08}s both`,
+                }}
               >
                 <div
                   className={`
-                    relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center
-                    border-2 transition-all duration-500 ease-out
+                    relative w-9 h-9 sm:w-11 sm:h-11 rounded-full
+                    flex items-center justify-center border-2
+                    transition-all duration-500 ease-out
                     ${isActive ? `ring-4 ${step.ring} scale-110` : ""}
                     ${isCompleted || isActive ? "shadow-md" : ""}
                   `}
                   style={{
-                    backgroundColor: isCompleted || isActive ? step.color : "#FFFFFF",
-                    borderColor: isCompleted || isActive ? step.color : "#D1D5DB",
-                    color: isCompleted || isActive ? "#FFFFFF" : "#9CA3AF",
+                    backgroundColor:
+                      isCompleted || isActive ? step.color : "#FFFFFF",
+                    borderColor:
+                      isCompleted || isActive ? step.color : "#D1D5DB",
+                    color:
+                      isCompleted || isActive ? "#FFFFFF" : "#9CA3AF",
                   }}
                 >
                   {isCompleted ? (
-                    <CheckCircle size={18} className="sm:w-5 sm:h-5" />
+                    <CheckCircle
+                      size={18}
+                      className="sm:w-5 sm:h-5"
+                    />
                   ) : (
-                    <Icon size={16} className={`sm:w-[18px] sm:h-[18px] ${isActive ? "animate-pulse" : ""}`} />
+                    <Icon
+                      size={16}
+                      className={`sm:w-[18px] sm:h-[18px] ${
+                        isActive ? "animate-pulse" : ""
+                      }`}
+                    />
                   )}
+
                   {isActive && (
                     <span
                       className="absolute inset-0 rounded-full animate-ping opacity-30"
@@ -237,20 +253,30 @@ useEffect(() => {
                   className={`mt-2.5 text-[10px] sm:text-xs font-bold text-center leading-tight transition-colors duration-300 ${
                     isActive || isCompleted ? "" : "text-gray-400"
                   }`}
-                  style={{ color: isActive || isCompleted ? step.color : undefined }}
+                  style={{
+                    color:
+                      isActive || isCompleted
+                        ? step.color
+                        : undefined,
+                  }}
                 >
                   {step.label}
                 </p>
 
                 <div
                   className={`mt-1 min-h-[28px] sm:min-h-[32px] flex items-start justify-center transition-all duration-500 ${
-                    timeLabel ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"
+                    timeLabel
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-0 translate-y-1"
                   }`}
                 >
                   {timeLabel && (
                     <span
                       className="text-[9px] sm:text-[10px] font-medium text-center leading-snug px-1 rounded-md"
-                      style={{ color: step.color, backgroundColor: step.bgSoft }}
+                      style={{
+                        color: step.color,
+                        backgroundColor: step.bgSoft,
+                      }}
                     >
                       {timeLabel}
                     </span>
@@ -264,14 +290,19 @@ useEffect(() => {
 
       <style>{`
         @keyframes stepPop {
-          from { opacity: 0; transform: translateY(8px) scale(0.9); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
+          from {
+            opacity: 0;
+            transform: translateY(8px) scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
         }
       `}</style>
     </div>
   );
-
-
+};
 
 // ======================================================
 // COMPONENT
@@ -491,9 +522,12 @@ const MyOrders = () => {
   };
 
   const handleDownloadInvoice = (order) => {
-    const isUnlocked = ["Confirmed", "Processing", "Shipped", "Delivered"].includes(
-      order.status
-    );
+    const isUnlocked = [
+      "Confirmed",
+      "Processing",
+      "Shipped",
+      "Delivered",
+    ].includes(normalizeStatus(order.status));
     if (!isUnlocked) {
       toast.error("Invoice will unlock once the order is Confirmed!");
       return;
@@ -900,7 +934,7 @@ const MyOrders = () => {
                           className="font-bold text-sm font-mono flex-shrink-0"
                           style={{ color: INK }}
                         >
-                          ₹{item.price * item.quantity}
+                          ₹{(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString("en-IN")}
                         </p>
                       </div>
                     ))}
