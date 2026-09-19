@@ -76,6 +76,8 @@ const Card = () => {
       );
       if (data?.success) {
         setProducts(data.products || []);
+      } else if (Array.isArray(data)) {
+        setProducts(data);
       } else {
         setProducts([]);
       }
@@ -92,20 +94,49 @@ const Card = () => {
   }, []);
 
   // ======================================================
-  // MEMOIZED DERIVED DATA
+  // HELPER FUNCTIONS & DERIVED DATA
   // ======================================================
+  const getLowestPrice = (product) => {
+    if (product.pricing && product.pricing.length > 0) {
+      const validPrices = product.pricing
+        .map((item) => Number(item.price))
+        .filter((val) => !isNaN(val) && val > 0);
+      if (validPrices.length > 0) return Math.min(...validPrices);
+    }
+    return Number(product.discountPrice) || Number(product.price) || 0;
+  };
+
+  const getOriginalPrice = (product) => {
+    return Number(product.originalPrice) || Number(product.mrp) || Number(product.price) || 0;
+  };
+
+  const getOfferPercentage = (product) => {
+    const rawOffer = Number(product.offer || product.discount);
+    if (!isNaN(rawOffer) && rawOffer > 0) return rawOffer;
+
+    const original = getOriginalPrice(product);
+    const lowest = getLowestPrice(product);
+
+    if (original > lowest && lowest > 0) {
+      return Math.round(((original - lowest) / original) * 100);
+    }
+    return 0;
+  };
+
   const categories = useMemo(() => {
     return [
       ...new Set(
-        products.map((item) => item.category || item.name).filter(Boolean)
+        products
+          .map((item) => item.category || "Uncategorized")
+          .filter(Boolean)
       ),
     ];
   }, [products]);
 
   const categoryCounts = useMemo(() => {
     return products.reduce((acc, product) => {
-      const cat = product.category || product.name;
-      if (cat) acc[cat] = (acc[cat] || 0) + 1;
+      const cat = product.category || "Uncategorized";
+      acc[cat] = (acc[cat] || 0) + 1;
       return acc;
     }, {});
   }, [products]);
@@ -119,19 +150,9 @@ const Card = () => {
     }, {});
   }, [products]);
 
-  const getLowestPrice = (product) => {
-    if (product.pricing && product.pricing.length > 0) {
-      const validPrices = product.pricing
-        .map((item) => Number(item.price))
-        .filter((val) => !isNaN(val) && val > 0);
-      if (validPrices.length > 0) return Math.min(...validPrices);
-    }
-    return Number(product.price) || 0;
-  };
-
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
-      const productCategory = product.category || product.name;
+      const productCategory = product.category || "Uncategorized";
       const categoryMatch =
         selectedCategory.length === 0 ||
         selectedCategory.includes(productCategory);
@@ -284,7 +305,6 @@ const Card = () => {
         </button>
       </div>
 
-      {/* Category Filter */}
       <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h3 className="text-sm sm:text-base font-semibold text-white/80">
@@ -352,7 +372,6 @@ const Card = () => {
         </div>
       </div>
 
-      {/* Price Filter */}
       <div className="mb-5 sm:mb-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm sm:text-base font-semibold text-white/80">
@@ -403,7 +422,6 @@ const Card = () => {
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: BG }}>
       <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 py-4 flex flex-col h-full">
         
-        {/* Header Section */}
         <div className="mb-4 flex-shrink-0">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight" style={{ color: INK }}>
             Our products
@@ -414,7 +432,6 @@ const Card = () => {
           </p>
         </div>
 
-        {/* Mobile Filter Toggle */}
         <div className="lg:hidden mb-4 flex-shrink-0 flex justify-between items-center gap-3">
           <button
             onClick={() => setShowMobileFilter(true)}
@@ -437,10 +454,7 @@ const Card = () => {
           </p>
         </div>
 
-        {/* Main Layout Grid */}
         <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 flex-1 overflow-hidden min-h-0">
-          
-          {/* Desktop Fixed/Sticky Sidebar */}
           <div className="hidden lg:block lg:col-span-1 h-full overflow-hidden">
             <div className="h-full rounded-2xl xl:rounded-3xl overflow-hidden shadow-sm">
               <div
@@ -452,7 +466,6 @@ const Card = () => {
             </div>
           </div>
 
-          {/* Mobile Filter Drawer */}
           {showMobileFilter && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div
@@ -468,7 +481,6 @@ const Card = () => {
             </div>
           )}
 
-          {/* Scrollable Products Grid Container */}
           <div className="lg:col-span-3 h-full overflow-y-auto pr-1 sm:pr-2 custom-scrollbar">
             {filteredProducts.length === 0 ? (
               <div
@@ -503,7 +515,10 @@ const Card = () => {
                     .slice(0, visibleProducts)
                     .map((product) => {
                       const finalPrice = getLowestPrice(product);
-                      const inStock = product.stock > 0;
+                      const originalPrice = getOriginalPrice(product);
+                      const offerPercentage = getOfferPercentage(product);
+                      const inStock = Number(product.stock) > 0;
+                      const isNewProduct = Boolean(product.isNew) || (product.createdAt && (new Date() - new Date(product.createdAt)) < 1000 * 60 * 60 * 24 * 30);
                       const hasOtherVarieties =
                         product.variantGroup && (variantCounts[product.variantGroup] || 0) > 1;
 
@@ -516,7 +531,7 @@ const Card = () => {
                           <div>
                             <div className="relative h-44 sm:h-52 md:h-56 overflow-hidden" style={{ background: "#F1F2EF" }}>
                               <img
-                                src={product.images?.[0] || "/no-image.png"}
+                                src={product.images?.[0] || product.image || "/no-image.png"}
                                 alt={product.name}
                                 className="w-full h-full object-contain p-4 sm:p-5 group-hover:scale-105 transition duration-500"
                                 onError={(e) => {
@@ -524,17 +539,24 @@ const Card = () => {
                                 }}
                               />
 
-                              {product.offer > 0 && (
-                                <span
-                                  className="absolute top-2 left-0 text-[10px] sm:text-xs font-bold text-white pl-2.5 pr-2 py-1"
-                                  style={{
-                                    background: AMBER_DARK,
-                                    clipPath: "polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 60%)",
-                                  }}
-                                >
-                                  {product.offer}% OFF
-                                </span>
-                              )}
+                              <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
+                                {isNewProduct && (
+                                  <span className="text-[10px] sm:text-xs font-bold text-white px-2 py-0.5 rounded" style={{ background: STEEL }}>
+                                    NEW
+                                  </span>
+                                )}
+                                {offerPercentage > 0 && (
+                                  <span
+                                    className="text-[10px] sm:text-xs font-bold text-white pl-2.5 pr-2 py-1"
+                                    style={{
+                                      background: AMBER_DARK,
+                                      clipPath: "polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 60%)",
+                                    }}
+                                  >
+                                    {offerPercentage}% OFF
+                                  </span>
+                                )}
+                              </div>
 
                               <span
                                 className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full"
@@ -570,9 +592,16 @@ const Card = () => {
                                   <p className="text-[9px] sm:text-[10px] md:text-xs" style={{ color: MUTED }}>
                                     Price
                                   </p>
-                                  <h3 className="text-lg sm:text-xl md:text-2xl font-extrabold" style={{ color: INK }}>
-                                    ₹{finalPrice}
-                                  </h3>
+                                  <div className="flex items-baseline gap-1.5">
+                                    <h3 className="text-lg sm:text-xl md:text-2xl font-extrabold" style={{ color: INK }}>
+                                      ₹{finalPrice}
+                                    </h3>
+                                    {originalPrice > finalPrice && (
+                                      <span className="text-xs sm:text-sm line-through" style={{ color: MUTED }}>
+                                        ₹{originalPrice}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-[9px] sm:text-[10px] md:text-xs" style={{ color: MUTED }}>
@@ -644,7 +673,6 @@ const Card = () => {
                     })}
                 </div>
 
-                {/* Load More */}
                 {filteredProducts.length > visibleProducts && (
                   <div className="flex justify-center my-6">
                     <button
