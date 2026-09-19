@@ -12,6 +12,7 @@ import {
   Download,
   Trash2,
   Printer,
+  Check,
 } from "lucide-react";
 
 // ======================================================
@@ -74,6 +75,7 @@ const MyOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
+  const [confirmingId, setConfirmingId] = useState(null);
   const user = JSON.parse(localStorage.getItem("user")) || {};
 
   const companyDetails = {
@@ -110,7 +112,6 @@ const MyOrders = () => {
 
       const { data } = await axios.get("https://backend-3-axez.onrender.com/api/orders/all");
       if (data.success) {
-        // User specific non-deleted orders filter
         let myOrders = data.orders.filter(
           (order) => order.userId === user?._id && !order.deletedByUser
         );
@@ -152,14 +153,44 @@ const MyOrders = () => {
     }
   };
 
-  // ================= FIXED SOFT DELETE HANDLER =================
+  // ================= CONFIRM ORDER HANDLER =================
+  const handleConfirmOrder = async (orderId) => {
+    try {
+      setConfirmingId(orderId);
+      const { data } = await axios.put(
+        `https://backend-3-axez.onrender.com/api/orders/confirm/${orderId}`
+      );
+
+      if (data.success) {
+        toast.success("Order Confirmed! Bill Unlocked.");
+        // State update so status changes to 'Confirmed' instantly in UI
+        setOrders((prevOrders) =>
+          prevOrders.map((order) =>
+            order._id === orderId
+              ? { ...order, status: "Confirmed", deletedByUser: false }
+              : order
+          )
+        );
+      } else {
+        toast.error(data.message || "Failed to confirm order");
+      }
+    } catch (error) {
+      console.error("Confirm Order Error:", error);
+      toast.error(
+        error.response?.data?.message || "Server Error: Could not confirm order"
+      );
+    } finally {
+      setConfirmingId(null);
+    }
+  };
+
+  // ================= SOFT DELETE HANDLER =================
   const handleDeleteOrder = async (orderId) => {
     const confirmDelete = window.confirm("Are you sure you want to remove this order from your dashboard?");
     if (!confirmDelete) return;
 
     try {
       setDeletingId(orderId);
-      // HARD DELETE ko replace karke user-delete PUT route call kiya hai
       const { data } = await axios.put(`https://backend-3-axez.onrender.com/api/orders/user-delete/${orderId}`);
 
       if (data.success || data.message) {
@@ -211,8 +242,11 @@ const MyOrders = () => {
   };
 
   const handleDownloadInvoice = (order) => {
-    if (order.status !== "Delivered") {
-      toast.error("Invoice is available only after order is Delivered!");
+    // Unlocks for Confirmed, Processing, Shipped, or Delivered
+    const isUnlocked = ["Confirmed", "Processing", "Shipped", "Delivered"].includes(order.status);
+
+    if (!isUnlocked) {
+      toast.error("Invoice will unlock once the order is Confirmed!");
       return;
     }
 
@@ -457,11 +491,13 @@ const MyOrders = () => {
     printWindow.document.close();
   };
 
-  // Status → color + icon, using the same palette everywhere else
+  // Status → color + icon
   const getStatusStyle = (status) => {
     switch (status) {
       case "Pending":
         return { tint: "#FEF6E7", text: AMBER_DARK, icon: <Clock size={14} /> };
+      case "Confirmed":
+        return { tint: "#E0F2FE", text: "#0369A1", icon: <CheckCircle size={14} /> };
       case "Shipped":
         return { tint: STEEL_TINT, text: STEEL, icon: <Truck size={14} /> };
       case "Delivered":
@@ -501,7 +537,8 @@ const MyOrders = () => {
           <div className="space-y-5 sm:space-y-6">
             {orders.map((order) => {
               const statusStyle = getStatusStyle(order.status);
-              const isDelivered = order.status === "Delivered";
+              // Invoice is unlocked when status is Confirmed, Processing, Shipped, or Delivered
+              const isUnlocked = ["Confirmed", "Processing", "Shipped", "Delivered"].includes(order.status);
               const shippingFee = extractShippingFee(order);
 
               return (
@@ -588,16 +625,32 @@ const MyOrders = () => {
                         Grand total: ₹{order.totalAmount}
                       </span>
                     </div>
-                    <div className="flex gap-2">
+
+                    <div className="flex items-center gap-2">
+                      {/* Confirm Order Button - Displays when Pending */}
+                      {order.status === "Pending" && (
+                        <button
+                          onClick={() => handleConfirmOrder(order._id)}
+                          disabled={confirmingId === order._id}
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50"
+                          style={{ background: "#16A34A", color: "#FFFFFF" }}
+                        >
+                          <Check size={16} /> Confirm Order
+                        </button>
+                      )}
+
+                      {/* Download Invoice Button */}
                       <button
                         onClick={() => handleDownloadInvoice(order)}
-                        disabled={!isDelivered}
+                        disabled={!isUnlocked}
                         className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50"
                         style={{ background: AMBER, color: "#1A1200" }}
                       >
                         <Download size={15} /> Invoice
                       </button>
-                      {isDelivered && (
+
+                      {/* Print Button */}
+                      {isUnlocked && (
                         <button
                           onClick={() => handleDownloadInvoice(order)}
                           className="flex items-center gap-2 px-3 py-2 rounded-xl font-semibold text-sm transition"
