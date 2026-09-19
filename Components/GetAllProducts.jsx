@@ -22,9 +22,7 @@ const MUTED = "#6B7280";
 const BORDER = "#E6E8EB";
 const SURFACE = "#FFFFFF";
 const BG = "#F5F6F4";
-const AMBER = "#F0A420";
 const STEEL = "#2B4A5E";
-const STEEL_DARK = "#17303E";
 
 const GetAllProducts = () => {
   const [products, setProducts] = useState([]);
@@ -586,7 +584,7 @@ const GetAllProducts = () => {
               </h2>
               <button
                 onClick={closeEditModal}
-                className="p-2 rounded-xl transition"
+                className="p-2 rounded-xl transition hover:bg-gray-100"
                 style={{ color: MUTED }}
               >
                 <X size={20} />
@@ -743,56 +741,49 @@ const GetAllProducts = () => {
               {/* Quantity Wise Pricing */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold" style={{ color: INK }}>
-                    Quantity wise pricing *
+                  <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: INK }}>
+                    <Tag size={18} style={{ color: STEEL }} />
+                    Quantity-based Pricing
                   </h3>
                   <button
                     type="button"
                     onClick={addPriceRow}
-                    className="flex items-center gap-1.5 text-sm text-white px-3 py-1.5 rounded-lg transition"
-                    style={{ background: STEEL }}
+                    className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border transition"
+                    style={{ borderColor: STEEL, color: STEEL, background: BG }}
                   >
-                    <Plus size={14} />
-                    Add price
+                    <Plus size={14} /> Add Tier
                   </button>
                 </div>
 
                 <div className="space-y-2.5">
-                  {editProduct.pricing?.map((item, index) => (
-                    <div
-                      key={index}
-                      className="grid grid-cols-12 gap-2 sm:gap-3 items-center"
-                    >
+                  {editProduct.pricing?.map((p, index) => (
+                    <div key={index} className="flex items-center gap-2">
                       <input
                         type="number"
-                        min="1"
-                        value={item.quantity ?? ""}
-                        placeholder="Min qty (min 1)"
-                        onChange={(e) =>
-                          handlePriceChange(index, "quantity", e.target.value)
-                        }
-                        className="col-span-5 rounded-xl px-3 py-2.5 text-sm outline-none border"
+                        placeholder="Min Qty (e.g. 1)"
+                        value={p.quantity ?? ""}
+                        onChange={(e) => handlePriceChange(index, "quantity", e.target.value)}
+                        className="w-1/2 rounded-xl px-4 py-2.5 text-sm outline-none border transition"
                         style={{ borderColor: BORDER, color: INK }}
                       />
                       <input
                         type="number"
-                        min="0"
-                        value={item.price ?? ""}
-                        placeholder="Price (₹)"
-                        onChange={(e) =>
-                          handlePriceChange(index, "price", e.target.value)
-                        }
-                        className="col-span-5 rounded-xl px-3 py-2.5 text-sm outline-none border"
+                        placeholder="Price per unit (₹)"
+                        value={p.price ?? ""}
+                        onChange={(e) => handlePriceChange(index, "price", e.target.value)}
+                        className="w-1/2 rounded-xl px-4 py-2.5 text-sm outline-none border transition"
                         style={{ borderColor: BORDER, color: INK }}
                       />
-                      <button
-                        type="button"
-                        onClick={() => removePriceRow(index)}
-                        className="col-span-2 rounded-xl py-2.5 text-sm transition border"
-                        style={{ borderColor: "#F0BABA", color: "#B4302F", background: "#FBEEEE" }}
-                      >
-                        <Trash2 size={14} className="mx-auto" />
-                      </button>
+                      {editProduct.pricing.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removePriceRow(index)}
+                          className="p-2.5 rounded-xl border transition text-red-600 hover:bg-red-50"
+                          style={{ borderColor: "#F0BABA" }}
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -800,54 +791,44 @@ const GetAllProducts = () => {
 
               {/* Description */}
               <div>
-                <label className="font-semibold text-sm mb-2 block" style={{ color: INK }}>
+                <h3 className="font-semibold mb-2 text-sm" style={{ color: INK }}>
                   Description
-                </label>
+                </h3>
                 <textarea
-                  rows="4"
                   name="description"
-                  value={editProduct.description || ""}
+                  rows={4}
+                  value={editProduct.description ?? ""}
                   onChange={handleEditChange}
-                  placeholder="Product description..."
-                  className="w-full rounded-xl px-4 py-3 text-sm outline-none border resize-none transition"
+                  placeholder="Enter product description..."
+                  className="w-full rounded-xl p-4 text-sm outline-none border transition"
                   style={{ borderColor: BORDER, color: INK }}
                 />
               </div>
 
-              {/* Footer Actions */}
-              <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={updateProduct}
-                  disabled={updating}
-                  className="flex-1 text-white py-3 rounded-xl font-semibold transition disabled:opacity-60"
-                  style={{ background: updating ? MUTED : STEEL_DARK }}
-                >
-                  {updating ? "Saving..." : "Save changes"}
-                </button>
+              {/* Submit / Cancel Actions */}
+              <div className="flex gap-3 pt-4 border-t" style={{ borderColor: BORDER }}>
                 <button
                   type="button"
                   onClick={closeEditModal}
-                  className="flex-1 py-3 rounded-xl font-semibold transition border"
+                  className="flex-1 py-3 rounded-xl border text-sm font-semibold transition"
                   style={{ borderColor: BORDER, color: INK, background: BG }}
                 >
                   Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={updating}
+                  onClick={updateProduct}
+                  className="flex-1 py-3 rounded-xl text-sm font-semibold transition text-white disabled:opacity-50"
+                  style={{ background: STEEL }}
+                >
+                  {updating ? "Saving Changes..." : "Save Changes"}
                 </button>
               </div>
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-      `}</style>
     </div>
   );
 };
