@@ -14,6 +14,8 @@ import {
   Truck,
   CreditCard,
   Info,
+  Tag,
+  Sparkles,
 } from "lucide-react";
 
 const INITIAL_PRODUCT_STATE = {
@@ -38,6 +40,10 @@ const INITIAL_PRODUCT_STATE = {
     card: true,
     netbanking: true,
   },
+  // --- NEW FIELDS ---
+  discountPercent: "",
+  discountNote: "",
+  isNewProduct: true,
 };
 
 const AddProduct = () => {
@@ -113,7 +119,11 @@ const AddProduct = () => {
 
   // ================= FORM HANDLERS =================
   const handleChange = (e) => {
-    setProduct((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value, type, checked } = e.target;
+    setProduct((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handlePaymentToggle = (methodKey) => {
@@ -187,6 +197,11 @@ const AddProduct = () => {
       formData.append("deliveryNote", product.deliveryNote);
       formData.append("paymentMethods", JSON.stringify(product.paymentMethods));
       formData.append("pricing", JSON.stringify(validPricing));
+
+      // --- NEW FIELDS APPENDED TO FORMDATA ---
+      formData.append("discountPercent", product.discountPercent || 0);
+      formData.append("discountNote", product.discountNote || "");
+      formData.append("isNewProduct", product.isNewProduct);
 
       const apiUrl = process.env.REACT_APP_API_URL || "https://backend-3-axez.onrender.com";
 
@@ -266,7 +281,22 @@ const AddProduct = () => {
               </label>
 
               {selectedImage && (
-                <div className="mt-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
+                <div className="relative mt-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
+                  {/* ANIMATED NEW BADGE PREVIEW */}
+                  {product.isNewProduct && (
+                    <div className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">
+                      <Sparkles size={14} className="animate-spin" />
+                      NEW ARRIVAL
+                    </div>
+                  )}
+
+                  {/* DISCOUNT BADGE PREVIEW */}
+                  {Number(product.discountPercent) > 0 && (
+                    <div className="absolute top-4 right-4 z-10 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
+                      {product.discountPercent}% OFF
+                    </div>
+                  )}
+
                   <img
                     src={selectedImage}
                     alt="Preview"
@@ -333,6 +363,68 @@ const AddProduct = () => {
                     className="border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
                   />
                 ))}
+              </div>
+            </div>
+
+            {/* NEW PRODUCT BADGE SETTING */}
+            <div className="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-200/80">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2.5">
+                  <span className="relative flex h-3 w-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                  </span>
+                  <div>
+                    <h3 className="text-sm font-bold text-emerald-900">Mark as "NEW" Arrival</h3>
+                    <p className="text-xs text-emerald-700 mt-0.5">Displays an animated "NEW" badge on product cards to boost visibility</p>
+                  </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="isNewProduct"
+                    checked={product.isNewProduct}
+                    onChange={handleChange}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
+                </label>
+              </div>
+            </div>
+
+            {/* OFFERS & DISCOUNTS (OPTIONAL) */}
+            <div className="bg-gradient-to-br from-rose-50 to-orange-50 p-4 rounded-2xl border border-rose-200/70">
+              <h2 className="text-base sm:text-lg font-bold text-rose-900 mb-3 flex items-center gap-2">
+                <Tag size={18} className="text-rose-600" />
+                Offer & Discount <span className="text-xs font-normal text-rose-600">(Optional)</span>
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-rose-800 mb-1">
+                    Discount Percentage (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="discountPercent"
+                    value={product.discountPercent}
+                    onChange={handleChange}
+                    placeholder="e.g. 15 for 15% OFF"
+                    className="w-full border border-rose-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-rose-500 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-rose-800 mb-1">
+                    Offer Tag / Custom Note
+                  </label>
+                  <input
+                    type="text"
+                    name="discountNote"
+                    value={product.discountNote}
+                    onChange={handleChange}
+                    placeholder="e.g. Festive Sale / Limited Time Offer!"
+                    className="w-full border border-rose-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-rose-500 bg-white"
+                  />
+                </div>
               </div>
             </div>
 
