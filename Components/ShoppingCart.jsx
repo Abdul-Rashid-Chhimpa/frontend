@@ -1,4 +1,4 @@
-import { useContext, useMemo, useState, useEffect } from "react";
+import React, { useContext, useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
@@ -128,12 +128,15 @@ const ShoppingCart = () => {
 
       setLoading(true);
 
-      // 1. First, create order record in backend database
+      const customerEmail = user.email || "customer@pedwal.in";
+      const customerPhone = user.phone || user.mobile || "9999999999";
+
+      // 1. Create order record in backend database
       const orderData = {
         userId: user._id,
-        customerName: user.name,
-        customerEmail: user.email || "customer@pedwal.in",
-        customerPhone: user.mobile || "9999999999",
+        customerName: user.name || "Valued Customer",
+        customerEmail,
+        customerPhone,
         items: cart.map((item) => {
           const gstRate =
             item.gst !== undefined && item.gst !== "" ? Number(item.gst) : 18;
@@ -143,10 +146,10 @@ const ShoppingCart = () => {
 
           return {
             id: String(getItemId(item)),
-            title: item.name || item.title,
+            title: item.name || item.title || "Product",
             brand: item.brand || "N/A",
             image: getImage(item),
-            price: Number(item.price),
+            price: Number(item.price || 0),
             quantity: Number(item.quantity || 1),
             gstRate: gstRate,
             gstAmount: Math.round(itemGst),
@@ -173,9 +176,9 @@ const ShoppingCart = () => {
         {
           amount: grandTotal,
           customerId: user._id,
-          customerName: user.name,
-          customerEmail: user.email || "customer@pedwal.in",
-          customerPhone: user.phone || "9999999999",
+          customerName: user.name || "Valued Customer",
+          customerEmail,
+          customerPhone,
         }
       );
 
@@ -186,10 +189,10 @@ const ShoppingCart = () => {
           totalItems,
         });
 
-        // 3. Open Cashfree Seamless Modal/Redirect
+        // 3. Open Cashfree Checkout
         const checkoutOptions = {
           paymentSessionId: paymentSessionRes.payment_session_id,
-          redirectTarget: "_self", // Seamless popup or redirect flow
+          redirectTarget: "_self",
         };
 
         cashfree.checkout(checkoutOptions);
@@ -325,6 +328,7 @@ const ShoppingCart = () => {
                       <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
                         <div className="flex items-center rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
                           <button
+                            type="button"
                             onClick={() => decreaseQty(itemId, optionQty)}
                             className="w-8 h-8 flex items-center justify-center transition"
                             style={{ background: SURFACE_MUTED, color: INK }}
@@ -335,6 +339,7 @@ const ShoppingCart = () => {
                             {qty}
                           </span>
                           <button
+                            type="button"
                             onClick={() => increaseQty(itemId, optionQty)}
                             className="w-8 h-8 flex items-center justify-center transition"
                             style={{ background: SURFACE_MUTED, color: INK }}
@@ -354,6 +359,7 @@ const ShoppingCart = () => {
 
                     <div className="flex sm:flex-col justify-end items-end pt-2 sm:pt-0 border-t sm:border-t-0" style={{ borderColor: BORDER }}>
                       <button
+                        type="button"
                         onClick={() => removeFromCart(itemId, optionQty)}
                         className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
                         style={{ color: "#B4302F" }}
@@ -409,6 +415,7 @@ const ShoppingCart = () => {
                 </div>
 
                 <button
+                  type="button"
                   onClick={checkoutHandler}
                   disabled={loading || cart.length === 0}
                   className="w-full py-3 rounded-xl font-semibold transition text-sm disabled:opacity-50"
@@ -418,6 +425,7 @@ const ShoppingCart = () => {
                 </button>
 
                 <button
+                  type="button"
                   onClick={clearCart}
                   disabled={cart.length === 0}
                   className="w-full mt-2.5 py-2.5 rounded-xl font-semibold transition text-xs disabled:opacity-50"
@@ -436,6 +444,7 @@ const ShoppingCart = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
           <div className="rounded-3xl max-w-md w-full p-6 text-center relative" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
             <button
+              type="button"
               onClick={() => {
                 setShowOrderPopup(false);
                 navigate("/");
@@ -473,7 +482,7 @@ const ShoppingCart = () => {
               <div className="flex justify-between items-center text-xs">
                 <span style={{ color: MUTED }}>Amount paid</span>
                 <span className="font-bold text-sm" style={{ color: AMBER_DARK }}>
-                  ₹{confirmedOrderData?.totalAmount.toLocaleString()}
+                  ₹{confirmedOrderData?.totalAmount?.toLocaleString()}
                 </span>
               </div>
               <div className="pt-2 border-t flex items-center gap-2 text-xs font-medium" style={{ borderColor: BORDER, color: STEEL }}>
@@ -484,6 +493,7 @@ const ShoppingCart = () => {
 
             <div className="space-y-2.5">
               <button
+                type="button"
                 onClick={() => {
                   setShowOrderPopup(false);
                   navigate("/");
