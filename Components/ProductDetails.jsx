@@ -45,7 +45,8 @@ const ProductDetails = () => {
 
   // Payment & Delivery
   const [selectedPayment, setSelectedPayment] = useState("");
-  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("standard");
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] =
+    useState("standard");
 
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
@@ -120,7 +121,12 @@ const ProductDetails = () => {
         label: "Credit / Debit Card",
         desc: "Visa, Mastercard, RuPay",
         icon: CreditCard,
-        backendNames: ["card", "credit / debit card", "credit card", "debit card"],
+        backendNames: [
+          "card",
+          "credit / debit card",
+          "credit card",
+          "debit card",
+        ],
       },
       {
         id: "cod",
@@ -148,7 +154,9 @@ const ProductDetails = () => {
 
     const filtered = allMethods.filter((method) =>
       product.paymentMethods.some((backendMethod) =>
-        method.backendNames.includes(String(backendMethod).toLowerCase().trim())
+        method.backendNames.includes(
+          String(backendMethod).toLowerCase().trim()
+        )
       )
     );
 
@@ -184,7 +192,7 @@ const ProductDetails = () => {
 
   const maxStock = product?.stock ?? 1;
 
-  // Base unit price from pricing tiers (before discount display logic)
+  // Base price from quantity tiers = ORIGINAL price (before offer)
   const baseUnitPrice = useMemo(() => {
     let applicablePrice = pricingTiers[0]?.price || 0;
     for (let i = 0; i < pricingTiers.length; i++) {
@@ -197,41 +205,27 @@ const ProductDetails = () => {
     return applicablePrice;
   }, [quantity, pricingTiers]);
 
-  // ================= DISCOUNT / OFFER LOGIC =================
+  // ================= DISCOUNT / OFFER =================
+  // offer % from backend
   const discountPercent = useMemo(() => {
     return Number(product?.discountPercent || product?.offer || 0) || 0;
   }, [product]);
 
-  // Original (MRP) price — use backend mrp/originalPrice if present,
-  // otherwise derive from discount when offer exists
-  const originalUnitPrice = useMemo(() => {
-    const mrp = Number(product?.mrp || product?.originalPrice || 0);
-    if (mrp > 0) return mrp;
+  // ORIGINAL price = tier / unit price (e.g. ₹50)
+  const originalUnitPrice = baseUnitPrice;
 
-    if (discountPercent > 0 && discountPercent < 100) {
-      // Assume baseUnitPrice is already the discounted selling price
-      return Math.round(baseUnitPrice / (1 - discountPercent / 100));
-    }
-
-    return baseUnitPrice;
-  }, [product, baseUnitPrice, discountPercent]);
-
-  // Final selling unit price after discount
+  // AFTER OFFER price = original × (1 - discount%)
+  // Example: 50 with 15% off → 42.5
   const unitPrice = useMemo(() => {
-    // If backend already stores discounted price in pricing tiers, use it
-    // If mrp exists and is higher, apply discount on mrp for clarity
-    const mrp = Number(product?.mrp || product?.originalPrice || 0);
-
-    if (mrp > 0 && discountPercent > 0) {
-      return Math.round(mrp * (1 - discountPercent / 100));
+    if (discountPercent > 0 && discountPercent < 100) {
+      return (
+        Math.round(originalUnitPrice * (1 - discountPercent / 100) * 100) / 100
+      );
     }
+    return originalUnitPrice;
+  }, [originalUnitPrice, discountPercent]);
 
-    // Otherwise use tier price as final selling price
-    return baseUnitPrice;
-  }, [product, baseUnitPrice, discountPercent]);
-
-  const hasDiscount =
-    discountPercent > 0 && originalUnitPrice > unitPrice;
+  const hasDiscount = discountPercent > 0 && unitPrice < originalUnitPrice;
 
   const totalOriginalPrice = originalUnitPrice * quantity;
   const totalPrice = unitPrice * quantity;
@@ -481,7 +475,7 @@ const ProductDetails = () => {
                   {product.name}
                 </h1>
 
-                {/* ========== PRICE BLOCK: Original + After Offer ========== */}
+                {/* ========== PRICE BLOCK ========== */}
                 <div className="mb-5 sm:mb-6 p-4 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-purple-50/50">
                   {hasDiscount ? (
                     <>
@@ -508,7 +502,9 @@ const ProductDetails = () => {
                         </span>
                       </div>
                       <p className="mt-2 text-xs sm:text-sm text-emerald-700 font-semibold">
-                        You save ₹{(originalUnitPrice - unitPrice).toLocaleString()} per unit
+                        You save ₹
+                        {(originalUnitPrice - unitPrice).toLocaleString()} per
+                        unit
                       </p>
                     </>
                   ) : (
@@ -567,7 +563,9 @@ const ProductDetails = () => {
                   )}
 
                   <p className="pt-1">
-                    <span className="font-semibold text-gray-800">Availability:</span>{" "}
+                    <span className="font-semibold text-gray-800">
+                      Availability:
+                    </span>{" "}
                     <span
                       className={
                         product.stock > 0
@@ -738,7 +736,9 @@ const ProductDetails = () => {
                             <div>
                               <p
                                 className={`text-xs sm:text-sm font-semibold ${
-                                  isSelected ? "text-indigo-900" : "text-gray-800"
+                                  isSelected
+                                    ? "text-indigo-900"
+                                    : "text-gray-800"
                                 }`}
                               >
                                 {method.label}
@@ -791,7 +791,9 @@ const ProductDetails = () => {
                             >
                               ₹{tier.price}
                             </p>
-                            <p className="text-[9px] text-gray-400 mt-1">/ unit</p>
+                            <p className="text-[9px] text-gray-400 mt-1">
+                              / unit
+                            </p>
                           </div>
                         );
                       })}
@@ -852,28 +854,27 @@ const ProductDetails = () => {
 
                 {/* ========== TOTAL BREAKDOWN ========== */}
                 <div className="mb-6 sm:mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 space-y-2">
-                  {/* Original total (if discount) */}
                   {hasDiscount && (
                     <div className="flex justify-between items-center text-xs sm:text-sm text-gray-500">
-                      <span>Original (₹{originalUnitPrice} × {quantity})</span>
+                      <span>
+                        Original (₹{originalUnitPrice} × {quantity})
+                      </span>
                       <span className="line-through">
                         ₹{totalOriginalPrice.toLocaleString()}
                       </span>
                     </div>
                   )}
 
-                  {/* Discounted / selling total */}
                   <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
                     <span>
-                      {hasDiscount ? "After discount" : "Subtotal"} (₹{unitPrice} ×{" "}
-                      {quantity})
+                      {hasDiscount ? "After discount" : "Subtotal"} (₹
+                      {unitPrice} × {quantity})
                     </span>
                     <span className="font-medium">
                       ₹{totalPrice.toLocaleString()}
                     </span>
                   </div>
 
-                  {/* Savings */}
                   {hasDiscount && totalSavings > 0 && (
                     <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-700 font-semibold">
                       <span className="flex items-center gap-1">
@@ -883,7 +884,6 @@ const ProductDetails = () => {
                     </div>
                   )}
 
-                  {/* GST — only if present */}
                   {hasGst && (
                     <div className="flex justify-between items-center text-xs sm:text-sm text-indigo-700">
                       <span className="flex items-center gap-1">
@@ -895,7 +895,6 @@ const ProductDetails = () => {
                     </div>
                   )}
 
-                  {/* Delivery */}
                   <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
                     <span>Delivery Charge</span>
                     <span className="font-medium">
