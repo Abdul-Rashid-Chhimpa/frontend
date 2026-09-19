@@ -18,6 +18,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  Tag,
+  Clock,
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
 
@@ -49,6 +51,8 @@ const Card = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState([]);
   const [maxPrice, setMaxPrice] = useState(5000);
+  const [showOnlyOffers, setShowOnlyOffers] = useState(false); // NEW FEATURE: Offers Filter
+  const [showOnlyNew, setShowOnlyNew] = useState(false);       // NEW FEATURE: New Arrivals Filter
   const [visibleProducts, setVisibleProducts] = useState(8);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
@@ -110,7 +114,7 @@ const Card = () => {
   };
 
   // ======================================================
-  // HANDLERS
+  // HANDLERS & LOGIC
   // ======================================================
   const handleCategory = (category) => {
     setSelectedCategory((prev) =>
@@ -129,18 +133,26 @@ const Card = () => {
     return Number(product.price || 0);
   };
 
+  // UPDATED FILTER LOGIC (Category + Price + Offers + New Arrivals)
   const filteredProducts = products.filter((product) => {
     const productCategory = product.category || product.name;
     const categoryMatch =
       selectedCategory.length === 0 ||
       selectedCategory.includes(productCategory);
+    
     const priceMatch = getLowestPrice(product) <= maxPrice;
-    return categoryMatch && priceMatch;
+
+    const discountPercentage = product.discountPercent || product.offer || 0;
+    const offerMatch = !showOnlyOffers || discountPercentage > 0;
+
+    const newArrivalMatch = !showOnlyNew || Boolean(product.isNewProduct);
+
+    return categoryMatch && priceMatch && offerMatch && newArrivalMatch;
   });
 
   useEffect(() => {
     setVisibleProducts(8);
-  }, [selectedCategory, maxPrice]);
+  }, [selectedCategory, maxPrice, showOnlyOffers, showOnlyNew]);
 
   const scrollCategories = (direction) => {
     if (categoryScrollRef.current) {
@@ -151,6 +163,21 @@ const Card = () => {
       });
     }
   };
+
+  // Clear all filters handler
+  const handleClearFilters = () => {
+    setSelectedCategory([]);
+    setMaxPrice(5000);
+    setShowOnlyOffers(false);
+    setShowOnlyNew(false);
+    setShowMobileFilter(false);
+  };
+
+  const activeFilterCount =
+    selectedCategory.length +
+    (maxPrice < 5000 ? 1 : 0) +
+    (showOnlyOffers ? 1 : 0) +
+    (showOnlyNew ? 1 : 0);
 
   // ======================================================
   // SKELETON LOADER
@@ -226,7 +253,7 @@ const Card = () => {
         <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           <div className="hidden lg:block lg:col-span-1">
             <div
-              className="sticky top-20 rounded-2xl xl:rounded-3xl overflow-hidden p-5 xl:p-6 min-h-[420px]"
+              className="sticky top-24 rounded-2xl xl:rounded-3xl overflow-hidden p-5 xl:p-6 min-h-[420px]"
               style={{
                 background: "rgba(43, 74, 94, 0.55)",
                 backdropFilter: "blur(16px)",
@@ -272,6 +299,57 @@ const Card = () => {
         </button>
       </div>
 
+      {/* NEW FEATURE: Quick Deals & Offers Filter Section */}
+      <div className="mb-6 sm:mb-8 border-b border-white/10 pb-5">
+        <h3 className="text-sm sm:text-base font-semibold text-white/80 mb-3">
+          Special Filters
+        </h3>
+        <div className="space-y-2.5">
+          <button
+            onClick={() => setShowOnlyOffers((prev) => !prev)}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition border"
+            style={
+              showOnlyOffers
+                ? { background: AMBER, color: "#1A1200", borderColor: AMBER }
+                : {
+                    background: "rgba(255,255,255,0.08)",
+                    color: "#FFFFFF",
+                    borderColor: "rgba(255,255,255,0.18)",
+                  }
+            }
+          >
+            <span className="flex items-center gap-2">
+              <Tag size={16} /> Discount Offers
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20">
+              {products.filter((p) => (p.discountPercent || p.offer || 0) > 0).length}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setShowOnlyNew((prev) => !prev)}
+            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition border"
+            style={
+              showOnlyNew
+                ? { background: "#059669", color: "#FFFFFF", borderColor: "#059669" }
+                : {
+                    background: "rgba(255,255,255,0.08)",
+                    color: "#FFFFFF",
+                    borderColor: "rgba(255,255,255,0.18)",
+                  }
+            }
+          >
+            <span className="flex items-center gap-2">
+              <Clock size={16} /> New Arrivals
+            </span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20">
+              {products.filter((p) => p.isNewProduct).length}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Category Filter */}
       <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h3 className="text-sm sm:text-base font-semibold text-white/80">
@@ -349,6 +427,7 @@ const Card = () => {
         </div>
       </div>
 
+      {/* Max Price Filter */}
       <div className="mb-5 sm:mb-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm sm:text-base font-semibold text-white/80">
@@ -377,19 +456,16 @@ const Card = () => {
         </div>
       </div>
 
-      {(selectedCategory.length > 0 || maxPrice < 5000) && (
+      {activeFilterCount > 0 && (
         <button
-          onClick={() => {
-            setSelectedCategory([]);
-            setMaxPrice(5000);
-          }}
-          className="w-full py-2.5 sm:py-3 rounded-xl text-white font-semibold text-sm sm:text-base transition border"
+          onClick={handleClearFilters}
+          className="w-full py-2.5 sm:py-3 rounded-xl text-white font-semibold text-sm sm:text-base transition border hover:bg-white/20"
           style={{
             background: "rgba(255,255,255,0.1)",
             borderColor: "rgba(255,255,255,0.2)",
           }}
         >
-          Clear all filters
+          Clear all filters ({activeFilterCount})
         </button>
       )}
     </>
@@ -420,12 +496,12 @@ const Card = () => {
           >
             <Filter size={16} className="sm:w-[18px] sm:h-[18px]" />
             Filters
-            {(selectedCategory.length > 0 || maxPrice < 5000) && (
+            {activeFilterCount > 0 && (
               <span
                 className="ml-1 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full"
                 style={{ background: AMBER, color: "#1A1200" }}
               >
-                {selectedCategory.length + (maxPrice < 5000 ? 1 : 0)}
+                {activeFilterCount}
               </span>
             )}
           </button>
@@ -434,11 +510,11 @@ const Card = () => {
           </p>
         </div>
 
-        {/* Main Grid Container — Layout fix for sticky filter */}
+        {/* Main Grid Container — Sticky Sidebar + Independent Scrollable Grid */}
         <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 items-start">
           {/* Desktop Sticky Sidebar */}
-          <div className="hidden lg:block lg:col-span-1 sticky top-20 self-start">
-            <div className="rounded-2xl xl:rounded-3xl overflow-hidden shadow-sm">
+          <div className="hidden lg:block lg:col-span-1 sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
+            <div className="rounded-2xl xl:rounded-3xl overflow-hidden shadow-md">
               <div
                 className="p-5 xl:p-6"
                 style={{
@@ -468,7 +544,7 @@ const Card = () => {
             </div>
           )}
 
-          {/* Products Grid */}
+          {/* Products Grid Section */}
           <div className="lg:col-span-3">
             {filteredProducts.length === 0 ? (
               <div
@@ -483,11 +559,7 @@ const Card = () => {
                   No products match your current filters.
                 </p>
                 <button
-                  onClick={() => {
-                    setSelectedCategory([]);
-                    setMaxPrice(5000);
-                    setShowMobileFilter(false);
-                  }}
+                  onClick={handleClearFilters}
                   className="mt-6 sm:mt-8 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl text-white font-semibold text-sm sm:text-base"
                   style={{ background: STEEL }}
                 >
@@ -533,7 +605,7 @@ const Card = () => {
                               }}
                             />
 
-                            {/* Dynamic Discount & Eid Sale Animated Ribbon */}
+                            {/* Discount Ribbon */}
                             {discountPercentage > 0 && (
                               <div className="absolute top-2 left-0 flex flex-col items-start gap-1 z-10">
                                 <span
@@ -552,7 +624,7 @@ const Card = () => {
                               </div>
                             )}
 
-                            {/* New Arrival Animated Badge */}
+                            {/* New Arrival Badge */}
                             {product.isNewProduct && (
                               <span className="absolute bottom-2 left-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-white bg-emerald-600 shadow-md animate-bounce">
                                 <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
