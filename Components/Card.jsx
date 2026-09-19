@@ -1,7 +1,7 @@
 // ======================================================
 // IMPORTS
 // ======================================================
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useContext, useRef, useMemo } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
@@ -33,6 +33,20 @@ const AMBER_DARK = "#C97F0F";
 const STEEL = "#2B4A5E";
 const STEEL_DARK = "#17303E";
 
+const CATEGORY_ICONS = {
+  Hammer: Hammer,
+  Hammers: Hammer,
+  Wrench: Wrench,
+  Wrenches: Wrench,
+  Drill: Drill,
+  Drills: Drill,
+  Safety: Shield,
+  Measuring: Ruler,
+  Hardware: Cog,
+  Accessories: Settings,
+  Package: Package,
+};
+
 // ======================================================
 // COMPONENT
 // ======================================================
@@ -60,7 +74,7 @@ const Card = () => {
       const { data } = await axios.get(
         "https://backend-3-axez.onrender.com/api/products"
       );
-      if (data.success) {
+      if (data?.success) {
         setProducts(data.products || []);
       } else {
         setProducts([]);
@@ -78,35 +92,57 @@ const Card = () => {
   }, []);
 
   // ======================================================
-  // CATEGORY LIST
+  // MEMOIZED DERIVED DATA
   // ======================================================
-  const categories = [
-    ...new Set(
-      products.map((item) => item.category || item.name).filter(Boolean)
-    ),
-  ];
+  const categories = useMemo(() => {
+    return [
+      ...new Set(
+        products.map((item) => item.category || item.name).filter(Boolean)
+      ),
+    ];
+  }, [products]);
 
-  // ======================================================
-  // CATEGORY ICONS
-  // ======================================================
-  const categoryIcons = {
-    Hammer: Hammer,
-    Hammers: Hammer,
-    Wrench: Wrench,
-    Wrenches: Wrench,
-    Drill: Drill,
-    Drills: Drill,
-    Safety: Shield,
-    Measuring: Ruler,
-    Hardware: Cog,
-    Accessories: Settings,
-    Package: Package,
+  const categoryCounts = useMemo(() => {
+    return products.reduce((acc, product) => {
+      const cat = product.category || product.name;
+      if (cat) acc[cat] = (acc[cat] || 0) + 1;
+      return acc;
+    }, {});
+  }, [products]);
+
+  const variantCounts = useMemo(() => {
+    return products.reduce((acc, product) => {
+      if (product.variantGroup) {
+        acc[product.variantGroup] = (acc[product.variantGroup] || 0) + 1;
+      }
+      return acc;
+    }, {});
+  }, [products]);
+
+  const getLowestPrice = (product) => {
+    if (product.pricing && product.pricing.length > 0) {
+      const validPrices = product.pricing
+        .map((item) => Number(item.price))
+        .filter((val) => !isNaN(val) && val > 0);
+      if (validPrices.length > 0) return Math.min(...validPrices);
+    }
+    return Number(product.price) || 0;
   };
 
-  const getCategoryIcon = (category) => {
-    if (!category) return Package;
-    return categoryIcons[category] || Package;
-  };
+  const filteredProducts = useMemo(() => {
+    return products.filter((product) => {
+      const productCategory = product.category || product.name;
+      const categoryMatch =
+        selectedCategory.length === 0 ||
+        selectedCategory.includes(productCategory);
+      const priceMatch = getLowestPrice(product) <= maxPrice;
+      return categoryMatch && priceMatch;
+    });
+  }, [products, selectedCategory, maxPrice]);
+
+  useEffect(() => {
+    setVisibleProducts(8);
+  }, [selectedCategory, maxPrice]);
 
   // ======================================================
   // HANDLERS
@@ -118,28 +154,6 @@ const Card = () => {
         : [...prev, category]
     );
   };
-
-  const getLowestPrice = (product) => {
-    if (product.pricing && product.pricing.length > 0) {
-      return Math.min(
-        ...product.pricing.map((item) => Number(item.price) || 0)
-      );
-    }
-    return Number(product.price || 0);
-  };
-
-  const filteredProducts = products.filter((product) => {
-    const productCategory = product.category || product.name;
-    const categoryMatch =
-      selectedCategory.length === 0 ||
-      selectedCategory.includes(productCategory);
-    const priceMatch = getLowestPrice(product) <= maxPrice;
-    return categoryMatch && priceMatch;
-  });
-
-  useEffect(() => {
-    setVisibleProducts(8);
-  }, [selectedCategory, maxPrice]);
 
   const scrollCategories = (direction) => {
     if (categoryScrollRef.current) {
@@ -209,49 +223,47 @@ const Card = () => {
     </div>
   );
 
-  const renderLoadingState = () => (
-    <div className="h-screen overflow-hidden flex flex-col" style={{ background: BG }}>
-      <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 py-4 flex-1 flex flex-col">
-        <div className="mb-4">
-          <div
-            className="h-7 sm:h-9 w-40 sm:w-52 rounded-lg shimmer"
-            style={{ background: "rgba(230, 232, 235, 0.7)" }}
-          />
-          <div className="w-10 h-1 rounded-full mt-2 mb-2" style={{ background: AMBER }} />
-        </div>
-
-        <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 flex-1 overflow-hidden">
-          <div className="hidden lg:block lg:col-span-1 h-full">
+  if (loading) {
+    return (
+      <div className="h-screen overflow-hidden flex flex-col" style={{ background: BG }}>
+        <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 py-4 flex-1 flex flex-col">
+          <div className="mb-4">
             <div
-              className="rounded-2xl xl:rounded-3xl p-5 xl:p-6 h-full"
-              style={{
-                background: "rgba(43, 74, 94, 0.55)",
-                backdropFilter: "blur(16px)",
-                border: "1px solid rgba(255, 255, 255, 0.15)",
-              }}
-            >
-              <div className="flex items-center gap-2 mb-6">
-                <Filter size={20} className="text-white/70" />
-                <div
-                  className="h-5 w-20 rounded-md shimmer"
-                  style={{ background: "rgba(255,255,255,0.25)" }}
-                />
-              </div>
-            </div>
+              className="h-7 sm:h-9 w-40 sm:w-52 rounded-lg shimmer"
+              style={{ background: "rgba(230, 232, 235, 0.7)" }}
+            />
+            <div className="w-10 h-1 rounded-full mt-2 mb-2" style={{ background: AMBER }} />
           </div>
 
-          <div className="lg:col-span-3 h-full overflow-y-auto pr-2">
-            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-              {Array.from({ length: 6 }).map((_, i) => renderSkeletonCard(i))}
+          <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 flex-1 overflow-hidden">
+            <div className="hidden lg:block lg:col-span-1 h-full">
+              <div
+                className="rounded-2xl xl:rounded-3xl p-5 xl:p-6 h-full"
+                style={{
+                  background: "rgba(43, 74, 94, 0.55)",
+                  backdropFilter: "blur(16px)",
+                  border: "1px solid rgba(255, 255, 255, 0.15)",
+                }}
+              >
+                <div className="flex items-center gap-2 mb-6">
+                  <Filter size={20} className="text-white/70" />
+                  <div
+                    className="h-5 w-20 rounded-md shimmer"
+                    style={{ background: "rgba(255,255,255,0.25)" }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-3 h-full overflow-y-auto pr-2">
+              <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                {Array.from({ length: 6 }).map((_, i) => renderSkeletonCard(i))}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
-
-  if (loading) {
-    return renderLoadingState();
+    );
   }
 
   // ======================================================
@@ -304,11 +316,9 @@ const Card = () => {
           style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
         >
           {categories.map((category) => {
-            const Icon = getCategoryIcon(category);
+            const Icon = CATEGORY_ICONS[category] || Package;
             const active = selectedCategory.includes(category);
-            const totalProducts = products.filter(
-              (item) => (item.category || item.name) === category
-            ).length;
+            const totalProducts = categoryCounts[category] || 0;
 
             return (
               <button
@@ -492,9 +502,10 @@ const Card = () => {
                   {filteredProducts
                     .slice(0, visibleProducts)
                     .map((product) => {
-                      const lowestPrice = getLowestPrice(product);
-                      const finalPrice = lowestPrice || Number(product.price) || 0;
+                      const finalPrice = getLowestPrice(product);
                       const inStock = product.stock > 0;
+                      const hasOtherVarieties =
+                        product.variantGroup && (variantCounts[product.variantGroup] || 0) > 1;
 
                       return (
                         <div
@@ -583,13 +594,13 @@ const Card = () => {
                                     state: { product },
                                   })
                                 }
-                                className="text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 text-xs sm:text-sm font-semibold transition"
+                                className="text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 text-xs sm:text-sm font-semibold transition hover:opacity-90 active:scale-[0.98]"
                                 style={{ background: STEEL }}
                               >
                                 Buy now
                               </button>
                               <button
-                                disabled={product.stock === 0}
+                                disabled={!inStock}
                                 onClick={() =>
                                   addToCart({
                                     ...product,
@@ -597,9 +608,9 @@ const Card = () => {
                                     price: finalPrice,
                                   })
                                 }
-                                className="rounded-lg sm:rounded-xl py-2 sm:py-2.5 text-xs sm:text-sm font-bold transition disabled:cursor-not-allowed"
+                                className="rounded-lg sm:rounded-xl py-2 sm:py-2.5 text-xs sm:text-sm font-bold transition active:scale-[0.98] disabled:cursor-not-allowed"
                                 style={
-                                  product.stock === 0
+                                  !inStock
                                     ? { background: "#F1F2EF", color: MUTED }
                                     : { background: AMBER, color: "#1A1200" }
                                 }
@@ -608,30 +619,25 @@ const Card = () => {
                               </button>
                             </div>
 
-                            {product.variantGroup &&
-                              products.filter(
-                                (p) =>
-                                  p.variantGroup === product.variantGroup &&
-                                  p._id !== product._id
-                              ).length > 0 && (
-                                <button
-                                  onClick={() =>
-                                    navigate(
-                                      `/varieties/${product.variantGroup}`,
-                                      {
-                                        state: {
-                                          groupName: product.variantGroup,
-                                          productName: product.name,
-                                        },
-                                      }
-                                    )
-                                  }
-                                  className="w-full mt-2 py-2 rounded-lg border font-semibold text-xs sm:text-sm transition"
-                                  style={{ borderColor: BORDER, color: STEEL }}
-                                >
-                                  View more varieties
-                                </button>
-                              )}
+                            {hasOtherVarieties && (
+                              <button
+                                onClick={() =>
+                                  navigate(
+                                    `/varieties/${product.variantGroup}`,
+                                    {
+                                      state: {
+                                        groupName: product.variantGroup,
+                                        productName: product.name,
+                                      },
+                                    }
+                                  )
+                                }
+                                className="w-full mt-2 py-2 rounded-lg border font-semibold text-xs sm:text-sm transition hover:bg-black/5"
+                                style={{ borderColor: BORDER, color: STEEL }}
+                              >
+                                View more varieties
+                              </button>
+                            )}
                           </div>
                         </div>
                       );
@@ -643,7 +649,7 @@ const Card = () => {
                   <div className="flex justify-center my-6">
                     <button
                       onClick={() => setVisibleProducts((prev) => prev + 8)}
-                      className="px-6 sm:px-8 py-3 rounded-xl sm:rounded-2xl text-white font-semibold text-sm sm:text-base transition"
+                      className="px-6 sm:px-8 py-3 rounded-xl sm:rounded-2xl text-white font-semibold text-sm sm:text-base transition hover:opacity-90 active:scale-95"
                       style={{ background: STEEL }}
                     >
                       Load more products
