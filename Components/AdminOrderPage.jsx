@@ -19,92 +19,235 @@ import {
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
 
-// Stepper steps (Cancel is outside the main flow)
+// Step config with unique colors
 const STEPPER_STEPS = [
-  { key: "Pending", label: "Pending", icon: Clock },
-  { key: "Confirmed", label: "Confirmed", icon: CheckCircle2 },
-  { key: "Shipped", label: "Shipped", icon: Truck },
-  { key: "Delivered", label: "Delivered", icon: CheckCircle },
+  {
+    key: "Pending",
+    label: "Pending",
+    icon: Clock,
+    color: "#F59E0B",       // amber
+    bgSoft: "#FFFBEB",
+    ring: "ring-amber-200",
+  },
+  {
+    key: "Confirmed",
+    label: "Confirmed",
+    icon: CheckCircle2,
+    color: "#4F46E5",       // indigo
+    bgSoft: "#EEF2FF",
+    ring: "ring-indigo-200",
+  },
+  {
+    key: "Shipped",
+    label: "Shipped",
+    icon: Truck,
+    color: "#2563EB",       // blue
+    bgSoft: "#EFF6FF",
+    ring: "ring-blue-200",
+  },
+  {
+    key: "Delivered",
+    label: "Delivered",
+    icon: CheckCircle,
+    color: "#059669",       // emerald
+    bgSoft: "#ECFDF5",
+    ring: "ring-emerald-200",
+  },
 ];
 
+const normalizeStatus = (status) =>
+  status === "Order Confirmed" ? "Confirmed" : status || "Pending";
+
 const getStepIndex = (status) => {
-  const normalized = status === "Order Confirmed" ? "Confirmed" : status;
-  const idx = STEPPER_STEPS.findIndex((s) => s.key === normalized);
+  const idx = STEPPER_STEPS.findIndex((s) => s.key === normalizeStatus(status));
   return idx >= 0 ? idx : 0;
 };
 
-const OrderStepper = ({ status }) => {
-  const isCancelled = status === "Cancelled";
-  const currentIndex = getStepIndex(status);
+const formatDateTime = (value) => {
+  if (!value) return null;
+  try {
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return String(value); // already formatted string
+    return d.toLocaleString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return String(value);
+  }
+};
+
+// Find timestamp for a step from history / fallbacks
+const getStepTime = (stepKey, order, currentStatus) => {
+  const history = order.statusHistory || [];
+  const found = [...history]
+    .reverse()
+    .find((h) => normalizeStatus(h.status) === stepKey);
+  if (found?.at) return formatDateTime(found.at);
+
+  // Current status → use statusUpdatedAt
+  if (normalizeStatus(currentStatus) === stepKey && order.statusUpdatedAt) {
+    return formatDateTime(order.statusUpdatedAt);
+  }
+
+  // Pending often equals order created time
+  if (stepKey === "Pending" && (order.createdAt || order.orderDate)) {
+    return formatDateTime(order.createdAt || order.orderDate);
+  }
+
+  return null;
+};
+
+const OrderStepper = ({ status, order }) => {
+  const currentStatus = normalizeStatus(status);
+  const isCancelled = currentStatus === "Cancelled";
+  const currentIndex = getStepIndex(currentStatus);
 
   if (isCancelled) {
     return (
-      <div className="w-full px-1 py-3">
-        <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
-          <XCircle size={16} />
-          Order Cancelled
+      <div className="w-full px-2 sm:px-4 py-4">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold animate-[fadeIn_0.35s_ease]">
+          <XCircle size={18} />
+          <span>Order Cancelled</span>
+          {order.statusUpdatedAt && (
+            <span className="text-xs font-medium text-red-500/90">
+              · {formatDateTime(order.statusUpdatedAt)}
+            </span>
+          )}
         </div>
       </div>
     );
   }
 
+  const progressPercent =
+    currentIndex <= 0
+      ? 0
+      : (currentIndex / (STEPPER_STEPS.length - 1)) * 100;
+
   return (
-    <div className="w-full px-1 py-4">
-      <div className="flex items-start justify-between relative">
-        {/* Connecting line background */}
-        <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 mx-[12%] sm:mx-[10%]" />
-        {/* Connecting line progress */}
+    <div className="w-full px-1 sm:px-3 py-5 sm:py-6">
+      <div className="relative">
+        {/* Track line */}
         <div
-          className="absolute top-4 left-[12%] sm:left-[10%] h-0.5 bg-indigo-500 transition-all duration-500"
-          style={{
-            width:
-              currentIndex === 0
-                ? "0%"
-                : `calc(${(currentIndex / (STEPPER_STEPS.length - 1)) * 76}% )`,
-          }}
-        />
+          className="absolute top-5 left-[10%] right-[10%] h-1 rounded-full bg-gray-200 overflow-hidden"
+          aria-hidden
+        >
+          <div
+            className="h-full rounded-full transition-all duration-700 ease-out"
+            style={{
+              width: `${progressPercent}%`,
+              background:
+                "linear-gradient(90deg, #F59E0B 0%, #4F46E5 40%, #2563EB 70%, #059669 100%)",
+            }}
+          />
+        </div>
 
-        {STEPPER_STEPS.map((step, index) => {
-          const Icon = step.icon;
-          const isCompleted = index < currentIndex;
-          const isActive = index === currentIndex;
-          const isFuture = index > currentIndex;
+        {/* Steps */}
+        <div className="relative z-10 flex justify-between">
+          {STEPPER_STEPS.map((step, index) => {
+            const Icon = step.icon;
+            const isCompleted = index < currentIndex;
+            const isActive = index === currentIndex;
+            const timeLabel = getStepTime(step.key, order, currentStatus);
 
-          return (
-            <div
-              key={step.key}
-              className="relative z-10 flex flex-col items-center flex-1 min-w-0"
-            >
+            return (
               <div
-                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
-                  isCompleted
-                    ? "bg-indigo-600 border-indigo-600 text-white"
-                    : isActive
-                    ? "bg-white border-indigo-600 text-indigo-600 shadow-md ring-4 ring-indigo-100"
-                    : "bg-white border-gray-300 text-gray-400"
-                }`}
+                key={step.key}
+                className="flex flex-col items-center flex-1 min-w-0 px-0.5"
+                style={{
+                  animation: `stepPop 0.45s ease ${index * 0.08}s both`,
+                }}
               >
-                {isCompleted ? (
-                  <CheckCircle size={16} className="sm:w-[18px] sm:h-[18px]" />
-                ) : (
-                  <Icon size={14} className="sm:w-4 sm:h-4" />
-                )}
+                {/* Circle */}
+                <div
+                  className={`
+                    relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center
+                    border-2 transition-all duration-500 ease-out
+                    ${isActive ? `ring-4 ${step.ring} scale-110` : ""}
+                    ${isCompleted || isActive ? "shadow-md" : ""}
+                  `}
+                  style={{
+                    backgroundColor:
+                      isCompleted || isActive ? step.color : "#FFFFFF",
+                    borderColor:
+                      isCompleted || isActive ? step.color : "#D1D5DB",
+                    color: isCompleted || isActive ? "#FFFFFF" : "#9CA3AF",
+                  }}
+                >
+                  {isCompleted ? (
+                    <CheckCircle
+                      size={18}
+                      className="sm:w-5 sm:h-5 transition-transform duration-300"
+                    />
+                  ) : (
+                    <Icon
+                      size={16}
+                      className={`sm:w-[18px] sm:h-[18px] ${
+                        isActive ? "animate-pulse" : ""
+                      }`}
+                    />
+                  )}
+
+                  {/* Active pulse ring */}
+                  {isActive && (
+                    <span
+                      className="absolute inset-0 rounded-full animate-ping opacity-30"
+                      style={{ backgroundColor: step.color }}
+                    />
+                  )}
+                </div>
+
+                {/* Label */}
+                <p
+                  className={`mt-2.5 text-[10px] sm:text-xs font-bold text-center leading-tight transition-colors duration-300 ${
+                    isActive || isCompleted ? "" : "text-gray-400"
+                  }`}
+                  style={{
+                    color: isActive || isCompleted ? step.color : undefined,
+                  }}
+                >
+                  {step.label}
+                </p>
+
+                {/* Date & time */}
+                <div
+                  className={`mt-1 min-h-[28px] sm:min-h-[32px] flex items-start justify-center transition-all duration-500 ${
+                    timeLabel
+                      ? "opacity-100 translate-y-0"
+                      : "opacity-0 translate-y-1"
+                  }`}
+                >
+                  {timeLabel && (
+                    <span
+                      className="text-[9px] sm:text-[10px] font-medium text-center leading-snug px-1 rounded-md"
+                      style={{
+                        color: step.color,
+                        backgroundColor: step.bgSoft,
+                      }}
+                    >
+                      {timeLabel}
+                    </span>
+                  )}
+                </div>
               </div>
-              <p
-                className={`mt-2 text-[10px] sm:text-xs font-semibold text-center leading-tight px-0.5 ${
-                  isActive
-                    ? "text-indigo-700"
-                    : isCompleted
-                    ? "text-indigo-600"
-                    : "text-gray-400"
-                }`}
-              >
-                {step.label}
-              </p>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
+
+      <style>{`
+        @keyframes stepPop {
+          from { opacity: 0; transform: translateY(8px) scale(0.9); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
     </div>
   );
 };
@@ -149,18 +292,36 @@ const AdminOrders = () => {
     try {
       setUpdatingId(id);
       const updatedAt = new Date().toLocaleString("en-IN", {
-        dateStyle: "medium",
-        timeStyle: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
       });
+
+      // Build history entry
+      const historyEntry = { status, at: updatedAt };
+
       await axios.put(`${API_BASE}/orders/${id}`, {
         status,
         statusUpdatedAt: updatedAt,
+        // optional: backend can store this if supported
+        statusHistoryEntry: historyEntry,
       });
 
       setOrders((prevOrders) =>
-        prevOrders.map((o) =>
-          o._id === id ? { ...o, status, statusUpdatedAt: updatedAt } : o
-        )
+        prevOrders.map((o) => {
+          if (o._id !== id) return o;
+          const prevHistory = Array.isArray(o.statusHistory)
+            ? o.statusHistory
+            : [];
+          return {
+            ...o,
+            status,
+            statusUpdatedAt: updatedAt,
+            statusHistory: [...prevHistory, historyEntry],
+          };
+        })
       );
     } catch (error) {
       console.error("Update Status Error:", error);
@@ -187,12 +348,11 @@ const AdminOrders = () => {
   };
 
   const getStatusStyle = (status) => {
-    const normalized = status === "Order Confirmed" ? "Confirmed" : status;
+    const normalized = normalizeStatus(status);
     switch (normalized) {
       case "Pending":
         return {
           bg: "bg-amber-50",
-          text: "text-amber-700",
           border: "border-amber-200",
           badge: "bg-amber-500",
           icon: <Clock size={14} />,
@@ -200,7 +360,6 @@ const AdminOrders = () => {
       case "Confirmed":
         return {
           bg: "bg-indigo-50",
-          text: "text-indigo-700",
           border: "border-indigo-200",
           badge: "bg-indigo-600",
           icon: <CheckCircle2 size={14} />,
@@ -208,7 +367,6 @@ const AdminOrders = () => {
       case "Shipped":
         return {
           bg: "bg-blue-50",
-          text: "text-blue-700",
           border: "border-blue-200",
           badge: "bg-blue-600",
           icon: <Truck size={14} />,
@@ -216,7 +374,6 @@ const AdminOrders = () => {
       case "Delivered":
         return {
           bg: "bg-emerald-50",
-          text: "text-emerald-700",
           border: "border-emerald-200",
           badge: "bg-emerald-600",
           icon: <CheckCircle size={14} />,
@@ -224,7 +381,6 @@ const AdminOrders = () => {
       case "Cancelled":
         return {
           bg: "bg-red-50",
-          text: "text-red-700",
           border: "border-red-200",
           badge: "bg-red-600",
           icon: <XCircle size={14} />,
@@ -232,7 +388,6 @@ const AdminOrders = () => {
       default:
         return {
           bg: "bg-gray-50",
-          text: "text-gray-700",
           border: "border-gray-200",
           badge: "bg-gray-500",
           icon: <Package size={14} />,
@@ -293,10 +448,7 @@ const AdminOrders = () => {
         ) : (
           <div className="space-y-5 sm:space-y-6">
             {orders.map((order) => {
-              const currentStatus =
-                order.status === "Order Confirmed"
-                  ? "Confirmed"
-                  : order.status || "Pending";
+              const currentStatus = normalizeStatus(order.status);
               const statusStyle = getStatusStyle(currentStatus);
               const isUpdating = updatingId === order._id;
               const isDeleting = deletingId === order._id;
@@ -306,7 +458,7 @@ const AdminOrders = () => {
                   key={order._id}
                   className="bg-white rounded-2xl sm:rounded-3xl shadow-md border border-gray-100 overflow-hidden hover:shadow-xl transition-shadow duration-300"
                 >
-                  {/* Order Header */}
+                  {/* Header */}
                   <div
                     className={`px-4 sm:px-6 py-4 sm:py-5 border-b ${statusStyle.border} ${statusStyle.bg}`}
                   >
@@ -351,19 +503,21 @@ const AdminOrders = () => {
                         {order.statusUpdatedAt && (
                           <div className="flex items-center gap-1 text-[11px] sm:text-xs text-gray-500 font-medium mt-0.5">
                             <Calendar size={12} className="text-gray-400" />
-                            <span>Updated: {order.statusUpdatedAt}</span>
+                            <span>
+                              Updated: {formatDateTime(order.statusUpdatedAt)}
+                            </span>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* ========== STATUS STEPPER ========== */}
-                  <div className="px-4 sm:px-6 border-b border-gray-100 bg-white">
-                    <OrderStepper status={currentStatus} />
+                  {/* ANIMATED STEPPER + DATE/TIME */}
+                  <div className="px-2 sm:px-4 border-b border-gray-100 bg-white">
+                    <OrderStepper status={currentStatus} order={order} />
                   </div>
 
-                  {/* Products List */}
+                  {/* Products */}
                   <div className="px-4 sm:px-6 py-4 sm:py-5">
                     <div className="space-y-3">
                       {order.items?.map((item, index) => (
@@ -413,7 +567,7 @@ const AdminOrders = () => {
                     </div>
                   </div>
 
-                  {/* Action Buttons */}
+                  {/* Actions */}
                   <div className="px-4 sm:px-6 py-4 bg-gray-50 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                       <p className="text-xs text-gray-500 mb-2.5 font-medium uppercase tracking-wide">
@@ -432,7 +586,6 @@ const AdminOrders = () => {
                           <Clock size={14} />
                           Pending
                         </button>
-
                         <button
                           disabled={
                             currentStatus === "Confirmed" ||
@@ -445,7 +598,6 @@ const AdminOrders = () => {
                           <CheckCircle2 size={14} />
                           Confirm Order
                         </button>
-
                         <button
                           disabled={
                             currentStatus === "Shipped" ||
@@ -458,7 +610,6 @@ const AdminOrders = () => {
                           <Truck size={14} />
                           Shipped
                         </button>
-
                         <button
                           disabled={
                             currentStatus === "Delivered" ||
@@ -471,7 +622,6 @@ const AdminOrders = () => {
                           <CheckCircle size={14} />
                           Delivered
                         </button>
-
                         <button
                           disabled={
                             currentStatus === "Cancelled" ||
@@ -495,7 +645,6 @@ const AdminOrders = () => {
                           setConfirmText("");
                         }}
                         className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-rose-100 text-rose-700 border border-rose-200 hover:bg-rose-600 hover:text-white transition shadow-sm"
-                        title="Delete Order Permanently"
                       >
                         <Trash2 size={16} />
                         Delete Order
@@ -515,7 +664,7 @@ const AdminOrders = () => {
           </div>
         )}
 
-        {/* Delete Confirmation Modal */}
+        {/* Delete modal */}
         {orderToDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
             <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-gray-100">
