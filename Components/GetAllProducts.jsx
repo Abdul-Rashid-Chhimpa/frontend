@@ -3,7 +3,6 @@ import axios from "axios";
 import {
   Pencil,
   Trash2,
-  Plus,
   X,
   ImagePlus,
   Boxes,
@@ -15,7 +14,7 @@ import {
 } from "lucide-react";
 
 // ======================================================
-// DESIGN TOKENS — shared with the storefront + admin console
+// DESIGN TOKENS
 // ======================================================
 const INK = "#15181C";
 const MUTED = "#6B7280";
@@ -119,7 +118,7 @@ const GetAllProducts = () => {
       const updatedImages = [...(prev.images || [])];
       const removedImage = updatedImages.splice(index, 1)[0];
 
-      if (removedImage && removedImage.startsWith("blob:")) {
+      if (removedImage && typeof removedImage === "string" && removedImage.startsWith("blob:")) {
         URL.revokeObjectURL(removedImage);
       }
 
@@ -152,7 +151,7 @@ const GetAllProducts = () => {
     setEditProduct((prev) => {
       const updatedImages = [...(prev.images || [])];
 
-      if (updatedImages[index] && updatedImages[index].startsWith("blob:")) {
+      if (updatedImages[index] && typeof updatedImages[index] === "string" && updatedImages[index].startsWith("blob:")) {
         URL.revokeObjectURL(updatedImages[index]);
       }
 
@@ -251,9 +250,7 @@ const GetAllProducts = () => {
     }
   };
 
-  // ======================================================
-  // LOADING — flat skeleton grid, consistent with storefront
-  // ======================================================
+  // ================= LOADING SKELETON =================
   if (loading) {
     return (
       <div className="min-h-screen py-6 sm:py-8 px-3 sm:px-6" style={{ background: BG }}>
@@ -273,7 +270,6 @@ const GetAllProducts = () => {
                 <div className="p-4 sm:p-5">
                   <div className="h-4 w-3/4 rounded-md shimmer" style={{ background: BORDER }} />
                   <div className="h-3 w-1/2 rounded-md shimmer mt-3" style={{ background: BORDER }} />
-                  <div className="h-3 w-2/5 rounded-md shimmer mt-2" style={{ background: BORDER }} />
                   <div className="h-16 rounded-xl shimmer mt-4" style={{ background: BG }} />
                   <div className="grid grid-cols-2 gap-2.5 mt-4">
                     <div className="h-10 rounded-xl shimmer" style={{ background: BORDER }} />
@@ -284,20 +280,6 @@ const GetAllProducts = () => {
             ))}
           </div>
         </div>
-
-        <style>{`
-          .shimmer { position: relative; overflow: hidden; }
-          .shimmer::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            transform: translateX(-100%);
-            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%);
-            animation: shimmer-sweep 1.6s infinite;
-          }
-          @keyframes shimmer-sweep { 100% { transform: translateX(100%); } }
-          @media (prefers-reduced-motion: reduce) { .shimmer::after { animation: none; } }
-        `}</style>
       </div>
     );
   }
@@ -326,10 +308,7 @@ const GetAllProducts = () => {
 
         {products.length === 0 ? (
           <div className="rounded-2xl border p-12 text-center" style={{ background: SURFACE, borderColor: BORDER }}>
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
-              style={{ background: BG }}
-            >
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: BG }}>
               <Boxes size={36} style={{ color: STEEL }} />
             </div>
             <h2 className="text-2xl font-bold" style={{ color: INK }}>No products found</h2>
@@ -343,15 +322,6 @@ const GetAllProducts = () => {
                 product.pricing?.length > 0
                   ? Math.min(...product.pricing.map((p) => Number(p.price) || 0))
                   : 0;
-
-              const matchingVarieties = product.variantGroup
-                ? products.filter(
-                    (p) =>
-                      p.variantGroup?.trim().toLowerCase() ===
-                        product.variantGroup?.trim().toLowerCase() &&
-                      p._id !== product._id
-                  )
-                : [];
 
               const deliveryCharge = product.deliveryCharge ?? product.delivery?.charge;
               const deliveryTime = product.deliveryTime || product.delivery?.time;
@@ -381,7 +351,7 @@ const GetAllProducts = () => {
                   </div>
 
                   {product.images?.length > 1 && (
-                    <div className="flex gap-2 px-4 pt-3 overflow-x-auto scrollbar-hide">
+                    <div className="flex gap-2 px-4 pt-3 overflow-x-auto">
                       {product.images.map((img, index) => (
                         <img
                           key={index}
@@ -480,17 +450,6 @@ const GetAllProducts = () => {
                         </div>
                       </div>
                     </div>
-
-                    {matchingVarieties.length > 0 && (
-                      <button
-                        type="button"
-                        className="w-full mt-3 py-2 px-3 text-xs font-semibold rounded-xl border transition flex items-center justify-center gap-1.5"
-                        style={{ background: BG, borderColor: BORDER, color: STEEL }}
-                      >
-                        <Layers size={14} />
-                        View more varieties ({matchingVarieties.length + 1} items)
-                      </button>
-                    )}
 
                     {product.pricing?.length > 0 && (
                       <div className="mt-4">
@@ -637,7 +596,7 @@ const GetAllProducts = () => {
                     className="w-24 h-24 sm:w-28 sm:h-28 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition"
                     style={{ borderColor: BORDER, color: MUTED }}
                   >
-                    <Plus size={24} />
+                    <ImagePlus size={24} />
                     <span className="text-[10px] mt-1">Add</span>
                     <input
                       hidden
@@ -738,7 +697,7 @@ const GetAllProducts = () => {
                 </div>
               </div>
 
-              {/* Quantity Wise Pricing */}
+              {/* Quantity Pricing */}
               <div>
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: INK }}>
@@ -751,7 +710,7 @@ const GetAllProducts = () => {
                     className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border transition"
                     style={{ borderColor: STEEL, color: STEEL, background: BG }}
                   >
-                    <Plus size={14} /> Add Tier
+                    + Add Tier
                   </button>
                 </div>
 
