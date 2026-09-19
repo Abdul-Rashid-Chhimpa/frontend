@@ -103,25 +103,42 @@ const Card = () => {
         .filter((val) => !isNaN(val) && val > 0);
       if (validPrices.length > 0) return Math.min(...validPrices);
     }
-    return Number(product?.discountPrice) || Number(product?.price) || 0;
+    return (
+      Number(product?.discountPrice) ||
+      Number(product?.discount_price) ||
+      Number(product?.price) ||
+      0
+    );
   }, []);
 
   const getOriginalPrice = useCallback((product) => {
-    return Number(product?.originalPrice) || Number(product?.mrp) || Number(product?.price) || 0;
+    return (
+      Number(product?.originalPrice) ||
+      Number(product?.original_price) ||
+      Number(product?.mrp) ||
+      0
+    );
   }, []);
 
-  const getOfferPercentage = useCallback((product) => {
-    const rawOffer = Number(product?.offer || product?.discount);
-    if (!isNaN(rawOffer) && rawOffer > 0) return rawOffer;
+  const getOfferPercentage = useCallback(
+    (product) => {
+      // 1. Direct offer/discount property check
+      const rawOffer = Number(
+        product?.offer || product?.discount || product?.offerPercentage || product?.discountPercentage
+      );
+      if (!isNaN(rawOffer) && rawOffer > 0) return Math.round(rawOffer);
 
-    const original = getOriginalPrice(product);
-    const lowest = getLowestPrice(product);
+      // 2. Computed discount check from Original Price / MRP vs Final Price
+      const original = getOriginalPrice(product);
+      const lowest = getLowestPrice(product);
 
-    if (original > lowest && lowest > 0) {
-      return Math.round(((original - lowest) / original) * 100);
-    }
-    return 0;
-  }, [getLowestPrice, getOriginalPrice]);
+      if (original > lowest && lowest > 0) {
+        return Math.round(((original - lowest) / original) * 100);
+      }
+      return 0;
+    },
+    [getLowestPrice, getOriginalPrice]
+  );
 
   const categories = useMemo(() => {
     return [
@@ -430,7 +447,6 @@ const Card = () => {
   return (
     <div className="h-screen flex flex-col overflow-hidden" style={{ background: BG }}>
       <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 py-4 flex flex-col h-full">
-        
         <div className="mb-4 flex-shrink-0">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight" style={{ color: INK }}>
             Our products
@@ -523,7 +539,17 @@ const Card = () => {
                       const originalPrice = getOriginalPrice(product);
                       const offerPercentage = getOfferPercentage(product);
                       const inStock = Number(product.stock) > 0;
-                      const isNewProduct = Boolean(product.isNew) || (product.createdAt && (new Date() - new Date(product.createdAt)) < 1000 * 60 * 60 * 24 * 30);
+
+                      // Robust date parsing for "New" badge status
+                      const createdAtTime = product.createdAt ? new Date(product.createdAt).getTime() : null;
+                      const isRecentlyCreated =
+                        createdAtTime && !isNaN(createdAtTime)
+                          ? Date.now() - createdAtTime < 1000 * 60 * 60 * 24 * 30
+                          : false;
+
+                      const isNewProduct =
+                        Boolean(product.isNew || product.is_new) || isRecentlyCreated;
+
                       const hasOtherVarieties =
                         product.variantGroup && (variantCounts[product.variantGroup] || 0) > 1;
 
@@ -544,15 +570,19 @@ const Card = () => {
                                 }}
                               />
 
+                              {/* NEW & DISCOUNT BADGES */}
                               <div className="absolute top-2 left-2 flex flex-col gap-1 z-10">
                                 {isNewProduct && (
-                                  <span className="text-[10px] sm:text-xs font-bold text-white px-2 py-0.5 rounded" style={{ background: STEEL }}>
+                                  <span
+                                    className="text-[10px] sm:text-xs font-bold text-white px-2 py-0.5 rounded shadow-sm"
+                                    style={{ background: STEEL }}
+                                  >
                                     NEW
                                   </span>
                                 )}
                                 {offerPercentage > 0 && (
                                   <span
-                                    className="text-[10px] sm:text-xs font-bold text-white pl-2.5 pr-2 py-1"
+                                    className="text-[10px] sm:text-xs font-bold text-white pl-2.5 pr-2 py-1 shadow-sm"
                                     style={{
                                       background: AMBER_DARK,
                                       clipPath: "polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 60%)",
@@ -563,8 +593,9 @@ const Card = () => {
                                 )}
                               </div>
 
+                              {/* IN STOCK / OUT OF STOCK BADGE */}
                               <span
-                                className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full"
+                                className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-sm"
                                 style={
                                   inStock
                                     ? { background: "#E4F3E9", color: "#1D7A43" }
