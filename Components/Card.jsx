@@ -20,6 +20,7 @@ import {
   Sparkles,
   Tag,
   Clock,
+  Star,
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
 
@@ -37,6 +38,42 @@ const STEEL = "#2B4A5E";
 const STEEL_DARK = "#17303E";
 
 // ======================================================
+// STAR RATING COMPONENT
+// ======================================================
+const StarRating = ({ rating = 0, size = 14 }) => {
+  const value = Math.min(5, Math.max(0, Number(rating) || 0));
+  const full = Math.floor(value);
+  const hasHalf = value - full >= 0.5;
+
+  return (
+    <div className="flex items-center gap-0.5" title={`${value.toFixed(1)} / 5`}>
+      {[1, 2, 3, 4, 5].map((i) => {
+        const filled = i <= full || (i === full + 1 && hasHalf);
+        return (
+          <Star
+            key={i}
+            size={size}
+            className="flex-shrink-0"
+            style={{
+              color: filled ? AMBER : "#D1D5DB",
+              fill: filled ? AMBER : "transparent",
+            }}
+          />
+        );
+      })}
+      {value > 0 && (
+        <span
+          className="ml-1 text-[10px] sm:text-xs font-semibold"
+          style={{ color: MUTED }}
+        >
+          {value.toFixed(1)}
+        </span>
+      )}
+    </div>
+  );
+};
+
+// ======================================================
 // COMPONENT
 // ======================================================
 const Card = () => {
@@ -51,8 +88,8 @@ const Card = () => {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState([]);
   const [maxPrice, setMaxPrice] = useState(5000);
-  const [showOnlyOffers, setShowOnlyOffers] = useState(false); // NEW FEATURE: Offers Filter
-  const [showOnlyNew, setShowOnlyNew] = useState(false);       // NEW FEATURE: New Arrivals Filter
+  const [showOnlyOffers, setShowOnlyOffers] = useState(false);
+  const [showOnlyNew, setShowOnlyNew] = useState(false);
   const [visibleProducts, setVisibleProducts] = useState(8);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
@@ -133,18 +170,24 @@ const Card = () => {
     return Number(product.price || 0);
   };
 
-  // UPDATED FILTER LOGIC (Category + Price + Offers + New Arrivals)
+  const getRating = (product) => {
+    return (
+      Number(product.rating) ||
+      Number(product.averageRating) ||
+      Number(product.ratings) ||
+      0
+    );
+  };
+
   const filteredProducts = products.filter((product) => {
     const productCategory = product.category || product.name;
     const categoryMatch =
       selectedCategory.length === 0 ||
       selectedCategory.includes(productCategory);
-    
-    const priceMatch = getLowestPrice(product) <= maxPrice;
 
+    const priceMatch = getLowestPrice(product) <= maxPrice;
     const discountPercentage = product.discountPercent || product.offer || 0;
     const offerMatch = !showOnlyOffers || discountPercentage > 0;
-
     const newArrivalMatch = !showOnlyNew || Boolean(product.isNewProduct);
 
     return categoryMatch && priceMatch && offerMatch && newArrivalMatch;
@@ -164,7 +207,6 @@ const Card = () => {
     }
   };
 
-  // Clear all filters handler
   const handleClearFilters = () => {
     setSelectedCategory([]);
     setMaxPrice(5000);
@@ -243,13 +285,15 @@ const Card = () => {
             className="h-7 sm:h-9 w-40 sm:w-52 rounded-lg shimmer"
             style={{ background: "rgba(230, 232, 235, 0.7)" }}
           />
-          <div className="w-10 h-1 rounded-full mt-3 mb-3" style={{ background: AMBER }} />
+          <div
+            className="w-10 h-1 rounded-full mt-3 mb-3"
+            style={{ background: AMBER }}
+          />
           <div
             className="h-3.5 sm:h-4 w-56 sm:w-72 rounded-md shimmer"
             style={{ background: "rgba(230, 232, 235, 0.6)" }}
           />
         </div>
-
         <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
           <div className="hidden lg:block lg:col-span-1">
             <div
@@ -299,7 +343,7 @@ const Card = () => {
         </button>
       </div>
 
-      {/* NEW FEATURE: Quick Deals & Offers Filter Section */}
+      {/* Special Filters — Discount Offers blinks */}
       <div className="mb-6 sm:mb-8 border-b border-white/10 pb-5">
         <h3 className="text-sm sm:text-base font-semibold text-white/80 mb-3">
           Special Filters
@@ -307,7 +351,9 @@ const Card = () => {
         <div className="space-y-2.5">
           <button
             onClick={() => setShowOnlyOffers((prev) => !prev)}
-            className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition border"
+            className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition border ${
+              showOnlyOffers ? "" : "offer-blink"
+            }`}
             style={
               showOnlyOffers
                 ? { background: AMBER, color: "#1A1200", borderColor: AMBER }
@@ -319,10 +365,15 @@ const Card = () => {
             }
           >
             <span className="flex items-center gap-2">
-              <Tag size={16} /> Discount Offers
+              <Tag size={16} className={showOnlyOffers ? "" : "animate-pulse"} />
+              Discount Offers
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20">
-              {products.filter((p) => (p.discountPercent || p.offer || 0) > 0).length}
+              {
+                products.filter(
+                  (p) => (p.discountPercent || p.offer || 0) > 0
+                ).length
+              }
             </span>
           </button>
 
@@ -331,7 +382,11 @@ const Card = () => {
             className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition border"
             style={
               showOnlyNew
-                ? { background: "#059669", color: "#FFFFFF", borderColor: "#059669" }
+                ? {
+                    background: "#059669",
+                    color: "#FFFFFF",
+                    borderColor: "#059669",
+                  }
                 : {
                     background: "rgba(255,255,255,0.08)",
                     color: "#FFFFFF",
@@ -359,7 +414,6 @@ const Card = () => {
             {categories.length}
           </span>
         </div>
-
         <div className="flex items-center gap-2 mb-3">
           <button
             onClick={() => scrollCategories("left")}
@@ -374,7 +428,6 @@ const Card = () => {
             <ChevronRight size={16} />
           </button>
         </div>
-
         <div
           ref={categoryScrollRef}
           className="flex gap-2.5 sm:gap-3 overflow-x-auto py-2 sm:py-3 px-1 scrollbar-hide scroll-smooth"
@@ -386,7 +439,6 @@ const Card = () => {
             const totalProducts = products.filter(
               (item) => (item.category || item.name) === category
             ).length;
-
             return (
               <button
                 key={category}
@@ -394,7 +446,11 @@ const Card = () => {
                 className="flex-shrink-0 w-20 sm:w-24 md:w-28 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 transition-all duration-200 border"
                 style={
                   active
-                    ? { background: AMBER, color: "#1A1200", borderColor: AMBER }
+                    ? {
+                        background: AMBER,
+                        color: "#1A1200",
+                        borderColor: AMBER,
+                      }
                     : {
                         background: "rgba(255,255,255,0.08)",
                         color: "#FFFFFF",
@@ -405,7 +461,9 @@ const Card = () => {
                 <div
                   className="w-9 h-9 sm:w-10 sm:h-10 rounded-full mx-auto flex items-center justify-center"
                   style={{
-                    background: active ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.12)",
+                    background: active
+                      ? "rgba(0,0,0,0.1)"
+                      : "rgba(255,255,255,0.12)",
                   }}
                 >
                   <Icon size={18} color={active ? "#1A1200" : "#FFFFFF"} />
@@ -416,7 +474,9 @@ const Card = () => {
                 <p
                   className="mt-0.5 text-[9px] sm:text-[10px] text-center"
                   style={{
-                    color: active ? "rgba(26,18,0,0.7)" : "rgba(255,255,255,0.65)",
+                    color: active
+                      ? "rgba(26,18,0,0.7)"
+                      : "rgba(255,255,255,0.65)",
                   }}
                 >
                   {totalProducts} item{totalProducts !== 1 ? "s" : ""}
@@ -477,21 +537,30 @@ const Card = () => {
   return (
     <div className="min-h-screen" style={{ background: BG }}>
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
-        <div className="mb-6 sm:mb-8 md:mb-10">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight" style={{ color: INK }}>
+        {/* Sticky Header — stays visible while scrolling products */}
+        <div className="sticky top-0 z-30 -mx-3 sm:-mx-4 md:-mx-6 px-3 sm:px-4 md:px-6 py-4 mb-4 sm:mb-6 backdrop-blur-md"
+          style={{ background: "color-mix(in srgb, #F5F6F4 92%, transparent)" }}
+        >
+          <h1
+            className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight"
+            style={{ color: INK }}
+          >
             Our products
           </h1>
-          <div className="w-10 h-1 rounded-full mt-2.5 mb-3" style={{ background: AMBER }} />
+          <div
+            className="w-10 h-1 rounded-full mt-2.5 mb-2"
+            style={{ background: AMBER }}
+          />
           <p className="text-xs sm:text-sm md:text-base" style={{ color: MUTED }}>
             Browse the current collection of tools & hardware
           </p>
         </div>
 
-        {/* Mobile Filter Toggle */}
+        {/* Mobile Filter Toggle — left aligned */}
         <div className="lg:hidden mb-5 sm:mb-6 flex justify-between items-center gap-3">
           <button
             onClick={() => setShowMobileFilter(true)}
-            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-white font-semibold text-sm sm:text-base"
+            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-white font-semibold text-sm sm:text-base shadow-md"
             style={{ background: STEEL }}
           >
             <Filter size={16} className="sm:w-[18px] sm:h-[18px]" />
@@ -510,11 +579,11 @@ const Card = () => {
           </p>
         </div>
 
-        {/* Main Grid Container — Sticky Sidebar + Independent Scrollable Grid */}
+        {/* Main Grid — Fixed filter + Scrollable cards */}
         <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 items-start">
-          {/* Desktop Sticky Sidebar */}
-          <div className="hidden lg:block lg:col-span-1 sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
-            <div className="rounded-2xl xl:rounded-3xl overflow-hidden shadow-md">
+          {/* Desktop Fixed / Sticky Sidebar */}
+          <div className="hidden lg:block lg:col-span-1">
+            <div className="sticky top-28 max-h-[calc(100vh-140px)] overflow-y-auto scrollbar-hide rounded-2xl xl:rounded-3xl overflow-hidden shadow-md">
               <div
                 className="p-5 xl:p-6"
                 style={{
@@ -526,7 +595,7 @@ const Card = () => {
             </div>
           </div>
 
-          {/* Mobile Filter Drawer */}
+          {/* Mobile Filter — LEFT SIDE drawer */}
           {showMobileFilter && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div
@@ -534,7 +603,7 @@ const Card = () => {
                 onClick={() => setShowMobileFilter(false)}
               />
               <div
-                className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-t-3xl p-5 sm:p-6 shadow-2xl animate-slide-up"
+                className="absolute top-0 left-0 bottom-0 w-[85%] max-w-[320px] overflow-y-auto p-5 sm:p-6 shadow-2xl animate-slide-left"
                 style={{
                   background: `linear-gradient(160deg, ${STEEL} 0%, ${STEEL_DARK} 100%)`,
                 }}
@@ -544,18 +613,28 @@ const Card = () => {
             </div>
           )}
 
-          {/* Products Grid Section */}
-          <div className="lg:col-span-3">
+          {/* Products Grid — independently scrollable area */}
+          <div className="lg:col-span-3 min-h-[60vh]">
             {filteredProducts.length === 0 ? (
               <div
                 className="h-[320px] sm:h-[400px] md:h-[450px] flex flex-col justify-center items-center rounded-2xl sm:rounded-3xl px-4"
                 style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
               >
-                <Package size={56} className="sm:w-[72px] sm:h-[72px]" style={{ color: "#C7CBCE" }} />
-                <h2 className="mt-4 sm:mt-5 text-xl sm:text-2xl font-bold text-center" style={{ color: INK }}>
+                <Package
+                  size={56}
+                  className="sm:w-[72px] sm:h-[72px]"
+                  style={{ color: "#C7CBCE" }}
+                />
+                <h2
+                  className="mt-4 sm:mt-5 text-xl sm:text-2xl font-bold text-center"
+                  style={{ color: INK }}
+                >
                   No products found
                 </h2>
-                <p className="mt-2 text-sm sm:text-base text-center" style={{ color: MUTED }}>
+                <p
+                  className="mt-2 text-sm sm:text-base text-center"
+                  style={{ color: MUTED }}
+                >
                   No products match your current filters.
                 </p>
                 <button
@@ -569,212 +648,216 @@ const Card = () => {
             ) : (
               <>
                 <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
-                  {filteredProducts
-                    .slice(0, visibleProducts)
-                    .map((product) => {
-                      const lowestPrice = getLowestPrice(product);
-                      const finalPrice =
-                        lowestPrice || Number(product.price) || 0;
-                      const inStock = product.stock > 0;
+                  {filteredProducts.slice(0, visibleProducts).map((product) => {
+                    const lowestPrice = getLowestPrice(product);
+                    const finalPrice = lowestPrice || Number(product.price) || 0;
+                    const inStock = product.stock > 0;
+                    const discountPercentage =
+                      product.discountPercent || product.offer || 0;
+                    const discountTagNote = product.discountNote || "";
+                    const rating = getRating(product);
 
-                      // Extract Discount Information
-                      const discountPercentage =
-                        product.discountPercent || product.offer || 0;
-                      const discountTagNote = product.discountNote || "";
-
-                      return (
+                    return (
+                      <div
+                        key={product._id}
+                        className="group rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl relative flex flex-col justify-between"
+                        style={{
+                          background: SURFACE,
+                          border: `1px solid ${BORDER}`,
+                        }}
+                      >
+                        {/* Image */}
                         <div
-                          key={product._id}
-                          className="group rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl relative flex flex-col justify-between"
-                          style={{
-                            background: SURFACE,
-                            border: `1px solid ${BORDER}`,
-                          }}
+                          className="relative h-44 sm:h-52 md:h-56 overflow-hidden"
+                          style={{ background: "#F1F2EF" }}
                         >
-                          {/* Image Header Block */}
-                          <div
-                            className="relative h-44 sm:h-52 md:h-56 overflow-hidden"
-                            style={{ background: "#F1F2EF" }}
-                          >
-                            <img
-                              src={product.images?.[0] || "/no-image.png"}
-                              alt={product.name}
-                              className="w-full h-full object-contain p-4 sm:p-5 group-hover:scale-105 transition duration-500"
-                              onError={(e) => {
-                                e.target.src = "/no-image.png";
-                              }}
-                            />
+                          <img
+                            src={product.images?.[0] || "/no-image.png"}
+                            alt={product.name}
+                            className="w-full h-full object-contain p-4 sm:p-5 group-hover:scale-105 transition duration-500"
+                            onError={(e) => {
+                              e.target.src = "/no-image.png";
+                            }}
+                          />
 
-                            {/* Discount Ribbon */}
-                            {discountPercentage > 0 && (
-                              <div className="absolute top-2 left-0 flex flex-col items-start gap-1 z-10">
-                                <span
-                                  className="animated-discount-badge text-[10px] sm:text-xs font-bold text-white px-2.5 py-1 flex items-center gap-1 shadow-md"
+                          {discountPercentage > 0 && (
+                            <div className="absolute top-2 left-0 flex flex-col items-start gap-1 z-10">
+                              <span
+                                className="animated-discount-badge text-[10px] sm:text-xs font-bold text-white px-2.5 py-1 flex items-center gap-1 shadow-md"
+                                style={{
+                                  background: `linear-gradient(135deg, ${AMBER_DARK} 0%, #D9381E 100%)`,
+                                  clipPath:
+                                    "polygon(0 0, 100% 0, 92% 100%, 0% 100%)",
+                                }}
+                              >
+                                <Sparkles size={12} className="animate-pulse" />
+                                {discountTagNote
+                                  ? `${discountTagNote} (${discountPercentage}% OFF)`
+                                  : `${discountPercentage}% OFF`}
+                              </span>
+                            </div>
+                          )}
+
+                          {product.isNewProduct && (
+                            <span className="absolute bottom-2 left-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-white bg-emerald-600 shadow-md animate-bounce">
+                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                              New
+                            </span>
+                          )}
+
+                          <span
+                            className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full z-10"
+                            style={
+                              inStock
+                                ? { background: "#E4F3E9", color: "#1D7A43" }
+                                : { background: "#FBE7E7", color: "#B4302F" }
+                            }
+                          >
+                            {inStock ? "In stock" : "Out of stock"}
+                          </span>
+                        </div>
+
+                        {/* Body */}
+                        <div className="p-3.5 sm:p-4 md:p-5 flex-1 flex flex-col justify-between">
+                          <div>
+                            <h2
+                              className="font-bold text-sm sm:text-base md:text-lg line-clamp-2"
+                              style={{ color: INK }}
+                            >
+                              {product.name}
+                            </h2>
+
+                            {/* Star Rating */}
+                            <div className="mt-1.5 sm:mt-2">
+                              <StarRating rating={rating} size={13} />
+                            </div>
+
+                            <div className="mt-1.5 sm:mt-2 space-y-0.5">
+                              <p
+                                className="text-[11px] sm:text-xs md:text-sm"
+                                style={{ color: MUTED }}
+                              >
+                                Brand:{" "}
+                                <span style={{ color: INK }}>
+                                  {product.brand || "N/A"}
+                                </span>
+                              </p>
+                              <p
+                                className="text-[11px] sm:text-xs md:text-sm"
+                                style={{ color: MUTED }}
+                              >
+                                Material:{" "}
+                                <span style={{ color: INK }}>
+                                  {product.material || "N/A"}
+                                </span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-end mt-3 sm:mt-4">
+                              <div>
+                                <p
+                                  className="text-[9px] sm:text-[10px] md:text-xs"
+                                  style={{ color: MUTED }}
+                                >
+                                  Price
+                                </p>
+                                <h3
+                                  className="text-lg sm:text-xl md:text-2xl font-extrabold"
+                                  style={{ color: INK }}
+                                >
+                                  ₹{finalPrice}
+                                </h3>
+                              </div>
+                              <div className="text-right">
+                                <p
+                                  className="text-[9px] sm:text-[10px] md:text-xs"
+                                  style={{ color: MUTED }}
+                                >
+                                  Stock
+                                </p>
+                                <h4
+                                  className="font-bold text-base sm:text-lg"
+                                  style={{ color: "#1D7A43" }}
+                                >
+                                  {product.stock ?? 0}
+                                </h4>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mt-4 sm:mt-5">
+                              <button
+                                onClick={() =>
+                                  navigate(`/product/${product._id}`, {
+                                    state: { product },
+                                  })
+                                }
+                                className="text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-semibold transition hover:opacity-90 active:scale-95"
+                                style={{ background: STEEL }}
+                              >
+                                Buy now
+                              </button>
+                              <button
+                                disabled={product.stock === 0}
+                                onClick={() =>
+                                  addToCart({
+                                    ...product,
+                                    quantity: 1,
+                                    price: finalPrice,
+                                  })
+                                }
+                                className="rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-bold transition disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
+                                style={
+                                  product.stock === 0
+                                    ? {
+                                        background: "#F1F2EF",
+                                        color: MUTED,
+                                      }
+                                    : {
+                                        background: AMBER,
+                                        color: "#1A1200",
+                                      }
+                                }
+                              >
+                                Add to cart
+                              </button>
+                            </div>
+
+                            {product.variantGroup &&
+                              products.filter(
+                                (p) =>
+                                  p.variantGroup === product.variantGroup &&
+                                  p._id !== product._id
+                              ).length > 0 && (
+                                <button
+                                  onClick={() =>
+                                    navigate(
+                                      `/varieties/${product.variantGroup}`,
+                                      {
+                                        state: {
+                                          groupName: product.variantGroup,
+                                          productName: product.name,
+                                        },
+                                      }
+                                    )
+                                  }
+                                  className="w-full mt-2 sm:mt-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border font-semibold text-xs sm:text-sm transition hover:bg-gray-50 active:scale-95"
                                   style={{
-                                    background: `linear-gradient(135deg, ${AMBER_DARK} 0%, #D9381E 100%)`,
-                                    clipPath:
-                                      "polygon(0 0, 100% 0, 92% 100%, 0% 100%)",
+                                    borderColor: BORDER,
+                                    color: STEEL,
                                   }}
                                 >
-                                  <Sparkles size={12} className="animate-pulse" />
-                                  {discountTagNote
-                                    ? `${discountTagNote} (${discountPercentage}% OFF)`
-                                    : `${discountPercentage}% OFF`}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* New Arrival Badge */}
-                            {product.isNewProduct && (
-                              <span className="absolute bottom-2 left-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-white bg-emerald-600 shadow-md animate-bounce">
-                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
-                                New
-                              </span>
-                            )}
-
-                            {/* Stock Badge */}
-                            <span
-                              className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full z-10"
-                              style={
-                                inStock
-                                  ? { background: "#E4F3E9", color: "#1D7A43" }
-                                  : { background: "#FBE7E7", color: "#B4302F" }
-                              }
-                            >
-                              {inStock ? "In stock" : "Out of stock"}
-                            </span>
-                          </div>
-
-                          {/* Body Content */}
-                          <div className="p-3.5 sm:p-4 md:p-5 flex-1 flex flex-col justify-between">
-                            <div>
-                              <h2
-                                className="font-bold text-sm sm:text-base md:text-lg line-clamp-2"
-                                style={{ color: INK }}
-                              >
-                                {product.name}
-                              </h2>
-
-                              <div className="mt-1.5 sm:mt-2 space-y-0.5">
-                                <p
-                                  className="text-[11px] sm:text-xs md:text-sm"
-                                  style={{ color: MUTED }}
-                                >
-                                  Brand:{" "}
-                                  <span style={{ color: INK }}>
-                                    {product.brand || "N/A"}
-                                  </span>
-                                </p>
-                                <p
-                                  className="text-[11px] sm:text-xs md:text-sm"
-                                  style={{ color: MUTED }}
-                                >
-                                  Material:{" "}
-                                  <span style={{ color: INK }}>
-                                    {product.material || "N/A"}
-                                  </span>
-                                </p>
-                              </div>
-                            </div>
-
-                            <div>
-                              <div className="flex justify-between items-end mt-3 sm:mt-4">
-                                <div>
-                                  <p
-                                    className="text-[9px] sm:text-[10px] md:text-xs"
-                                    style={{ color: MUTED }}
-                                  >
-                                    Price
-                                  </p>
-                                  <h3
-                                    className="text-lg sm:text-xl md:text-2xl font-extrabold"
-                                    style={{ color: INK }}
-                                  >
-                                    ₹{finalPrice}
-                                  </h3>
-                                </div>
-                                <div className="text-right">
-                                  <p
-                                    className="text-[9px] sm:text-[10px] md:text-xs"
-                                    style={{ color: MUTED }}
-                                  >
-                                    Stock
-                                  </p>
-                                  <h4
-                                    className="font-bold text-base sm:text-lg"
-                                    style={{ color: "#1D7A43" }}
-                                  >
-                                    {product.stock ?? 0}
-                                  </h4>
-                                </div>
-                              </div>
-
-                              {/* Action Buttons */}
-                              <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mt-4 sm:mt-5">
-                                <button
-                                  onClick={() =>
-                                    navigate(`/product/${product._id}`, {
-                                      state: { product },
-                                    })
-                                  }
-                                  className="text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-semibold transition hover:opacity-90 active:scale-95"
-                                  style={{ background: STEEL }}
-                                >
-                                  Buy now
+                                  View more varieties
                                 </button>
-                                <button
-                                  disabled={product.stock === 0}
-                                  onClick={() =>
-                                    addToCart({
-                                      ...product,
-                                      quantity: 1,
-                                      price: finalPrice,
-                                    })
-                                  }
-                                  className="rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-bold transition disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
-                                  style={
-                                    product.stock === 0
-                                      ? { background: "#F1F2EF", color: MUTED }
-                                      : { background: AMBER, color: "#1A1200" }
-                                  }
-                                >
-                                  Add to cart
-                                </button>
-                              </div>
-
-                              {/* Variety Selection */}
-                              {product.variantGroup &&
-                                products.filter(
-                                  (p) =>
-                                    p.variantGroup === product.variantGroup &&
-                                    p._id !== product._id
-                                ).length > 0 && (
-                                  <button
-                                    onClick={() =>
-                                      navigate(
-                                        `/varieties/${product.variantGroup}`,
-                                        {
-                                          state: {
-                                            groupName: product.variantGroup,
-                                            productName: product.name,
-                                          },
-                                        }
-                                      )
-                                    }
-                                    className="w-full mt-2 sm:mt-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border font-semibold text-xs sm:text-sm transition hover:bg-gray-50 active:scale-95"
-                                    style={{ borderColor: BORDER, color: STEEL }}
-                                  >
-                                    View more varieties
-                                  </button>
-                                )}
-                            </div>
+                              )}
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* Load More Pagination */}
                 {filteredProducts.length > visibleProducts && (
                   <div className="flex justify-center mt-8 sm:mt-10">
                     <button
@@ -809,18 +892,36 @@ const Card = () => {
 
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        
-        @keyframes slide-up {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
+
+        /* Mobile filter slides from LEFT */
+        @keyframes slide-left {
+          from { transform: translateX(-100%); }
+          to { transform: translateX(0); }
         }
-        .animate-slide-up { animation: slide-up 0.3s ease-out; }
+        .animate-slide-left {
+          animation: slide-left 0.3s ease-out;
+        }
+
+        /* Discount Offers continuous blink */
+        @keyframes offer-blink {
+          0%, 100% {
+            box-shadow: 0 0 0 0 rgba(240, 164, 32, 0.5);
+            border-color: rgba(255,255,255,0.18);
+          }
+          50% {
+            box-shadow: 0 0 12px 2px rgba(240, 164, 32, 0.7);
+            border-color: ${AMBER};
+            background: rgba(240, 164, 32, 0.2) !important;
+          }
+        }
+        .offer-blink {
+          animation: offer-blink 1.6s ease-in-out infinite;
+        }
 
         @keyframes shimmer-sweep {
           0% { background-position: -200% 0; }
           100% { background-position: 200% 0; }
         }
-
         .animated-discount-badge {
           background-size: 200% 100% !important;
           animation: shimmer-sweep 3s infinite linear;
