@@ -11,10 +11,7 @@ import {
   Truck,
   CreditCard,
   Tag,
-  Sparkles,
-  Percent,
 } from "lucide-react";
-
 
 // ======================================================
 // DESIGN TOKENS
@@ -214,10 +211,11 @@ const GetAllProducts = () => {
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(formattedPricing));
 
-      // Offer & New Arrival Fields
-      formData.append("isNewArrival", Boolean(editProduct.isNewArrival));
-      formData.append("discountPercentage", Number(editProduct.discountPercentage) || 0);
-      formData.append("offerTag", editProduct.offerTag || "");
+      // Offer & New Arrival fields — names now match what the API actually
+      // returns (isNewProduct / discountPercent / discountNote).
+      formData.append("isNewProduct", Boolean(editProduct.isNewProduct));
+      formData.append("discountPercent", Number(editProduct.discountPercent) || 0);
+      formData.append("discountNote", editProduct.discountNote || "");
 
       const deliveryPayload = {
         charge: Number(editProduct.deliveryCharge) || 0,
@@ -353,9 +351,9 @@ const GetAllProducts = () => {
                         e.target.src = "https://via.placeholder.com/500x400?text=No+Image";
                       }}
                     />
-                    
-                    {/* New Arrival Badge */}
-                    {product.isNewArrival && (
+
+                    {/* New Arrival Badge — reads isNewProduct, matching the API */}
+                    {product.isNewProduct && (
                       <span className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
                         NEW
                       </span>
@@ -389,9 +387,10 @@ const GetAllProducts = () => {
                     </h2>
 
                     <div className="flex flex-wrap gap-2 mt-2.5">
-                      {product.offerTag && (
+                      {/* discountNote, not offerTag */}
+                      {product.discountNote && (
                         <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200">
-                          {product.offerTag}
+                          {product.discountNote}
                         </span>
                       )}
                       {product.category && (
@@ -442,9 +441,10 @@ const GetAllProducts = () => {
                         <p className="font-bold text-base" style={{ color: "#1D7A43" }}>
                           From ₹{lowestPrice.toLocaleString()}
                         </p>
-                        {Number(product.discountPercentage) > 0 && (
+                        {/* discountPercent, not discountPercentage */}
+                        {Number(product.discountPercent) > 0 && (
                           <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
-                            {product.discountPercentage}% OFF
+                            {product.discountPercent}% OFF
                           </span>
                         )}
                       </div>
@@ -532,9 +532,9 @@ const GetAllProducts = () => {
                         onClick={() =>
                           setEditProduct({
                             ...product,
-                            isNewArrival: product.isNewArrival || false,
-                            discountPercentage: product.discountPercentage || "",
-                            offerTag: product.offerTag || "",
+                            isNewProduct: product.isNewProduct || false,
+                            discountPercent: product.discountPercent || "",
+                            discountNote: product.discountNote || "",
                             deliveryCharge: deliveryCharge ?? "",
                             deliveryTime: deliveryTime ?? "",
                             paymentMethods: paymentMethods,
@@ -644,10 +644,10 @@ const GetAllProducts = () => {
                 </div>
               </div>
 
-              {/* Mark as NEW Arrival Box */}
+              {/* Mark as NEW Arrival Box — bound to isNewProduct */}
               <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
                 <div>
-                  <label htmlFor="isNewArrival" className="font-bold text-emerald-950 flex items-center gap-2 cursor-pointer text-sm sm:text-base">
+                  <label htmlFor="isNewProduct" className="font-bold text-emerald-950 flex items-center gap-2 cursor-pointer text-sm sm:text-base">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
                     Mark as "NEW" Arrival
                   </label>
@@ -656,20 +656,20 @@ const GetAllProducts = () => {
                   </p>
                 </div>
                 <input
-                  id="isNewArrival"
+                  id="isNewProduct"
                   type="checkbox"
-                  name="isNewArrival"
-                  checked={!!editProduct.isNewArrival}
+                  name="isNewProduct"
+                  checked={!!editProduct.isNewProduct}
                   onChange={handleEditChange}
                   className="w-6 h-6 accent-emerald-600 cursor-pointer rounded"
                 />
               </div>
 
-              {/* Offer & Discount Section */}
+              {/* Offer & Discount Section — bound to discountPercent / discountNote */}
               <div className="p-4 rounded-2xl border border-rose-200 bg-rose-50/40 space-y-3">
                 <h3 className="font-bold text-rose-950 flex items-center gap-2 text-sm sm:text-base">
                   <Tag size={18} className="text-rose-600" />
-                  Offer & Discount <span className="text-xs font-normal text-rose-600">(Optional)</span>
+                  Offer &amp; Discount <span className="text-xs font-normal text-rose-600">(Optional)</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -678,8 +678,8 @@ const GetAllProducts = () => {
                     </label>
                     <input
                       type="number"
-                      name="discountPercentage"
-                      value={editProduct.discountPercentage ?? ""}
+                      name="discountPercent"
+                      value={editProduct.discountPercent ?? ""}
                       onChange={handleEditChange}
                       placeholder="e.g. 15 for 15% OFF"
                       className="w-full bg-white rounded-xl px-4 py-2.5 text-sm outline-none border border-rose-200 focus:border-rose-400 transition"
@@ -692,10 +692,10 @@ const GetAllProducts = () => {
                     </label>
                     <input
                       type="text"
-                      name="offerTag"
-                      value={editProduct.offerTag ?? ""}
+                      name="discountNote"
+                      value={editProduct.discountNote ?? ""}
                       onChange={handleEditChange}
-                      placeholder="e.g. Festive Sale / Limited Time Offer!"
+                      placeholder="e.g. Eid Sale / Limited Time Offer!"
                       className="w-full bg-white rounded-xl px-4 py-2.5 text-sm outline-none border border-rose-200 focus:border-rose-400 transition"
                       style={{ color: INK }}
                     />
