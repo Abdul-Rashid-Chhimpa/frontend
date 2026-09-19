@@ -104,40 +104,79 @@ const formatDateTime = (value) => {
 };
 
 const getStepTime = (stepKey, order, currentStatus) => {
-  const history = order.statusHistory || [];
-  const found = [...history].reverse().find((h) => normalizeStatus(h.status) === stepKey);
-  if (found?.at) return formatDateTime(found.at);
+  const normalizedCurrent = normalizeStatus(currentStatus);
 
-  if (normalizeStatus(currentStatus) === stepKey && order.statusUpdatedAt) {
-    return formatDateTime(order.statusUpdatedAt);
+  // Backend should save every admin status change here.
+  const history = Array.isArray(order?.statusHistory)
+    ? order.statusHistory
+    : [];
+
+  const normalizeHistoryEntry = (entry) => ({
+    ...entry,
+    status: normalizeStatus(entry?.status),
+    at:
+      entry?.at ||
+      entry?.timestamp ||
+      entry?.updatedAt ||
+      entry?.dateTime ||
+      entry?.createdAt ||
+      null,
+  });
+
+  // Use the LAST occurrence of this status from backend history.
+  const matchingHistory = history
+    .map(normalizeHistoryEntry)
+    .filter((entry) => entry.status === stepKey && entry.at);
+
+  if (matchingHistory.length > 0) {
+    return formatDateTime(matchingHistory[matchingHistory.length - 1].at);
   }
-  if (stepKey === "Pending" && (order.createdAt || order.orderDate)) {
-    return formatDateTime(order.createdAt || order.orderDate);
-  }
-  return null;
-};
 
-const OrderStepper = ({ status, order }) => {
-  const currentStatus = normalizeStatus(status);
-  const isCancelled = currentStatus === "Cancelled";
-  const currentIndex = getStepIndex(currentStatus);
-
-  if (isCancelled) {
-    return (
-      <div className="w-full px-2 sm:px-4 py-4">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 px-4 py-3 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
-          <XCircle size={18} />
-          <span>Order Cancelled</span>
-          {order.statusUpdatedAt && (
-            <span className="text-xs font-medium text-red-500/90">
-              · {formatDateTime(order.statusUpdatedAt)}
-            </span>
-          )}
-        </div>
-      </div>
+  // Pending is the order creation time if history has not stored it.
+  if (stepKey === "Pending") {
+    return formatDateTime(
+      order?.createdAt ||
+        order?.orderDate ||
+        order?.pendingAt ||
+        order?.statusUpdatedAt
     );
   }
 
+  // Current step fallback.
+  if (stepKey === normalizedCurrent) {
+    return formatDateTime(
+      order?.statusUpdatedAt ||
+        order?.updatedAt ||
+        order?.confirmedAt ||
+        order?.shippedAt ||
+        order?.deliveredAt
+    );
+  }
+
+  // Fallback for APIs that store named timestamps.
+  const fieldMap = {
+    Confirmed: order?.confirmedAt,
+    Shipped: order?.shippedAt,
+    Delivered: order?.deliveredAt,
+  };
+
+  if (fieldMap[stepKey]) {
+    return formatDateTime(fieldMap[stepKey]);
+  }
+
+  return null;
+};
+
+useEffect(() => {
+  fetchOrders();
+
+  // Poll every 20s so admin status/time updates appear
+  const interval = setInterval(() => {
+    fetchOrders(true); // silent refresh
+  }, 20000);
+
+  return () => clearInterval(interval);
+}, []);
   const progressPercent =
     currentIndex <= 0 ? 0 : (currentIndex / (STEPPER_STEPS.length - 1)) * 100;
 
@@ -258,72 +297,101 @@ const MyOrders = () => {
 
   useEffect(() => {
     fetchOrders();
+
+    // Keep the customer's order status/date/time synchronized with admin updates.
+    const interval = setInterval(() => {
+      fetchOrders(true);
+    }, 10000);
+
+    const handleFocus = () => fetchOrders(true);
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchOrders(true);
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
-  const fetchOrders = async () => {
-    try {
-      let gstMap = {};
-      try {
-        const productRes = await axios.get(
-          "https://backend-3-axez.onrender.com/api/products"
-        );
-        const productList = productRes.data.products || productRes.data || [];
-        productList.forEach((prod) => {
-          gstMap[String(prod._id)] =
-            prod.gst !== undefined ? Number(prod.gst) : 0;
-        });
-      } catch (prodErr) {
-        console.error("Error fetching products for GST:", prodErr);
-      }
+  const fetchOrders = async (silent = false) => {
+  try {
+    if (!silent) setLoading(true);
 
-      const { data } = await axios.get(
-        "https://backend-3-axez.onrender.com/api/orders/all"
+    let gstMap = {};
+    try {
+      const productRes = await axios.get(
+        "https://backend-3-axez.onrender.com/api/products"
       );
-      if (data.success) {
-        let myOrders = data.orders.filter(
-          (order) => order.userId === user?._id && !order.deletedByUser
-        );
-        myOrders = myOrders.map((order) => {
-          const updatedItems = order.items?.map((item) => {
-            const targetId = String(
-              item.productId?._id || item.productId || item.id || item._id || ""
-            );
-            let finalGst = 0;
-            if (item.gst !== undefined && item.gst !== null && Number(item.gst) > 0) {
-              finalGst = Number(item.gst);
-            } else if (targetId && gstMap[targetId] !== undefined) {
-              finalGst = gstMap[targetId];
-            } else if (
-              item.productId &&
-              typeof item.productId === "object" &&
-              item.productId.gst !== undefined
-            ) {
-              finalGst = Number(item.productId.gst);
-            }
-            return { ...item, gst: finalGst };
-          });
-          return { ...order, items: updatedItems };
-        });
-        setOrders(myOrders);
-      }
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to fetch orders");
-    } finally {
-      setLoading(false);
+      const productList = productRes.data.products || productRes.data || [];
+      productList.forEach((prod) => {
+        gstMap[String(prod._id)] =
+          prod.gst !== undefined ? Number(prod.gst) : 0;
+      });
+    } catch (prodErr) {
+      console.error("Error fetching products for GST:", prodErr);
     }
-  };
+
+    const { data } = await axios.get(
+      "https://backend-3-axez.onrender.com/api/orders/all"
+    );
+
+    if (data.success) {
+      let myOrders = data.orders.filter(
+        (order) => order.userId === user?._id && !order.deletedByUser
+      );
+
+      myOrders = myOrders.map((order) => {
+        const updatedItems = order.items?.map((item) => {
+          const targetId = String(
+            item.productId?._id || item.productId || item.id || item._id || ""
+          );
+          let finalGst = 0;
+          if (item.gst !== undefined && item.gst !== null && Number(item.gst) > 0) {
+            finalGst = Number(item.gst);
+          } else if (targetId && gstMap[targetId] !== undefined) {
+            finalGst = gstMap[targetId];
+          } else if (
+            item.productId &&
+            typeof item.productId === "object" &&
+            item.productId.gst !== undefined
+          ) {
+            finalGst = Number(item.productId.gst);
+          }
+          return { ...item, gst: finalGst };
+        });
+
+        // Keep status timestamps from backend as-is
+        return {
+          ...order,
+          items: updatedItems,
+          statusUpdatedAt: order.statusUpdatedAt || order.updatedAt,
+          statusHistory: Array.isArray(order.statusHistory)
+            ? order.statusHistory
+            : [],
+        };
+      });
+
+      setOrders(myOrders);
+    }
+  } catch (error) {
+    console.error(error);
+    if (!silent) toast.error("Failed to fetch orders");
+  } finally {
+    if (!silent) setLoading(false);
+  }
+};
 
   const handleConfirmOrder = async (orderId) => {
     try {
       setConfirmingId(orderId);
-      const updatedAt = new Date().toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      });
+      const updatedAt = new Date().toISOString();
       const { data } = await axios.put(
         `https://backend-3-axez.onrender.com/api/orders/confirm/${orderId}`
       );
@@ -341,7 +409,7 @@ const MyOrders = () => {
               statusUpdatedAt: updatedAt,
               statusHistory: [
                 ...prevHistory,
-                { status: "Confirmed", at: updatedAt },
+                { status: "Confirmed", at: updatedAt, timestamp: updatedAt },
               ],
               deletedByUser: false,
             };
@@ -719,7 +787,7 @@ const MyOrders = () => {
                 "Processing",
                 "Shipped",
                 "Delivered",
-              ].includes(order.status);
+              ].includes(normalizeStatus(order.status));
               const shippingFee = extractShippingFee(order);
 
               return (
@@ -856,7 +924,7 @@ const MyOrders = () => {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap">
-                      {order.status === "Pending" && (
+                      {normalizeStatus(order.status) === "Pending" && (
                         <button
                           onClick={() => handleConfirmOrder(order._id)}
                           disabled={confirmingId === order._id}
