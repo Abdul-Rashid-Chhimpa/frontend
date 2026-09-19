@@ -19,14 +19,102 @@ import {
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
 
+// Stepper steps (Cancel is outside the main flow)
+const STEPPER_STEPS = [
+  { key: "Pending", label: "Pending", icon: Clock },
+  { key: "Confirmed", label: "Confirmed", icon: CheckCircle2 },
+  { key: "Shipped", label: "Shipped", icon: Truck },
+  { key: "Delivered", label: "Delivered", icon: CheckCircle },
+];
+
+const getStepIndex = (status) => {
+  const normalized = status === "Order Confirmed" ? "Confirmed" : status;
+  const idx = STEPPER_STEPS.findIndex((s) => s.key === normalized);
+  return idx >= 0 ? idx : 0;
+};
+
+const OrderStepper = ({ status }) => {
+  const isCancelled = status === "Cancelled";
+  const currentIndex = getStepIndex(status);
+
+  if (isCancelled) {
+    return (
+      <div className="w-full px-1 py-3">
+        <div className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-semibold">
+          <XCircle size={16} />
+          Order Cancelled
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full px-1 py-4">
+      <div className="flex items-start justify-between relative">
+        {/* Connecting line background */}
+        <div className="absolute top-4 left-0 right-0 h-0.5 bg-gray-200 mx-[12%] sm:mx-[10%]" />
+        {/* Connecting line progress */}
+        <div
+          className="absolute top-4 left-[12%] sm:left-[10%] h-0.5 bg-indigo-500 transition-all duration-500"
+          style={{
+            width:
+              currentIndex === 0
+                ? "0%"
+                : `calc(${(currentIndex / (STEPPER_STEPS.length - 1)) * 76}% )`,
+          }}
+        />
+
+        {STEPPER_STEPS.map((step, index) => {
+          const Icon = step.icon;
+          const isCompleted = index < currentIndex;
+          const isActive = index === currentIndex;
+          const isFuture = index > currentIndex;
+
+          return (
+            <div
+              key={step.key}
+              className="relative z-10 flex flex-col items-center flex-1 min-w-0"
+            >
+              <div
+                className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                  isCompleted
+                    ? "bg-indigo-600 border-indigo-600 text-white"
+                    : isActive
+                    ? "bg-white border-indigo-600 text-indigo-600 shadow-md ring-4 ring-indigo-100"
+                    : "bg-white border-gray-300 text-gray-400"
+                }`}
+              >
+                {isCompleted ? (
+                  <CheckCircle size={16} className="sm:w-[18px] sm:h-[18px]" />
+                ) : (
+                  <Icon size={14} className="sm:w-4 sm:h-4" />
+                )}
+              </div>
+              <p
+                className={`mt-2 text-[10px] sm:text-xs font-semibold text-center leading-tight px-0.5 ${
+                  isActive
+                    ? "text-indigo-700"
+                    : isCompleted
+                    ? "text-indigo-600"
+                    : "text-gray-400"
+                }`}
+              >
+                {step.label}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const AdminOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [errorMsg, setErrorMsg] = useState("");
-
-  // Confirmation Modal State
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [confirmText, setConfirmText] = useState("");
 
@@ -34,9 +122,7 @@ const AdminOrders = () => {
     try {
       setLoading(true);
       setErrorMsg("");
-
       const { data } = await axios.get(`${API_BASE}/orders/all`);
-
       if (data && data.orders) {
         setOrders(data.orders);
       } else if (Array.isArray(data)) {
@@ -50,7 +136,7 @@ const AdminOrders = () => {
         error.response?.data?.message ||
           "Failed to load orders. Make sure to remove .populate('items.product') from backend controller."
       );
-    } fontFinally: {
+    } finally {
       setLoading(false);
     }
   };
@@ -66,11 +152,11 @@ const AdminOrders = () => {
         dateStyle: "medium",
         timeStyle: "short",
       });
+      await axios.put(`${API_BASE}/orders/${id}`, {
+        status,
+        statusUpdatedAt: updatedAt,
+      });
 
-      // Sends both the updated status and timestamp to backend
-      await axios.put(`${API_BASE}/orders/${id}`, { status, statusUpdatedAt: updatedAt });
-      
-      // Update local state immediately for fast UI feedback
       setOrders((prevOrders) =>
         prevOrders.map((o) =>
           o._id === id ? { ...o, status, statusUpdatedAt: updatedAt } : o
@@ -101,7 +187,8 @@ const AdminOrders = () => {
   };
 
   const getStatusStyle = (status) => {
-    switch (status) {
+    const normalized = status === "Order Confirmed" ? "Confirmed" : status;
+    switch (normalized) {
       case "Pending":
         return {
           bg: "bg-amber-50",
@@ -110,7 +197,7 @@ const AdminOrders = () => {
           badge: "bg-amber-500",
           icon: <Clock size={14} />,
         };
-      case "Order Confirmed":
+      case "Confirmed":
         return {
           bg: "bg-indigo-50",
           text: "text-indigo-700",
@@ -177,7 +264,6 @@ const AdminOrders = () => {
               {orders.length} order{orders.length !== 1 ? "s" : ""} found
             </p>
           </div>
-
           <button
             onClick={fetchOrders}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-white border border-gray-200 rounded-xl text-gray-700 hover:bg-indigo-50 hover:border-indigo-200 hover:text-indigo-700 transition font-medium text-sm shadow-sm"
@@ -187,7 +273,6 @@ const AdminOrders = () => {
           </button>
         </div>
 
-        {/* Error Notification */}
         {errorMsg && (
           <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-medium bg-red-50 border border-red-200 text-red-700 shadow-sm">
             <AlertTriangle size={18} className="shrink-0" />
@@ -195,7 +280,6 @@ const AdminOrders = () => {
           </div>
         )}
 
-        {/* Empty State */}
         {orders.length === 0 ? (
           <div className="bg-white rounded-3xl shadow-lg border border-gray-100 p-12 text-center">
             <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-5">
@@ -209,7 +293,10 @@ const AdminOrders = () => {
         ) : (
           <div className="space-y-5 sm:space-y-6">
             {orders.map((order) => {
-              const currentStatus = order.status || "Pending";
+              const currentStatus =
+                order.status === "Order Confirmed"
+                  ? "Confirmed"
+                  : order.status || "Pending";
               const statusStyle = getStatusStyle(currentStatus);
               const isUpdating = updatingId === order._id;
               const isDeleting = deletingId === order._id;
@@ -231,7 +318,6 @@ const AdminOrders = () => {
                             {order.customerName || "Customer"}
                           </h2>
                         </div>
-
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-600">
                           <span className="flex items-center gap-1.5">
                             <Hash size={13} />
@@ -239,24 +325,22 @@ const AdminOrders = () => {
                               {order._id}
                             </span>
                           </span>
-
                           <span className="flex items-center gap-1.5 font-semibold text-gray-800">
                             <IndianRupee size={13} />
                             {Number(order.totalAmount || 0).toLocaleString(
                               "en-IN"
                             )}
                           </span>
-
                           {order.items?.length > 0 && (
                             <span className="flex items-center gap-1.5">
                               <Package size={13} />
-                              {order.items.length} items
+                              {order.items.length} item
+                              {order.items.length !== 1 ? "s" : ""}
                             </span>
                           )}
                         </div>
                       </div>
 
-                      {/* Status Badge & Timestamp */}
                       <div className="flex flex-col items-start lg:items-end gap-1">
                         <div
                           className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-white text-xs sm:text-sm font-semibold ${statusStyle.badge} shadow-sm`}
@@ -272,6 +356,11 @@ const AdminOrders = () => {
                         )}
                       </div>
                     </div>
+                  </div>
+
+                  {/* ========== STATUS STEPPER ========== */}
+                  <div className="px-4 sm:px-6 border-b border-gray-100 bg-white">
+                    <OrderStepper status={currentStatus} />
                   </div>
 
                   {/* Products List */}
@@ -293,7 +382,6 @@ const AdminOrders = () => {
                               }}
                             />
                           </div>
-
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
                               {item.title}
@@ -310,7 +398,6 @@ const AdminOrders = () => {
                               </span>
                             </div>
                           </div>
-
                           <div className="text-right flex-shrink-0">
                             <p className="text-xs text-gray-400">Total</p>
                             <p className="font-bold text-gray-900 text-sm sm:text-base">
@@ -334,7 +421,11 @@ const AdminOrders = () => {
                       </p>
                       <div className="flex flex-wrap gap-2 sm:gap-3">
                         <button
-                          disabled={currentStatus === "Pending" || isUpdating || isDeleting}
+                          disabled={
+                            currentStatus === "Pending" ||
+                            isUpdating ||
+                            isDeleting
+                          }
                           onClick={() => updateStatus(order._id, "Pending")}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
                         >
@@ -342,18 +433,25 @@ const AdminOrders = () => {
                           Pending
                         </button>
 
-                     <button
-  disabled={currentStatus === "Order Confirmed" || isUpdating || isDeleting}
-  // Change "Order Confirmed" to match your backend enum value (e.g., "Confirmed" or "Processing")
-  onClick={() => updateStatus(order._id, "Confirmed")}
-  className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
->
-  <CheckCircle2 size={14} />
-  Confirm Order
-</button>
+                        <button
+                          disabled={
+                            currentStatus === "Confirmed" ||
+                            isUpdating ||
+                            isDeleting
+                          }
+                          onClick={() => updateStatus(order._id, "Confirmed")}
+                          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
+                        >
+                          <CheckCircle2 size={14} />
+                          Confirm Order
+                        </button>
 
                         <button
-                          disabled={currentStatus === "Shipped" || isUpdating || isDeleting}
+                          disabled={
+                            currentStatus === "Shipped" ||
+                            isUpdating ||
+                            isDeleting
+                          }
                           onClick={() => updateStatus(order._id, "Shipped")}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
                         >
@@ -362,7 +460,11 @@ const AdminOrders = () => {
                         </button>
 
                         <button
-                          disabled={currentStatus === "Delivered" || isUpdating || isDeleting}
+                          disabled={
+                            currentStatus === "Delivered" ||
+                            isUpdating ||
+                            isDeleting
+                          }
                           onClick={() => updateStatus(order._id, "Delivered")}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
                         >
@@ -371,7 +473,11 @@ const AdminOrders = () => {
                         </button>
 
                         <button
-                          disabled={currentStatus === "Cancelled" || isUpdating || isDeleting}
+                          disabled={
+                            currentStatus === "Cancelled" ||
+                            isUpdating ||
+                            isDeleting
+                          }
                           onClick={() => updateStatus(order._id, "Cancelled")}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-red-600 text-white hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
                         >
@@ -381,7 +487,6 @@ const AdminOrders = () => {
                       </div>
                     </div>
 
-                    {/* Permanent Delete Button */}
                     <div className="flex items-end sm:items-center">
                       <button
                         disabled={isUpdating || isDeleting}
@@ -417,17 +522,21 @@ const AdminOrders = () => {
               <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mb-4">
                 <AlertTriangle size={24} />
               </div>
-
               <h3 className="text-xl font-bold text-gray-900">
                 Delete Order Permanently?
               </h3>
               <p className="text-sm text-gray-500 mt-2">
-                Order ID <span className="font-mono font-bold text-gray-700">#{orderToDelete._id}</span> will be deleted forever. This action cannot be undone.
+                Order ID{" "}
+                <span className="font-mono font-bold text-gray-700">
+                  #{orderToDelete._id}
+                </span>{" "}
+                will be deleted forever. This action cannot be undone.
               </p>
-
               <div className="mt-4">
                 <label className="block text-xs font-semibold text-gray-700 uppercase mb-2">
-                  Type <span className="text-rose-600 font-extrabold">DELETE</span> to confirm:
+                  Type{" "}
+                  <span className="text-rose-600 font-extrabold">DELETE</span>{" "}
+                  to confirm:
                 </label>
                 <input
                   type="text"
@@ -437,7 +546,6 @@ const AdminOrders = () => {
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
-
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   onClick={() => {
@@ -449,7 +557,10 @@ const AdminOrders = () => {
                   Cancel
                 </button>
                 <button
-                  disabled={confirmText !== "DELETE" || deletingId === orderToDelete._id}
+                  disabled={
+                    confirmText !== "DELETE" ||
+                    deletingId === orderToDelete._id
+                  }
                   onClick={handleDeleteOrder}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-md"
                 >
