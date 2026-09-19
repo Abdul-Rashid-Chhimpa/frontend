@@ -1,3 +1,6 @@
+// ======================================================
+// IMPORTS
+// ======================================================
 import { useState, useEffect, useContext, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
@@ -20,6 +23,9 @@ import {
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
 
+// ======================================================
+// DESIGN TOKENS
+// ======================================================
 const INK = "#15181C";
 const MUTED = "#6B7280";
 const BORDER = "#E6E8EB";
@@ -30,20 +36,29 @@ const AMBER_DARK = "#C97F0F";
 const STEEL = "#2B4A5E";
 const STEEL_DARK = "#17303E";
 
+// ======================================================
+// COMPONENT
+// ======================================================
 const Card = () => {
   const { addToCart } = useContext(CartContext);
   const navigate = useNavigate();
   const categoryScrollRef = useRef(null);
 
+  // ======================================================
+  // STATES
+  // ======================================================
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState([]);
   const [maxPrice, setMaxPrice] = useState(5000);
-  const [showOnlyOffers, setShowOnlyOffers] = useState(false);
-  const [showOnlyNew, setShowOnlyNew] = useState(false);
+  const [showOnlyOffers, setShowOnlyOffers] = useState(false); // NEW FEATURE: Offers Filter
+  const [showOnlyNew, setShowOnlyNew] = useState(false);       // NEW FEATURE: New Arrivals Filter
   const [visibleProducts, setVisibleProducts] = useState(8);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
+  // ======================================================
+  // FETCH PRODUCTS
+  // ======================================================
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -67,12 +82,18 @@ const Card = () => {
     fetchProducts();
   }, []);
 
+  // ======================================================
+  // CATEGORY LIST
+  // ======================================================
   const categories = [
     ...new Set(
       products.map((item) => item.category || item.name).filter(Boolean)
     ),
   ];
 
+  // ======================================================
+  // CATEGORY ICONS
+  // ======================================================
   const categoryIcons = {
     Hammer: Hammer,
     Hammers: Hammer,
@@ -92,6 +113,9 @@ const Card = () => {
     return categoryIcons[category] || Package;
   };
 
+  // ======================================================
+  // HANDLERS & LOGIC
+  // ======================================================
   const handleCategory = (category) => {
     setSelectedCategory((prev) =>
       prev.includes(category)
@@ -109,6 +133,7 @@ const Card = () => {
     return Number(product.price || 0);
   };
 
+  // UPDATED FILTER LOGIC (Category + Price + Offers + New Arrivals)
   const filteredProducts = products.filter((product) => {
     const productCategory = product.category || product.name;
     const categoryMatch =
@@ -139,6 +164,7 @@ const Card = () => {
     }
   };
 
+  // Clear all filters handler
   const handleClearFilters = () => {
     setSelectedCategory([]);
     setMaxPrice(5000);
@@ -153,6 +179,111 @@ const Card = () => {
     (showOnlyOffers ? 1 : 0) +
     (showOnlyNew ? 1 : 0);
 
+  // ======================================================
+  // SKELETON LOADER
+  // ======================================================
+  const renderSkeletonCard = (key) => (
+    <div
+      key={key}
+      className="relative rounded-xl sm:rounded-2xl overflow-hidden"
+      style={{
+        background: "rgba(255, 255, 255, 0.45)",
+        backdropFilter: "blur(14px)",
+        WebkitBackdropFilter: "blur(14px)",
+        border: "1px solid rgba(255, 255, 255, 0.6)",
+        boxShadow: "0 8px 24px rgba(21, 24, 28, 0.06)",
+      }}
+    >
+      <div
+        className="relative h-44 sm:h-52 md:h-56 overflow-hidden shimmer"
+        style={{ background: "rgba(230, 232, 235, 0.6)" }}
+      />
+      <div className="p-3.5 sm:p-4 md:p-5">
+        <div
+          className="h-4 sm:h-5 w-3/4 rounded-md shimmer"
+          style={{ background: "rgba(230, 232, 235, 0.7)" }}
+        />
+        <div
+          className="h-3 w-1/2 rounded-md shimmer mt-2.5"
+          style={{ background: "rgba(230, 232, 235, 0.6)" }}
+        />
+        <div
+          className="h-3 w-2/5 rounded-md shimmer mt-1.5"
+          style={{ background: "rgba(230, 232, 235, 0.6)" }}
+        />
+        <div className="flex justify-between items-end mt-4 sm:mt-5">
+          <div
+            className="h-6 sm:h-7 w-16 sm:w-20 rounded-md shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.7)" }}
+          />
+          <div
+            className="h-6 sm:h-7 w-10 rounded-md shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.6)" }}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mt-4 sm:mt-5">
+          <div
+            className="h-9 sm:h-10 rounded-lg sm:rounded-xl shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.7)" }}
+          />
+          <div
+            className="h-9 sm:h-10 rounded-lg sm:rounded-xl shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.6)" }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderLoadingState = () => (
+    <div className="min-h-screen" style={{ background: BG }}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
+        <div className="mb-6 sm:mb-8 md:mb-10">
+          <div
+            className="h-7 sm:h-9 w-40 sm:w-52 rounded-lg shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.7)" }}
+          />
+          <div className="w-10 h-1 rounded-full mt-3 mb-3" style={{ background: AMBER }} />
+          <div
+            className="h-3.5 sm:h-4 w-56 sm:w-72 rounded-md shimmer"
+            style={{ background: "rgba(230, 232, 235, 0.6)" }}
+          />
+        </div>
+
+        <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+          <div className="hidden lg:block lg:col-span-1">
+            <div
+              className="sticky top-24 rounded-2xl xl:rounded-3xl overflow-hidden p-5 xl:p-6 min-h-[420px]"
+              style={{
+                background: "rgba(43, 74, 94, 0.55)",
+                backdropFilter: "blur(16px)",
+                border: "1px solid rgba(255, 255, 255, 0.15)",
+              }}
+            >
+              <div className="flex items-center gap-2 mb-6">
+                <Filter size={20} className="text-white/70" />
+                <div
+                  className="h-5 w-20 rounded-md shimmer"
+                  style={{ background: "rgba(255,255,255,0.25)" }}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="lg:col-span-3">
+            <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+              {Array.from({ length: 6 }).map((_, i) => renderSkeletonCard(i))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  if (loading) return renderLoadingState();
+
+  // ======================================================
+  // FILTER COMPONENT
+  // ======================================================
   const renderFilterSection = () => (
     <>
       <div className="flex items-center justify-between mb-5 sm:mb-6">
@@ -168,7 +299,7 @@ const Card = () => {
         </button>
       </div>
 
-      {/* Special Filters */}
+      {/* NEW FEATURE: Quick Deals & Offers Filter Section */}
       <div className="mb-6 sm:mb-8 border-b border-white/10 pb-5">
         <h3 className="text-sm sm:text-base font-semibold text-white/80 mb-3">
           Special Filters
@@ -218,7 +349,7 @@ const Card = () => {
         </div>
       </div>
 
-      {/* Categories Filter */}
+      {/* Category Filter */}
       <div className="mb-6 sm:mb-8">
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <h3 className="text-sm sm:text-base font-semibold text-white/80">
@@ -296,7 +427,7 @@ const Card = () => {
         </div>
       </div>
 
-      {/* Max Price Slider */}
+      {/* Max Price Filter */}
       <div className="mb-5 sm:mb-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm sm:text-base font-semibold text-white/80">
@@ -340,19 +471,12 @@ const Card = () => {
     </>
   );
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: BG }}>
-        <p className="text-lg font-semibold" style={{ color: STEEL }}>Loading Products...</p>
-      </div>
-    );
-  }
-
+  // ======================================================
+  // MAIN RENDER
+  // ======================================================
   return (
-    <div className="min-h-screen relative" style={{ background: BG }}>
+    <div className="min-h-screen" style={{ background: BG }}>
       <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6 sm:py-8">
-        
-        {/* Header Section */}
         <div className="mb-6 sm:mb-8 md:mb-10">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight" style={{ color: INK }}>
             Our products
@@ -363,37 +487,36 @@ const Card = () => {
           </p>
         </div>
 
-        {/* Floating Mobile Filter Trigger Button (RIGHT SIDE FIXED) */}
-        <div className="lg:hidden fixed bottom-6 right-6 z-40">
+        {/* Mobile Filter Toggle */}
+        <div className="lg:hidden mb-5 sm:mb-6 flex justify-between items-center gap-3">
           <button
             onClick={() => setShowMobileFilter(true)}
-            className="flex items-center gap-2 px-5 py-3 rounded-full text-white font-bold text-sm shadow-2xl active:scale-95 transition-all"
-            style={{
-              background: `linear-gradient(135deg, ${STEEL} 0%, ${STEEL_DARK} 100%)`,
-              boxShadow: "0 10px 25px rgba(23, 48, 62, 0.4)",
-            }}
+            className="flex items-center gap-2 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-white font-semibold text-sm sm:text-base"
+            style={{ background: STEEL }}
           >
-            <Filter size={18} />
-            <span>Filters</span>
+            <Filter size={16} className="sm:w-[18px] sm:h-[18px]" />
+            Filters
             {activeFilterCount > 0 && (
               <span
-                className="text-[10px] font-extrabold px-2 py-0.5 rounded-full"
+                className="ml-1 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full"
                 style={{ background: AMBER, color: "#1A1200" }}
               >
                 {activeFilterCount}
               </span>
             )}
           </button>
+          <p className="text-xs sm:text-sm shrink-0" style={{ color: MUTED }}>
+            {filteredProducts.length} products
+          </p>
         </div>
 
-        {/* Main Section Grid */}
-        <div className="grid lg:grid-cols-4 gap-6 lg:gap-8 items-start">
-          
-          {/* 1. Desktop Fixed Sticky Filter Sidebar */}
-          <aside className="hidden lg:block lg:col-span-1 sticky top-20 h-[calc(100vh-100px)] overflow-y-auto scrollbar-hide pr-1">
-            <div className="rounded-3xl overflow-hidden shadow-lg border border-black/5" style={{ background: STEEL }}>
+        {/* Main Grid Container — Sticky Sidebar + Independent Scrollable Grid */}
+        <div className="grid lg:grid-cols-4 gap-4 sm:gap-6 lg:gap-8 items-start">
+          {/* Desktop Sticky Sidebar */}
+          <div className="hidden lg:block lg:col-span-1 sticky top-24 max-h-[calc(100vh-120px)] overflow-y-auto scrollbar-hide">
+            <div className="rounded-2xl xl:rounded-3xl overflow-hidden shadow-md">
               <div
-                className="p-6"
+                className="p-5 xl:p-6"
                 style={{
                   background: `linear-gradient(160deg, ${STEEL} 0%, ${STEEL_DARK} 100%)`,
                 }}
@@ -401,17 +524,17 @@ const Card = () => {
                 {renderFilterSection()}
               </div>
             </div>
-          </aside>
+          </div>
 
-          {/* 2. Mobile Filter Sidebar Drawer (LEFT ALIGNED) */}
+          {/* Mobile Filter Drawer */}
           {showMobileFilter && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div
-                className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
+                className="absolute inset-0 bg-black/50"
                 onClick={() => setShowMobileFilter(false)}
               />
               <div
-                className="absolute inset-y-0 left-0 w-[82vw] max-w-xs h-full overflow-y-auto p-5 shadow-2xl animate-slide-right"
+                className="absolute bottom-0 left-0 right-0 max-h-[85vh] overflow-y-auto rounded-t-2xl sm:rounded-t-3xl p-5 sm:p-6 shadow-2xl animate-slide-up"
                 style={{
                   background: `linear-gradient(160deg, ${STEEL} 0%, ${STEEL_DARK} 100%)`,
                 }}
@@ -421,20 +544,23 @@ const Card = () => {
             </div>
           )}
 
-          {/* 3. Independent Scrollable Product Card Grid */}
-          <main className="lg:col-span-3">
+          {/* Products Grid Section */}
+          <div className="lg:col-span-3">
             {filteredProducts.length === 0 ? (
               <div
-                className="h-[350px] flex flex-col justify-center items-center rounded-3xl p-6"
+                className="h-[320px] sm:h-[400px] md:h-[450px] flex flex-col justify-center items-center rounded-2xl sm:rounded-3xl px-4"
                 style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
               >
-                <Package size={64} style={{ color: "#C7CBCE" }} />
-                <h2 className="mt-4 text-xl font-bold" style={{ color: INK }}>
+                <Package size={56} className="sm:w-[72px] sm:h-[72px]" style={{ color: "#C7CBCE" }} />
+                <h2 className="mt-4 sm:mt-5 text-xl sm:text-2xl font-bold text-center" style={{ color: INK }}>
                   No products found
                 </h2>
+                <p className="mt-2 text-sm sm:text-base text-center" style={{ color: MUTED }}>
+                  No products match your current filters.
+                </p>
                 <button
                   onClick={handleClearFilters}
-                  className="mt-6 px-6 py-2.5 rounded-xl text-white font-semibold text-sm"
+                  className="mt-6 sm:mt-8 px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl text-white font-semibold text-sm sm:text-base"
                   style={{ background: STEEL }}
                 >
                   Clear filters
@@ -442,145 +568,284 @@ const Card = () => {
               </div>
             ) : (
               <>
-                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
-                  {filteredProducts.slice(0, visibleProducts).map((product) => {
-                    const lowestPrice = getLowestPrice(product);
-                    const finalPrice = lowestPrice || Number(product.price) || 0;
-                    const inStock = product.stock > 0;
-                    const discountPercentage = product.discountPercent || product.offer || 0;
-                    const discountTagNote = product.discountNote || "";
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6">
+                  {filteredProducts
+                    .slice(0, visibleProducts)
+                    .map((product) => {
+                      const lowestPrice = getLowestPrice(product);
+                      const finalPrice =
+                        lowestPrice || Number(product.price) || 0;
+                      const inStock = product.stock > 0;
 
-                    return (
-                      <div
-                        key={product._id}
-                        className="group rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl relative flex flex-col justify-between"
-                        style={{
-                          background: SURFACE,
-                          border: `1px solid ${BORDER}`,
-                        }}
-                      >
-                        {/* Image Header */}
+                      // Extract Discount Information
+                      const discountPercentage =
+                        product.discountPercent || product.offer || 0;
+                      const discountTagNote = product.discountNote || "";
+
+                      return (
                         <div
-                          className="relative h-48 sm:h-52 overflow-hidden"
-                          style={{ background: "#F1F2EF" }}
+                          key={product._id}
+                          className="group rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl relative flex flex-col justify-between"
+                          style={{
+                            background: SURFACE,
+                            border: `1px solid ${BORDER}`,
+                          }}
                         >
-                          <img
-                            src={product.images?.[0] || "/no-image.png"}
-                            alt={product.name}
-                            className="w-full h-full object-contain p-4 group-hover:scale-105 transition duration-500"
-                            onError={(e) => {
-                              e.target.src = "/no-image.png";
-                            }}
-                          />
-
-                          {discountPercentage > 0 && (
-                            <div className="absolute top-2 left-0 z-10">
-                              <span
-                                className="text-[10px] font-bold text-white px-2.5 py-1 flex items-center gap-1 shadow-md"
-                                style={{
-                                  background: `linear-gradient(135deg, ${AMBER_DARK} 0%, #D9381E 100%)`,
-                                  clipPath: "polygon(0 0, 100% 0, 92% 100%, 0% 100%)",
-                                }}
-                              >
-                                <Sparkles size={11} />
-                                {discountTagNote
-                                  ? `${discountTagNote} (${discountPercentage}% OFF)`
-                                  : `${discountPercentage}% OFF`}
-                              </span>
-                            </div>
-                          )}
-
-                          <span
-                            className="absolute top-2 right-2 text-[10px] font-semibold px-2.5 py-0.5 rounded-full z-10"
-                            style={
-                              inStock
-                                ? { background: "#E4F3E9", color: "#1D7A43" }
-                                : { background: "#FBE7E7", color: "#B4302F" }
-                            }
+                          {/* Image Header Block */}
+                          <div
+                            className="relative h-44 sm:h-52 md:h-56 overflow-hidden"
+                            style={{ background: "#F1F2EF" }}
                           >
-                            {inStock ? "In stock" : "Out of stock"}
-                          </span>
-                        </div>
+                            <img
+                              src={product.images?.[0] || "/no-image.png"}
+                              alt={product.name}
+                              className="w-full h-full object-contain p-4 sm:p-5 group-hover:scale-105 transition duration-500"
+                              onError={(e) => {
+                                e.target.src = "/no-image.png";
+                              }}
+                            />
 
-                        {/* Card Info */}
-                        <div className="p-4 flex-1 flex flex-col justify-between">
-                          <div>
-                            <h2 className="font-bold text-sm sm:text-base line-clamp-2" style={{ color: INK }}>
-                              {product.name}
-                            </h2>
-                            <div className="mt-1.5 space-y-0.5 text-xs" style={{ color: MUTED }}>
-                              <p>Brand: <span style={{ color: INK }}>{product.brand || "N/A"}</span></p>
-                              <p>Material: <span style={{ color: INK }}>{product.material || "N/A"}</span></p>
-                            </div>
+                            {/* Discount Ribbon */}
+                            {discountPercentage > 0 && (
+                              <div className="absolute top-2 left-0 flex flex-col items-start gap-1 z-10">
+                                <span
+                                  className="animated-discount-badge text-[10px] sm:text-xs font-bold text-white px-2.5 py-1 flex items-center gap-1 shadow-md"
+                                  style={{
+                                    background: `linear-gradient(135deg, ${AMBER_DARK} 0%, #D9381E 100%)`,
+                                    clipPath:
+                                      "polygon(0 0, 100% 0, 92% 100%, 0% 100%)",
+                                  }}
+                                >
+                                  <Sparkles size={12} className="animate-pulse" />
+                                  {discountTagNote
+                                    ? `${discountTagNote} (${discountPercentage}% OFF)`
+                                    : `${discountPercentage}% OFF`}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* New Arrival Badge */}
+                            {product.isNewProduct && (
+                              <span className="absolute bottom-2 left-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold uppercase tracking-wider text-white bg-emerald-600 shadow-md animate-bounce">
+                                <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                New
+                              </span>
+                            )}
+
+                            {/* Stock Badge */}
+                            <span
+                              className="absolute top-2 right-2 sm:top-3 sm:right-3 text-[10px] sm:text-xs font-semibold px-2 sm:px-3 py-0.5 sm:py-1 rounded-full z-10"
+                              style={
+                                inStock
+                                  ? { background: "#E4F3E9", color: "#1D7A43" }
+                                  : { background: "#FBE7E7", color: "#B4302F" }
+                              }
+                            >
+                              {inStock ? "In stock" : "Out of stock"}
+                            </span>
                           </div>
 
-                          <div>
-                            <div className="flex justify-between items-end mt-4">
-                              <div>
-                                <p className="text-[10px]" style={{ color: MUTED }}>Price</p>
-                                <h3 className="text-lg font-extrabold" style={{ color: INK }}>₹{finalPrice}</h3>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-[10px]" style={{ color: MUTED }}>Stock</p>
-                                <h4 className="font-bold text-sm" style={{ color: "#1D7A43" }}>{product.stock ?? 0}</h4>
+                          {/* Body Content */}
+                          <div className="p-3.5 sm:p-4 md:p-5 flex-1 flex flex-col justify-between">
+                            <div>
+                              <h2
+                                className="font-bold text-sm sm:text-base md:text-lg line-clamp-2"
+                                style={{ color: INK }}
+                              >
+                                {product.name}
+                              </h2>
+
+                              <div className="mt-1.5 sm:mt-2 space-y-0.5">
+                                <p
+                                  className="text-[11px] sm:text-xs md:text-sm"
+                                  style={{ color: MUTED }}
+                                >
+                                  Brand:{" "}
+                                  <span style={{ color: INK }}>
+                                    {product.brand || "N/A"}
+                                  </span>
+                                </p>
+                                <p
+                                  className="text-[11px] sm:text-xs md:text-sm"
+                                  style={{ color: MUTED }}
+                                >
+                                  Material:{" "}
+                                  <span style={{ color: INK }}>
+                                    {product.material || "N/A"}
+                                  </span>
+                                </p>
                               </div>
                             </div>
 
-                            {/* Buttons */}
-                            <div className="grid grid-cols-2 gap-2 mt-4">
-                              <button
-                                onClick={() => navigate(`/product/${product._id}`, { state: { product } })}
-                                className="text-white rounded-xl py-2.5 text-xs font-semibold transition hover:opacity-90 active:scale-95"
-                                style={{ background: STEEL }}
-                              >
-                                Buy now
-                              </button>
-                              <button
-                                disabled={product.stock === 0}
-                                onClick={() => addToCart({ ...product, quantity: 1, price: finalPrice })}
-                                className="rounded-xl py-2.5 text-xs font-bold transition disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
-                                style={
-                                  product.stock === 0
-                                    ? { background: "#F1F2EF", color: MUTED }
-                                    : { background: AMBER, color: "#1A1200" }
-                                }
-                              >
-                                Add to cart
-                              </button>
+                            <div>
+                              <div className="flex justify-between items-end mt-3 sm:mt-4">
+                                <div>
+                                  <p
+                                    className="text-[9px] sm:text-[10px] md:text-xs"
+                                    style={{ color: MUTED }}
+                                  >
+                                    Price
+                                  </p>
+                                  <h3
+                                    className="text-lg sm:text-xl md:text-2xl font-extrabold"
+                                    style={{ color: INK }}
+                                  >
+                                    ₹{finalPrice}
+                                  </h3>
+                                </div>
+                                <div className="text-right">
+                                  <p
+                                    className="text-[9px] sm:text-[10px] md:text-xs"
+                                    style={{ color: MUTED }}
+                                  >
+                                    Stock
+                                  </p>
+                                  <h4
+                                    className="font-bold text-base sm:text-lg"
+                                    style={{ color: "#1D7A43" }}
+                                  >
+                                    {product.stock ?? 0}
+                                  </h4>
+                                </div>
+                              </div>
+
+                              {/* Action Buttons */}
+                              <div className="grid grid-cols-2 gap-2 sm:gap-2.5 mt-4 sm:mt-5">
+                                <button
+                                  onClick={() =>
+                                    navigate(`/product/${product._id}`, {
+                                      state: { product },
+                                    })
+                                  }
+                                  className="text-white rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-semibold transition hover:opacity-90 active:scale-95"
+                                  style={{ background: STEEL }}
+                                >
+                                  Buy now
+                                </button>
+                                <button
+                                  disabled={product.stock === 0}
+                                  onClick={() =>
+                                    addToCart({
+                                      ...product,
+                                      quantity: 1,
+                                      price: finalPrice,
+                                    })
+                                  }
+                                  className="rounded-lg sm:rounded-xl py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm font-bold transition disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
+                                  style={
+                                    product.stock === 0
+                                      ? { background: "#F1F2EF", color: MUTED }
+                                      : { background: AMBER, color: "#1A1200" }
+                                  }
+                                >
+                                  Add to cart
+                                </button>
+                              </div>
+
+                              {/* Variety Selection */}
+                              {product.variantGroup &&
+                                products.filter(
+                                  (p) =>
+                                    p.variantGroup === product.variantGroup &&
+                                    p._id !== product._id
+                                ).length > 0 && (
+                                  <button
+                                    onClick={() =>
+                                      navigate(
+                                        `/varieties/${product.variantGroup}`,
+                                        {
+                                          state: {
+                                            groupName: product.variantGroup,
+                                            productName: product.name,
+                                          },
+                                        }
+                                      )
+                                    }
+                                    className="w-full mt-2 sm:mt-2.5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl border font-semibold text-xs sm:text-sm transition hover:bg-gray-50 active:scale-95"
+                                    style={{ borderColor: BORDER, color: STEEL }}
+                                  >
+                                    View more varieties
+                                  </button>
+                                )}
                             </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
                 </div>
 
-                {/* Pagination */}
+                {/* Load More Pagination */}
                 {filteredProducts.length > visibleProducts && (
-                  <div className="flex justify-center mt-8">
+                  <div className="flex justify-center mt-8 sm:mt-10">
                     <button
                       onClick={() => setVisibleProducts((prev) => prev + 8)}
-                      className="px-8 py-3 rounded-2xl text-white font-semibold text-sm transition hover:opacity-90 active:scale-95"
+                      className="px-6 sm:px-8 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl text-white font-semibold text-sm sm:text-base transition hover:opacity-90 active:scale-95"
                       style={{ background: STEEL }}
                     >
                       Load more products
                     </button>
                   </div>
                 )}
+
+                <div
+                  className="mt-6 sm:mt-8 text-center text-xs sm:text-sm"
+                  style={{ color: MUTED }}
+                >
+                  Showing{" "}
+                  <span className="font-bold" style={{ color: INK }}>
+                    {Math.min(visibleProducts, filteredProducts.length)}
+                  </span>{" "}
+                  of{" "}
+                  <span className="font-bold" style={{ color: INK }}>
+                    {filteredProducts.length}
+                  </span>{" "}
+                  products
+                </div>
               </>
             )}
-          </main>
-
+          </div>
         </div>
       </div>
 
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
-        @keyframes slide-right {
-          from { transform: translateX(-100%); }
-          to { transform: translateX(0); }
+        
+        @keyframes slide-up {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
         }
-        .animate-slide-right { animation: slide-right 0.25s cubic-bezier(0, 0, 0.2, 1); }
+        .animate-slide-up { animation: slide-up 0.3s ease-out; }
+
+        @keyframes shimmer-sweep {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+
+        .animated-discount-badge {
+          background-size: 200% 100% !important;
+          animation: shimmer-sweep 3s infinite linear;
+        }
+
+        .shimmer {
+          position: relative;
+          overflow: hidden;
+        }
+        .shimmer::after {
+          content: "";
+          position: absolute;
+          inset: 0;
+          transform: translateX(-100%);
+          background: linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 255, 255, 0.55) 50%,
+            rgba(255, 255, 255, 0) 100%
+          );
+          animation: shimmer-sweep-bar 1.6s infinite;
+        }
+        @keyframes shimmer-sweep-bar {
+          100% { transform: translateX(100%); }
+        }
       `}</style>
     </div>
   );
