@@ -1,7 +1,7 @@
 // ======================================================
 // IMPORTS
 // ======================================================
-import { useState, useEffect, useContext, useRef, useMemo } from "react";
+import { useState, useEffect, useContext, useRef, useMemo, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
@@ -68,7 +68,7 @@ const Card = () => {
   // ======================================================
   // FETCH PRODUCTS
   // ======================================================
-  const fetchProducts = async () => {
+  const fetchProducts = useCallback(async () => {
     try {
       setLoading(true);
       const { data } = await axios.get(
@@ -87,31 +87,31 @@ const Card = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [fetchProducts]);
 
   // ======================================================
   // HELPER FUNCTIONS & DERIVED DATA
   // ======================================================
-  const getLowestPrice = (product) => {
-    if (product.pricing && product.pricing.length > 0) {
+  const getLowestPrice = useCallback((product) => {
+    if (product?.pricing && Array.isArray(product.pricing) && product.pricing.length > 0) {
       const validPrices = product.pricing
         .map((item) => Number(item.price))
         .filter((val) => !isNaN(val) && val > 0);
       if (validPrices.length > 0) return Math.min(...validPrices);
     }
-    return Number(product.discountPrice) || Number(product.price) || 0;
-  };
+    return Number(product?.discountPrice) || Number(product?.price) || 0;
+  }, []);
 
-  const getOriginalPrice = (product) => {
-    return Number(product.originalPrice) || Number(product.mrp) || Number(product.price) || 0;
-  };
+  const getOriginalPrice = useCallback((product) => {
+    return Number(product?.originalPrice) || Number(product?.mrp) || Number(product?.price) || 0;
+  }, []);
 
-  const getOfferPercentage = (product) => {
-    const rawOffer = Number(product.offer || product.discount);
+  const getOfferPercentage = useCallback((product) => {
+    const rawOffer = Number(product?.offer || product?.discount);
     if (!isNaN(rawOffer) && rawOffer > 0) return rawOffer;
 
     const original = getOriginalPrice(product);
@@ -121,7 +121,7 @@ const Card = () => {
       return Math.round(((original - lowest) / original) * 100);
     }
     return 0;
-  };
+  }, [getLowestPrice, getOriginalPrice]);
 
   const categories = useMemo(() => {
     return [
@@ -159,11 +159,7 @@ const Card = () => {
       const priceMatch = getLowestPrice(product) <= maxPrice;
       return categoryMatch && priceMatch;
     });
-  }, [products, selectedCategory, maxPrice]);
-
-  useEffect(() => {
-    setVisibleProducts(8);
-  }, [selectedCategory, maxPrice]);
+  }, [products, selectedCategory, maxPrice, getLowestPrice]);
 
   // ======================================================
   // HANDLERS
@@ -174,6 +170,19 @@ const Card = () => {
         ? prev.filter((item) => item !== category)
         : [...prev, category]
     );
+    setVisibleProducts(8);
+  };
+
+  const handlePriceChange = (e) => {
+    setMaxPrice(Number(e.target.value));
+    setVisibleProducts(8);
+  };
+
+  const clearAllFilters = () => {
+    setSelectedCategory([]);
+    setMaxPrice(5000);
+    setVisibleProducts(8);
+    setShowMobileFilter(false);
   };
 
   const scrollCategories = (direction) => {
@@ -300,6 +309,7 @@ const Card = () => {
         <button
           onClick={() => setShowMobileFilter(false)}
           className="lg:hidden p-1.5 rounded-full bg-white/15 hover:bg-white/25 transition"
+          aria-label="Close filters"
         >
           <X size={18} className="text-white" />
         </button>
@@ -319,12 +329,14 @@ const Card = () => {
           <button
             onClick={() => scrollCategories("left")}
             className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition active:scale-95"
+            aria-label="Scroll left"
           >
             <ChevronLeft size={16} />
           </button>
           <button
             onClick={() => scrollCategories("right")}
             className="p-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition active:scale-95"
+            aria-label="Scroll right"
           >
             <ChevronRight size={16} />
           </button>
@@ -344,7 +356,7 @@ const Card = () => {
               <button
                 key={category}
                 onClick={() => handleCategory(category)}
-                className="flex-shrink-0 w-20 sm:w-24 md:w-28 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 transition-all duration-200 border"
+                className="flex-shrink-0 w-20 sm:w-24 md:w-28 rounded-xl sm:rounded-2xl p-2.5 sm:p-3 transition-all duration-200 border text-left"
                 style={
                   active
                     ? { background: AMBER, color: "#1A1200", borderColor: AMBER }
@@ -390,7 +402,7 @@ const Card = () => {
           max="5000"
           step="100"
           value={maxPrice}
-          onChange={(e) => setMaxPrice(Number(e.target.value))}
+          onChange={handlePriceChange}
           className="w-full h-2 rounded-lg appearance-none cursor-pointer"
           style={{ background: "rgba(255,255,255,0.25)", accentColor: AMBER }}
         />
@@ -402,10 +414,7 @@ const Card = () => {
 
       {(selectedCategory.length > 0 || maxPrice < 5000) && (
         <button
-          onClick={() => {
-            setSelectedCategory([]);
-            setMaxPrice(5000);
-          }}
+          onClick={clearAllFilters}
           className="w-full py-2.5 sm:py-3 rounded-xl text-white font-semibold text-sm sm:text-base transition border mt-auto"
           style={{ background: "rgba(255,255,255,0.1)", borderColor: "rgba(255,255,255,0.2)" }}
         >
@@ -497,12 +506,8 @@ const Card = () => {
                   Try changing category or price range.
                 </p>
                 <button
-                  onClick={() => {
-                    setSelectedCategory([]);
-                    setMaxPrice(5000);
-                    setShowMobileFilter(false);
-                  }}
-                  className="mt-6 px-6 py-2.5 rounded-xl text-white font-semibold text-sm"
+                  onClick={clearAllFilters}
+                  className="mt-6 px-6 py-2.5 rounded-xl text-white font-semibold text-sm transition hover:opacity-90 active:scale-95"
                   style={{ background: STEEL }}
                 >
                   Clear filters
@@ -532,7 +537,7 @@ const Card = () => {
                             <div className="relative h-44 sm:h-52 md:h-56 overflow-hidden" style={{ background: "#F1F2EF" }}>
                               <img
                                 src={product.images?.[0] || product.image || "/no-image.png"}
-                                alt={product.name}
+                                alt={product.name || "Product"}
                                 className="w-full h-full object-contain p-4 sm:p-5 group-hover:scale-105 transition duration-500"
                                 onError={(e) => {
                                   e.target.src = "/no-image.png";
