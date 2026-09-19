@@ -20,6 +20,7 @@ import {
   Banknote,
   Zap,
   Check,
+  Tag,
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
 import axios from "axios";
@@ -37,12 +38,12 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Delivery Pincode Checker States
+  // Delivery Pincode Checker
   const [pincode, setPincode] = useState("");
   const [deliveryStatus, setDeliveryStatus] = useState(null);
   const [checkingPincode, setCheckingPincode] = useState(false);
 
-  // Payment Method & Delivery Option States
+  // Payment & Delivery
   const [selectedPayment, setSelectedPayment] = useState("");
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("standard");
 
@@ -52,7 +53,6 @@ const ProductDetails = () => {
   // ================= FETCH PRODUCT =================
   useEffect(() => {
     let isMounted = true;
-
     setSelectedImage(0);
     setQuantity(1);
     setDeliveryStatus(null);
@@ -78,7 +78,7 @@ const ProductDetails = () => {
             return;
           }
         } catch (e) {
-          // Fallback to bulk list search if direct ID fails
+          // fallback
         }
 
         const res = await axios.get(
@@ -100,26 +100,52 @@ const ProductDetails = () => {
     };
 
     fetchProduct();
-
     return () => {
       isMounted = false;
     };
   }, [id, location.state]);
 
-  // Map Backend Payment Methods to Available Methods
+  // ================= PAYMENT METHODS =================
   const availablePaymentMethods = useMemo(() => {
     const allMethods = [
-      { id: "upi", label: "UPI / Google Pay", desc: "Instant pay via UPI apps", icon: Wallet, backendNames: ["upi", "upi / google pay"] },
-      { id: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay", icon: CreditCard, backendNames: ["card", "credit / debit card", "credit card", "debit card"] },
-      { id: "cod", label: "Cash on Delivery", desc: "Pay cash upon arrival", icon: Banknote, backendNames: ["cod", "cash on delivery"] },
-      { id: "netbanking", label: "Net Banking", desc: "All major banks supported", icon: Building, backendNames: ["netbanking", "net banking"] },
+      {
+        id: "upi",
+        label: "UPI / Google Pay",
+        desc: "Instant pay via UPI apps",
+        icon: Wallet,
+        backendNames: ["upi", "upi / google pay"],
+      },
+      {
+        id: "card",
+        label: "Credit / Debit Card",
+        desc: "Visa, Mastercard, RuPay",
+        icon: CreditCard,
+        backendNames: ["card", "credit / debit card", "credit card", "debit card"],
+      },
+      {
+        id: "cod",
+        label: "Cash on Delivery",
+        desc: "Pay cash upon arrival",
+        icon: Banknote,
+        backendNames: ["cod", "cash on delivery"],
+      },
+      {
+        id: "netbanking",
+        label: "Net Banking",
+        desc: "All major banks supported",
+        icon: Building,
+        backendNames: ["netbanking", "net banking"],
+      },
     ];
 
-    if (!product?.paymentMethods || !Array.isArray(product.paymentMethods) || product.paymentMethods.length === 0) {
-      return allMethods; // Fallback to all if backend array is empty
+    if (
+      !product?.paymentMethods ||
+      !Array.isArray(product.paymentMethods) ||
+      product.paymentMethods.length === 0
+    ) {
+      return allMethods;
     }
 
-    // Filter based on backend response
     const filtered = allMethods.filter((method) =>
       product.paymentMethods.some((backendMethod) =>
         method.backendNames.includes(String(backendMethod).toLowerCase().trim())
@@ -129,14 +155,13 @@ const ProductDetails = () => {
     return filtered.length > 0 ? filtered : allMethods;
   }, [product]);
 
-  // Set initial selected payment method based on available backend options
   useEffect(() => {
     if (availablePaymentMethods.length > 0) {
       setSelectedPayment(availablePaymentMethods[0].id);
     }
   }, [availablePaymentMethods]);
 
-  // ================= PRICING TIERS (Memoized) =================
+  // ================= PRICING TIERS =================
   const pricingTiers = useMemo(() => {
     if (!product) return [{ minQty: 1, price: 0 }];
 
@@ -159,7 +184,8 @@ const ProductDetails = () => {
 
   const maxStock = product?.stock ?? 1;
 
-  const unitPrice = useMemo(() => {
+  // Base unit price from pricing tiers (before discount display logic)
+  const baseUnitPrice = useMemo(() => {
     let applicablePrice = pricingTiers[0]?.price || 0;
     for (let i = 0; i < pricingTiers.length; i++) {
       if (quantity >= pricingTiers[i].minQty) {
@@ -171,12 +197,53 @@ const ProductDetails = () => {
     return applicablePrice;
   }, [quantity, pricingTiers]);
 
-  const totalPrice = unitPrice * quantity;
+  // ================= DISCOUNT / OFFER LOGIC =================
+  const discountPercent = useMemo(() => {
+    return Number(product?.discountPercent || product?.offer || 0) || 0;
+  }, [product]);
 
-  // ================= FETCH DELIVERY CHARGE FROM BACKEND =================
+  // Original (MRP) price — use backend mrp/originalPrice if present,
+  // otherwise derive from discount when offer exists
+  const originalUnitPrice = useMemo(() => {
+    const mrp = Number(product?.mrp || product?.originalPrice || 0);
+    if (mrp > 0) return mrp;
+
+    if (discountPercent > 0 && discountPercent < 100) {
+      // Assume baseUnitPrice is already the discounted selling price
+      return Math.round(baseUnitPrice / (1 - discountPercent / 100));
+    }
+
+    return baseUnitPrice;
+  }, [product, baseUnitPrice, discountPercent]);
+
+  // Final selling unit price after discount
+  const unitPrice = useMemo(() => {
+    // If backend already stores discounted price in pricing tiers, use it
+    // If mrp exists and is higher, apply discount on mrp for clarity
+    const mrp = Number(product?.mrp || product?.originalPrice || 0);
+
+    if (mrp > 0 && discountPercent > 0) {
+      return Math.round(mrp * (1 - discountPercent / 100));
+    }
+
+    // Otherwise use tier price as final selling price
+    return baseUnitPrice;
+  }, [product, baseUnitPrice, discountPercent]);
+
+  const hasDiscount =
+    discountPercent > 0 && originalUnitPrice > unitPrice;
+
+  const totalOriginalPrice = originalUnitPrice * quantity;
+  const totalPrice = unitPrice * quantity;
+  const totalSavings = hasDiscount ? totalOriginalPrice - totalPrice : 0;
+
+  // ================= DELIVERY CHARGE =================
   const backendDeliveryCharge = useMemo(() => {
     if (!product) return 0;
-    if (typeof product.delivery === "object" && product.delivery?.charge !== undefined) {
+    if (
+      typeof product.delivery === "object" &&
+      product.delivery?.charge !== undefined
+    ) {
       return Number(product.delivery.charge) || 0;
     }
     if (product.deliveryCharge !== undefined) {
@@ -187,35 +254,35 @@ const ProductDetails = () => {
 
   const deliveryCharge = useMemo(() => {
     if (selectedDeliveryMethod === "standard") {
-      return backendDeliveryCharge; // Shows backend base delivery charge
+      return backendDeliveryCharge;
     }
-    return backendDeliveryCharge + 100; // Express adds extra charge over backend charge
+    return backendDeliveryCharge + 100;
   }, [selectedDeliveryMethod, backendDeliveryCharge]);
 
-  // GST Calculation
+  // GST only when present
+  const gstPercent = Number(product?.gst) || 0;
+  const hasGst = gstPercent > 0;
+
   const gstAmount = useMemo(() => {
-    const gstPercent = Number(product?.gst) || 0;
+    if (!hasGst) return 0;
     return (totalPrice * gstPercent) / 100;
-  }, [totalPrice, product]);
+  }, [totalPrice, gstPercent, hasGst]);
 
   const grandTotal = totalPrice + gstAmount + deliveryCharge;
 
-  // ================= AUTO SLIDE =================
+  // ================= IMAGES =================
   const imagesList = useMemo(() => {
     return product?.images?.length > 0 ? product.images : ["/no-image.png"];
   }, [product]);
 
   useEffect(() => {
     if (imagesList.length <= 1 || isPaused) return;
-
     const interval = setInterval(() => {
-      setSelectedImage((prevIndex) => (prevIndex + 1) % imagesList.length);
+      setSelectedImage((prev) => (prev + 1) % imagesList.length);
     }, 3500);
-
     return () => clearInterval(interval);
   }, [imagesList.length, isPaused]);
 
-  // ================= AUTO SCROLL ACTIVE PRICE CARD =================
   useEffect(() => {
     if (activeCardRef.current && priceScrollRef.current) {
       activeCardRef.current.scrollIntoView({
@@ -226,7 +293,7 @@ const ProductDetails = () => {
     }
   }, [quantity]);
 
-  // ================= CHECK PINCODE DELIVERY =================
+  // ================= PINCODE =================
   const handleCheckDelivery = (e) => {
     e.preventDefault();
     if (!pincode || pincode.trim().length !== 6) {
@@ -240,7 +307,9 @@ const ProductDetails = () => {
     setCheckingPincode(true);
     setTimeout(() => {
       if (/^[1-9][0-9]{5}$/.test(pincode)) {
-        const estDays = product?.delivery?.time ? `${product.delivery.time} days` : "3-5 business days";
+        const estDays = product?.delivery?.time
+          ? `${product.delivery.time} days`
+          : "3-5 business days";
         setDeliveryStatus({
           success: true,
           message: `Delivery available! Estimated delivery in ${estDays}.`,
@@ -255,7 +324,6 @@ const ProductDetails = () => {
     }, 600);
   };
 
-  // ================= HANDLERS =================
   const handleQuantityChange = (value) => {
     let qty = Number(value);
     if (isNaN(qty) || qty < 1) qty = 1;
@@ -267,14 +335,16 @@ const ProductDetails = () => {
     if (!product) return;
     addToCart({
       ...product,
-      quantity: quantity,
+      quantity,
       price: unitPrice,
+      originalPrice: originalUnitPrice,
+      discountPercent,
       paymentMethod: selectedPayment,
       deliveryMethod: selectedDeliveryMethod,
-      deliveryCharge: deliveryCharge,
-      grandTotal: grandTotal,
+      deliveryCharge,
+      grandTotal,
       selectedOption: {
-        quantity: quantity,
+        quantity,
         price: unitPrice,
         label: `${quantity} units`,
       },
@@ -291,7 +361,7 @@ const ProductDetails = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
         <div className="text-center">
-          <div className="w-12 h-12 sm:w-14 sm:h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <div className="w-12 h-12 sm:w-14 sm:h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="mt-4 text-gray-600 font-medium text-sm sm:text-base">
             Loading product details...
           </p>
@@ -349,9 +419,10 @@ const ProductDetails = () => {
                     e.target.src = "/no-image.png";
                   }}
                 />
-                {product.offer > 0 && (
-                  <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full shadow">
-                    {product.offer}% OFF
+                {hasDiscount && (
+                  <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full shadow flex items-center gap-1">
+                    <Tag size={12} />
+                    {discountPercent}% OFF
                   </span>
                 )}
               </div>
@@ -381,19 +452,24 @@ const ProductDetails = () => {
                 </div>
               )}
 
-              {/* TRUST BADGES & FEATURES */}
               <div className="grid grid-cols-3 gap-2 mt-6 pt-6 border-t border-gray-200/80 text-center">
                 <div className="flex flex-col items-center">
                   <Truck size={20} className="text-indigo-600 mb-1" />
-                  <span className="text-[11px] font-medium text-gray-700">Fast Delivery</span>
+                  <span className="text-[11px] font-medium text-gray-700">
+                    Fast Delivery
+                  </span>
                 </div>
                 <div className="flex flex-col items-center">
                   <ShieldCheck size={20} className="text-emerald-600 mb-1" />
-                  <span className="text-[11px] font-medium text-gray-700">100% Authentic</span>
+                  <span className="text-[11px] font-medium text-gray-700">
+                    100% Authentic
+                  </span>
                 </div>
                 <div className="flex flex-col items-center">
                   <RotateCcw size={20} className="text-purple-600 mb-1" />
-                  <span className="text-[11px] font-medium text-gray-700">Easy Returns</span>
+                  <span className="text-[11px] font-medium text-gray-700">
+                    Easy Returns
+                  </span>
                 </div>
               </div>
             </div>
@@ -405,7 +481,49 @@ const ProductDetails = () => {
                   {product.name}
                 </h1>
 
-                {/* SPECIFICATIONS & BADGES */}
+                {/* ========== PRICE BLOCK: Original + After Offer ========== */}
+                <div className="mb-5 sm:mb-6 p-4 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-purple-50/50">
+                  {hasDiscount ? (
+                    <>
+                      <div className="flex flex-wrap items-end gap-2 sm:gap-3">
+                        <div>
+                          <p className="text-[11px] sm:text-xs text-gray-500 mb-0.5">
+                            Original price
+                          </p>
+                          <p className="text-base sm:text-lg text-gray-400 line-through font-medium">
+                            ₹{originalUnitPrice.toLocaleString()}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] sm:text-xs text-emerald-700 mb-0.5 font-medium">
+                            After {discountPercent}% off
+                          </p>
+                          <p className="text-2xl sm:text-3xl font-extrabold text-indigo-700">
+                            ₹{unitPrice.toLocaleString()}
+                          </p>
+                        </div>
+                        <span className="mb-1 inline-flex items-center gap-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full">
+                          <Tag size={11} />
+                          {discountPercent}% OFF
+                        </span>
+                      </div>
+                      <p className="mt-2 text-xs sm:text-sm text-emerald-700 font-semibold">
+                        You save ₹{(originalUnitPrice - unitPrice).toLocaleString()} per unit
+                      </p>
+                    </>
+                  ) : (
+                    <div>
+                      <p className="text-[11px] sm:text-xs text-gray-500 mb-0.5">
+                        Price
+                      </p>
+                      <p className="text-2xl sm:text-3xl font-extrabold text-indigo-700">
+                        ₹{unitPrice.toLocaleString()}
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* SPECIFICATIONS */}
                 <div className="space-y-2 text-gray-600 mb-5 sm:mb-6 text-sm sm:text-base">
                   <div className="flex flex-wrap gap-2 mb-3">
                     {product.category && (
@@ -435,12 +553,14 @@ const ProductDetails = () => {
                     <div className="flex flex-wrap gap-4 pt-1 text-xs sm:text-sm text-gray-700">
                       {product.size && (
                         <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
-                          <Ruler size={14} className="text-gray-500" /> Size: {product.size}
+                          <Ruler size={14} className="text-gray-500" /> Size:{" "}
+                          {product.size}
                         </span>
                       )}
                       {product.weight && (
                         <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
-                          <Scale size={14} className="text-gray-500" /> Weight: {product.weight}
+                          <Scale size={14} className="text-gray-500" /> Weight:{" "}
+                          {product.weight}
                         </span>
                       )}
                     </div>
@@ -462,7 +582,7 @@ const ProductDetails = () => {
                   </p>
                 </div>
 
-                {/* DELIVERY PINCODE CHECKER */}
+                {/* PINCODE CHECKER */}
                 <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
                   <div className="flex items-center gap-2 mb-2.5">
                     <MapPin size={18} className="text-indigo-600" />
@@ -476,7 +596,9 @@ const ProductDetails = () => {
                       maxLength={6}
                       placeholder="Enter 6-digit Pincode"
                       value={pincode}
-                      onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+                      onChange={(e) =>
+                        setPincode(e.target.value.replace(/\D/g, ""))
+                      }
                       className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500"
                     />
                     <button
@@ -487,11 +609,12 @@ const ProductDetails = () => {
                       {checkingPincode ? "Checking..." : "Check"}
                     </button>
                   </form>
-
                   {deliveryStatus && (
                     <div
                       className={`mt-3 flex items-center gap-2 text-xs sm:text-sm font-medium ${
-                        deliveryStatus.success ? "text-emerald-700" : "text-red-600"
+                        deliveryStatus.success
+                          ? "text-emerald-700"
+                          : "text-red-600"
                       }`}
                     >
                       {deliveryStatus.success ? (
@@ -504,7 +627,7 @@ const ProductDetails = () => {
                   )}
                 </div>
 
-                {/* DYNAMIC BACKEND DELIVERY OPTIONS */}
+                {/* DELIVERY OPTIONS */}
                 <div className="mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Select Delivery Option
@@ -519,18 +642,30 @@ const ProductDetails = () => {
                           : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
                       }`}
                     >
-                      <div className={`p-2 rounded-lg ${selectedDeliveryMethod === "standard" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>
+                      <div
+                        className={`p-2 rounded-lg ${
+                          selectedDeliveryMethod === "standard"
+                            ? "bg-indigo-600 text-white"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
                         <Truck size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-xs sm:text-sm text-gray-800">Standard Delivery</span>
+                          <span className="font-semibold text-xs sm:text-sm text-gray-800">
+                            Standard Delivery
+                          </span>
                           <span className="text-xs font-bold text-indigo-700">
-                            {backendDeliveryCharge === 0 ? "FREE" : `₹${backendDeliveryCharge}`}
+                            {backendDeliveryCharge === 0
+                              ? "FREE"
+                              : `₹${backendDeliveryCharge}`}
                           </span>
                         </div>
                         <p className="text-[11px] text-gray-500">
-                          {product?.delivery?.time ? `Estimated: ${product.delivery.time} Days` : "Delivered in 3-5 Business Days"}
+                          {product?.delivery?.time
+                            ? `Estimated: ${product.delivery.time} Days`
+                            : "Delivered in 3-5 Business Days"}
                         </p>
                       </div>
                     </button>
@@ -544,23 +679,33 @@ const ProductDetails = () => {
                           : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
                       }`}
                     >
-                      <div className={`p-2 rounded-lg ${selectedDeliveryMethod === "express" ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600"}`}>
+                      <div
+                        className={`p-2 rounded-lg ${
+                          selectedDeliveryMethod === "express"
+                            ? "bg-amber-500 text-white"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
                         <Zap size={18} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-semibold text-xs sm:text-sm text-gray-800">Express Delivery</span>
+                          <span className="font-semibold text-xs sm:text-sm text-gray-800">
+                            Express Delivery
+                          </span>
                           <span className="text-xs font-bold text-indigo-700">
                             ₹{backendDeliveryCharge + 100}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-500">Faster Express Delivery</p>
+                        <p className="text-[11px] text-gray-500">
+                          Faster Express Delivery
+                        </p>
                       </div>
                     </button>
                   </div>
                 </div>
 
-                {/* DYNAMIC BACKEND PAYMENT METHODS */}
+                {/* PAYMENT METHODS */}
                 <div className="mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Select Payment Method
@@ -581,14 +726,26 @@ const ProductDetails = () => {
                           }`}
                         >
                           <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-lg ${isSelected ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"}`}>
+                            <div
+                              className={`p-2 rounded-lg ${
+                                isSelected
+                                  ? "bg-indigo-600 text-white"
+                                  : "bg-gray-100 text-gray-500"
+                              }`}
+                            >
                               <Icon size={18} />
                             </div>
                             <div>
-                              <p className={`text-xs sm:text-sm font-semibold ${isSelected ? "text-indigo-900" : "text-gray-800"}`}>
+                              <p
+                                className={`text-xs sm:text-sm font-semibold ${
+                                  isSelected ? "text-indigo-900" : "text-gray-800"
+                                }`}
+                              >
                                 {method.label}
                               </p>
-                              <p className="text-[10px] text-gray-400">{method.desc}</p>
+                              <p className="text-[10px] text-gray-400">
+                                {method.desc}
+                              </p>
                             </div>
                           </div>
                           {isSelected && (
@@ -602,20 +759,18 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* PRICING TIERS */}
+                {/* QUANTITY WISE PRICING */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Quantity Wise Pricing
                   </h3>
-
                   <div
                     ref={priceScrollRef}
                     className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pt-3 pb-4 price-scroll"
                   >
                     <div className="flex gap-3 min-w-max px-1">
                       {pricingTiers.map((tier, index) => {
-                        const isActive = unitPrice === tier.price;
-
+                        const isActive = baseUnitPrice === tier.price;
                         return (
                           <div
                             key={index}
@@ -636,9 +791,7 @@ const ProductDetails = () => {
                             >
                               ₹{tier.price}
                             </p>
-                            <p className="text-[9px] text-gray-400 mt-1">
-                              / unit
-                            </p>
+                            <p className="text-[9px] text-gray-400 mt-1">/ unit</p>
                           </div>
                         );
                       })}
@@ -697,24 +850,52 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* TOTAL PRICE BREAKDOWN */}
+                {/* ========== TOTAL BREAKDOWN ========== */}
                 <div className="mb-6 sm:mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 space-y-2">
-                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
-                    <span>
-                      Unit Price (₹{unitPrice} × {quantity})
-                    </span>
-                    <span className="font-medium">₹{totalPrice.toLocaleString()}</span>
-                  </div>
-
-                  {product.gst > 0 && (
-                    <div className="flex justify-between items-center text-xs sm:text-sm text-indigo-700">
-                      <span className="flex items-center gap-1">
-                        <Percent size={13} /> GST ({product.gst}%)
+                  {/* Original total (if discount) */}
+                  {hasDiscount && (
+                    <div className="flex justify-between items-center text-xs sm:text-sm text-gray-500">
+                      <span>Original (₹{originalUnitPrice} × {quantity})</span>
+                      <span className="line-through">
+                        ₹{totalOriginalPrice.toLocaleString()}
                       </span>
-                      <span className="font-medium">+ ₹{gstAmount.toLocaleString()}</span>
                     </div>
                   )}
 
+                  {/* Discounted / selling total */}
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
+                    <span>
+                      {hasDiscount ? "After discount" : "Subtotal"} (₹{unitPrice} ×{" "}
+                      {quantity})
+                    </span>
+                    <span className="font-medium">
+                      ₹{totalPrice.toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Savings */}
+                  {hasDiscount && totalSavings > 0 && (
+                    <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-700 font-semibold">
+                      <span className="flex items-center gap-1">
+                        <Tag size={13} /> You save ({discountPercent}% OFF)
+                      </span>
+                      <span>− ₹{totalSavings.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {/* GST — only if present */}
+                  {hasGst && (
+                    <div className="flex justify-between items-center text-xs sm:text-sm text-indigo-700">
+                      <span className="flex items-center gap-1">
+                        <Percent size={13} /> GST ({gstPercent}%)
+                      </span>
+                      <span className="font-medium">
+                        + ₹{gstAmount.toLocaleString()}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Delivery */}
                   <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
                     <span>Delivery Charge</span>
                     <span className="font-medium">
@@ -745,7 +926,7 @@ const ProductDetails = () => {
                 )}
               </div>
 
-              {/* ACTION BUTTONS */}
+              {/* ACTIONS */}
               <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mt-auto pt-3 sm:pt-4">
                 <button
                   disabled={product.stock === 0}
