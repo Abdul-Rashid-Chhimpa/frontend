@@ -1,328 +1,769 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useContext, useEffect, useState, useRef, useMemo } from "react";
 import {
-  ShoppingCart,
-  Zap,
-  Truck,
-  Percent,
-  CheckCircle,
-  ShieldCheck,
-  Minus,
-  Plus,
-  Star,
+  Package,
   ArrowLeft,
+  ShoppingCart,
+  MapPin,
+  CheckCircle2,
+  XCircle,
+  Truck,
+  ShieldCheck,
+  RotateCcw,
+  Layers,
+  Percent,
+  Scale,
+  Ruler,
+  CreditCard,
+  Wallet,
+  Building,
+  Banknote,
+  Zap,
+  Check,
 } from "lucide-react";
+import { CartContext } from "../Components/Context";
+import axios from "axios";
 
-// Design Token Colors
-const STEEL = "#2D3748";
-const AMBER_DARK = "#D97706";
-const INK = "#1A202C";
-const MUTED = "#718096";
-const BORDER = "#E2E8F0";
-const BG_LIGHT = "#F7FAFC";
-
-const ProductDetails = ({ product: initialProduct, onAddToCart }) => {
+const ProductDetails = () => {
+  const { id } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
+  const { addToCart } = useContext(CartContext);
 
-  // Mock product fallbacks if none passed via props
-  const product = initialProduct || {
-    id: "prod-101",
-    name: "Heavy-Duty Cordless Impact Drill",
-    brand: "Pedwal Professional",
-    rating: 4.8,
-    reviewsCount: 124,
-    basePrice: 4500,
-    gst: 18,
-    stock: 12,
-    description:
-      "High-torque brushless motor delivering superior performance for tough industrial and DIY masonry, wood, and metal applications.",
-    images: [
-      "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&q=80&w=800",
-      "https://images.unsplash.com/photo-1572981779307-38b8cabb2407?auto=format&fit=crop&q=80&w=800",
-      "https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&q=80&w=800",
-    ],
-    features: [
-      "Brushless 20V High-Performance Motor",
-      "Includes 2x 4.0Ah Lithium-Ion Batteries",
-      "Ergonomic rubberized soft grip handle",
-      "Built-in LED work light for dark spaces",
-    ],
-  };
-
-  // Component State
-  const [selectedImage, setSelectedImage] = useState(
-    product.images?.[0] || ""
-  );
+  const [product, setProduct] = useState(location.state?.product || null);
+  const [loading, setLoading] = useState(!location.state?.product);
+  const [error, setError] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
-  const [selectedDeliveryMethod, setSelectedDeliveryMethod] =
-    useState("standard");
+  const [isPaused, setIsPaused] = useState(false);
 
-  // Price Calculations
-  const deliveryCharges = {
-    standard: 0,
-    express: 150,
+  // Delivery Pincode Checker States
+  const [pincode, setPincode] = useState("");
+  const [deliveryStatus, setDeliveryStatus] = useState(null);
+  const [checkingPincode, setCheckingPincode] = useState(false);
+
+  // Payment Method & Delivery Option States
+  const [selectedPayment, setSelectedPayment] = useState("");
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("standard");
+
+  const priceScrollRef = useRef(null);
+  const activeCardRef = useRef(null);
+
+  // ================= FETCH PRODUCT =================
+  useEffect(() => {
+    let isMounted = true;
+
+    setSelectedImage(0);
+    setQuantity(1);
+    setDeliveryStatus(null);
+
+    if (location.state?.product) {
+      setProduct(location.state.product);
+      setLoading(false);
+      return;
+    }
+
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError(false);
+
+        try {
+          const { data } = await axios.get(
+            `https://backend-3-axez.onrender.com/api/products/${id}`
+          );
+          if (isMounted && data.success && data.product) {
+            setProduct(data.product);
+            setLoading(false);
+            return;
+          }
+        } catch (e) {
+          // Fallback to bulk list search if direct ID fails
+        }
+
+        const res = await axios.get(
+          "https://backend-3-axez.onrender.com/api/products"
+        );
+        if (!isMounted) return;
+
+        const found = res.data.products?.find((p) => p._id === id);
+        if (found) {
+          setProduct(found);
+        } else {
+          setError(true);
+        }
+      } catch (err) {
+        if (isMounted) setError(true);
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchProduct();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id, location.state]);
+
+  // Map Backend Payment Methods to Available Methods
+  const availablePaymentMethods = useMemo(() => {
+    const allMethods = [
+      { id: "upi", label: "UPI / Google Pay", desc: "Instant pay via UPI apps", icon: Wallet, backendNames: ["upi", "upi / google pay"] },
+      { id: "card", label: "Credit / Debit Card", desc: "Visa, Mastercard, RuPay", icon: CreditCard, backendNames: ["card", "credit / debit card", "credit card", "debit card"] },
+      { id: "cod", label: "Cash on Delivery", desc: "Pay cash upon arrival", icon: Banknote, backendNames: ["cod", "cash on delivery"] },
+      { id: "netbanking", label: "Net Banking", desc: "All major banks supported", icon: Building, backendNames: ["netbanking", "net banking"] },
+    ];
+
+    if (!product?.paymentMethods || !Array.isArray(product.paymentMethods) || product.paymentMethods.length === 0) {
+      return allMethods; // Fallback to all if backend array is empty
+    }
+
+    // Filter based on backend response
+    const filtered = allMethods.filter((method) =>
+      product.paymentMethods.some((backendMethod) =>
+        method.backendNames.includes(String(backendMethod).toLowerCase().trim())
+      )
+    );
+
+    return filtered.length > 0 ? filtered : allMethods;
+  }, [product]);
+
+  // Set initial selected payment method based on available backend options
+  useEffect(() => {
+    if (availablePaymentMethods.length > 0) {
+      setSelectedPayment(availablePaymentMethods[0].id);
+    }
+  }, [availablePaymentMethods]);
+
+  // ================= PRICING TIERS (Memoized) =================
+  const pricingTiers = useMemo(() => {
+    if (!product) return [{ minQty: 1, price: 0 }];
+
+    if (product.pricing && product.pricing.length > 0) {
+      return [...product.pricing]
+        .map((tier) => ({
+          minQty: Number(tier.quantity || tier.minQty || 1),
+          price: Number(tier.price) || 0,
+        }))
+        .sort((a, b) => a.minQty - b.minQty);
+    }
+
+    return [
+      {
+        minQty: 1,
+        price: Number(product.price) || 0,
+      },
+    ];
+  }, [product]);
+
+  const maxStock = product?.stock ?? 1;
+
+  const unitPrice = useMemo(() => {
+    let applicablePrice = pricingTiers[0]?.price || 0;
+    for (let i = 0; i < pricingTiers.length; i++) {
+      if (quantity >= pricingTiers[i].minQty) {
+        applicablePrice = pricingTiers[i].price;
+      } else {
+        break;
+      }
+    }
+    return applicablePrice;
+  }, [quantity, pricingTiers]);
+
+  const totalPrice = unitPrice * quantity;
+
+  // ================= FETCH DELIVERY CHARGE FROM BACKEND =================
+  const backendDeliveryCharge = useMemo(() => {
+    if (!product) return 0;
+    if (typeof product.delivery === "object" && product.delivery?.charge !== undefined) {
+      return Number(product.delivery.charge) || 0;
+    }
+    if (product.deliveryCharge !== undefined) {
+      return Number(product.deliveryCharge) || 0;
+    }
+    return typeof product.delivery === "number" ? product.delivery : 0;
+  }, [product]);
+
+  const deliveryCharge = useMemo(() => {
+    if (selectedDeliveryMethod === "standard") {
+      return backendDeliveryCharge; // Shows backend base delivery charge
+    }
+    return backendDeliveryCharge + 100; // Express adds extra charge over backend charge
+  }, [selectedDeliveryMethod, backendDeliveryCharge]);
+
+  // GST Calculation
+  const gstAmount = useMemo(() => {
+    const gstPercent = Number(product?.gst) || 0;
+    return (totalPrice * gstPercent) / 100;
+  }, [totalPrice, product]);
+
+  const grandTotal = totalPrice + gstAmount + deliveryCharge;
+
+  // ================= AUTO SLIDE =================
+  const imagesList = useMemo(() => {
+    return product?.images?.length > 0 ? product.images : ["/no-image.png"];
+  }, [product]);
+
+  useEffect(() => {
+    if (imagesList.length <= 1 || isPaused) return;
+
+    const interval = setInterval(() => {
+      setSelectedImage((prevIndex) => (prevIndex + 1) % imagesList.length);
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [imagesList.length, isPaused]);
+
+  // ================= AUTO SCROLL ACTIVE PRICE CARD =================
+  useEffect(() => {
+    if (activeCardRef.current && priceScrollRef.current) {
+      activeCardRef.current.scrollIntoView({
+        behavior: "smooth",
+        inline: "center",
+        block: "nearest",
+      });
+    }
+  }, [quantity]);
+
+  // ================= CHECK PINCODE DELIVERY =================
+  const handleCheckDelivery = (e) => {
+    e.preventDefault();
+    if (!pincode || pincode.trim().length !== 6) {
+      setDeliveryStatus({
+        success: false,
+        message: "Please enter a valid 6-digit pincode.",
+      });
+      return;
+    }
+
+    setCheckingPincode(true);
+    setTimeout(() => {
+      if (/^[1-9][0-9]{5}$/.test(pincode)) {
+        const estDays = product?.delivery?.time ? `${product.delivery.time} days` : "3-5 business days";
+        setDeliveryStatus({
+          success: true,
+          message: `Delivery available! Estimated delivery in ${estDays}.`,
+        });
+      } else {
+        setDeliveryStatus({
+          success: false,
+          message: "Delivery not available for this location.",
+        });
+      }
+      setCheckingPincode(false);
+    }, 600);
   };
 
-  const deliveryCharge = deliveryCharges[selectedDeliveryMethod] || 0;
-  const itemSubtotal = product.basePrice * quantity;
-  const gstAmount = Math.round((itemSubtotal * (product.gst || 0)) / 100);
-  const grandTotal = itemSubtotal + gstAmount + deliveryCharge;
-
-  // Handlers
-  const handleQuantityChange = (type) => {
-    if (type === "decrease" && quantity > 1) {
-      setQuantity((prev) => prev - 1);
-    } else if (type === "increase" && quantity < product.stock) {
-      setQuantity((prev) => prev + 1);
-    }
+  // ================= HANDLERS =================
+  const handleQuantityChange = (value) => {
+    let qty = Number(value);
+    if (isNaN(qty) || qty < 1) qty = 1;
+    if (qty > maxStock) qty = maxStock;
+    setQuantity(qty);
   };
 
   const handleAddToCart = () => {
-    const cartItem = {
+    if (!product) return;
+    addToCart({
       ...product,
-      quantity,
-      selectedDeliveryMethod,
-      calculatedGst: gstAmount,
-      deliveryCharge,
-      grandTotal,
-    };
-
-    if (onAddToCart) {
-      onAddToCart(cartItem);
-    } else {
-      console.log("Item added to cart:", cartItem);
-    }
+      quantity: quantity,
+      price: unitPrice,
+      paymentMethod: selectedPayment,
+      deliveryMethod: selectedDeliveryMethod,
+      deliveryCharge: deliveryCharge,
+      grandTotal: grandTotal,
+      selectedOption: {
+        quantity: quantity,
+        price: unitPrice,
+        label: `${quantity} units`,
+      },
+    });
   };
 
+  const quickQtys = useMemo(() => {
+    return [1, 5, 10, 25, 50, 100, 250, 500, maxStock].filter(
+      (q, i, arr) => q <= maxStock && arr.indexOf(q) === i
+    );
+  }, [maxStock]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
+        <div className="text-center">
+          <div className="w-12 h-12 sm:w-14 sm:h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-600 font-medium text-sm sm:text-base">
+            Loading product details...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
+        <Package size={64} className="text-gray-300 mb-5 sm:mb-6" />
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 text-center">
+          Product Not Found
+        </h1>
+        <p className="text-gray-500 mb-6 sm:mb-8 text-center text-sm sm:text-base">
+          This product doesn't exist or was removed.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition text-sm sm:text-base"
+        >
+          <ArrowLeft size={18} />
+          Back To Home
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className="min-h-screen py-8 px-4 sm:px-6 lg:px-8"
-      style={{ backgroundColor: BG_LIGHT }}
-    >
-      <div className="max-w-7xl mx-auto">
-        {/* BACK NAVIGATION */}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
+      <div className="max-w-6xl mx-auto">
         <button
           onClick={() => navigate(-1)}
-          className="flex items-center gap-2 mb-6 font-semibold text-sm transition-opacity hover:opacity-80"
-          style={{ color: STEEL }}
+          className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium mb-4 sm:mb-6 transition text-sm sm:text-base"
         >
-          <ArrowLeft size={18} /> Back to Products
+          <ArrowLeft size={18} />
+          Back
         </button>
 
-        <div className="bg-white rounded-2xl shadow-sm border p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12" style={{ borderColor: BORDER }}>
-          
-          {/* LEFT: GALLERY SECTION */}
-          <div className="lg:col-span-6 flex flex-col gap-4">
-            <div className="w-full aspect-square rounded-2xl overflow-hidden border bg-gray-50 flex items-center justify-center p-4" style={{ borderColor: BORDER }}>
-              <img
-                src={selectedImage}
-                alt={product.name}
-                className="w-full h-full object-contain transition-all duration-300"
-              />
-            </div>
-
-            {/* THUMBNAILS */}
-            {product.images && product.images.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                {product.images.map((imgUrl, index) => (
-                  <button
-                    key={index}
-                    onClick={() => setSelectedImage(imgUrl)}
-                    className={`w-20 h-20 rounded-xl border-2 overflow-hidden flex-shrink-0 transition-all ${
-                      selectedImage === imgUrl ? "ring-2 ring-offset-1" : "opacity-70 hover:opacity-100"
-                    }`}
-                    style={{
-                      borderColor: selectedImage === imgUrl ? AMBER_DARK : BORDER,
-                    }}
-                  >
-                    <img src={imgUrl} alt={`Thumbnail ${index}`} className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* RIGHT: DETAILS & PRICING SECTION */}
-          <div className="lg:col-span-6 flex flex-col justify-between gap-6">
-            <div className="space-y-4">
-              {/* BRAND & TITLE */}
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-md" style={{ backgroundColor: "#FEF3C7", color: AMBER_DARK }}>
-                  {product.brand}
-                </span>
-                <h1 className="text-2xl sm:text-3xl font-bold mt-2" style={{ color: INK }}>
-                  {product.name}
-                </h1>
+        <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
+            {/* LEFT - GALLERY */}
+            <div
+              className="p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100"
+              onMouseEnter={() => setIsPaused(true)}
+              onMouseLeave={() => setIsPaused(false)}
+            >
+              <div className="relative bg-white rounded-xl sm:rounded-2xl border border-gray-100 overflow-hidden mb-4 sm:mb-5 flex items-center justify-center h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[460px] p-1">
+                <img
+                  src={imagesList[selectedImage]}
+                  alt={product.name}
+                  className="max-h-full max-w-full object-contain transition-all duration-300"
+                  onError={(e) => {
+                    e.target.src = "/no-image.png";
+                  }}
+                />
+                {product.offer > 0 && (
+                  <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full shadow">
+                    {product.offer}% OFF
+                  </span>
+                )}
               </div>
 
-              {/* RATING & STOCK STATUS */}
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1 font-semibold" style={{ color: AMBER_DARK }}>
-                  <Star size={16} fill="currentColor" />
-                  <span>{product.rating}</span>
-                  <span style={{ color: MUTED }}>({product.reviewsCount} reviews)</span>
-                </div>
-                <span className="text-gray-300">|</span>
-                <span className="flex items-center gap-1.5 font-medium" style={{ color: product.stock > 0 ? "#16A34A" : "#DC2626" }}>
-                  <CheckCircle size={16} />
-                  {product.stock > 0 ? `In Stock (${product.stock} units left)` : "Out of Stock"}
-                </span>
-              </div>
-
-              <p className="text-sm leading-relaxed" style={{ color: MUTED }}>
-                {product.description}
-              </p>
-
-              {/* FEATURES LIST */}
-              {product.features && (
-                <div className="space-y-2 pt-2">
-                  <span className="text-xs font-bold uppercase tracking-wider" style={{ color: STEEL }}>Key Highlights</span>
-                  <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs sm:text-sm">
-                    {product.features.map((feat, idx) => (
-                      <li key={idx} className="flex items-center gap-2" style={{ color: INK }}>
-                        <ShieldCheck size={16} className="text-emerald-600 flex-shrink-0" />
-                        <span>{feat}</span>
-                      </li>
-                    ))}
-                  </ul>
+              {imagesList.length > 1 && (
+                <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                  {imagesList.map((img, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedImage(index)}
+                      className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl overflow-hidden border transition-all duration-150 ${
+                        selectedImage === index
+                          ? "border-indigo-600 opacity-100"
+                          : "border-gray-200 opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt={`Thumbnail ${index + 1}`}
+                        className="w-full h-full object-contain bg-white"
+                        onError={(e) => {
+                          e.target.src = "/no-image.png";
+                        }}
+                      />
+                    </button>
+                  ))}
                 </div>
               )}
 
-              {/* QUANTITY & DELIVERY METHOD SELECTOR */}
-              <div className="pt-4 border-t space-y-4" style={{ borderColor: BORDER }}>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold" style={{ color: INK }}>Quantity</span>
-                  <div className="flex items-center border rounded-xl overflow-hidden" style={{ borderColor: BORDER }}>
-                    <button
-                      type="button"
-                      onClick={() => handleQuantityChange("decrease")}
-                      disabled={quantity <= 1}
-                      className="p-2 sm:p-2.5 transition-colors hover:bg-gray-100 disabled:opacity-40"
-                    >
-                      <Minus size={16} />
-                    </button>
-                    <span className="px-4 font-bold text-sm" style={{ color: INK }}>
-                      {quantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleQuantityChange("increase")}
-                      disabled={quantity >= product.stock}
-                      className="p-2 sm:p-2.5 transition-colors hover:bg-gray-100 disabled:opacity-40"
-                    >
-                      <Plus size={16} />
-                    </button>
+              {/* TRUST BADGES & FEATURES */}
+              <div className="grid grid-cols-3 gap-2 mt-6 pt-6 border-t border-gray-200/80 text-center">
+                <div className="flex flex-col items-center">
+                  <Truck size={20} className="text-indigo-600 mb-1" />
+                  <span className="text-[11px] font-medium text-gray-700">Fast Delivery</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <ShieldCheck size={20} className="text-emerald-600 mb-1" />
+                  <span className="text-[11px] font-medium text-gray-700">100% Authentic</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <RotateCcw size={20} className="text-purple-600 mb-1" />
+                  <span className="text-[11px] font-medium text-gray-700">Easy Returns</span>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT - DETAILS */}
+            <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col">
+              <div className="flex-1">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-3 sm:mb-4 leading-snug sm:leading-tight capitalize">
+                  {product.name}
+                </h1>
+
+                {/* SPECIFICATIONS & BADGES */}
+                <div className="space-y-2 text-gray-600 mb-5 sm:mb-6 text-sm sm:text-base">
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {product.category && (
+                      <span className="bg-indigo-50 text-indigo-700 text-xs font-semibold px-2.5 py-1 rounded-full uppercase">
+                        {product.category}
+                      </span>
+                    )}
+                    {product.brand && (
+                      <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full uppercase">
+                        {product.brand}
+                      </span>
+                    )}
+                    {product.variantGroup && (
+                      <span className="bg-purple-50 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
+                        <Layers size={12} />
+                        Group: {product.variantGroup}
+                      </span>
+                    )}
                   </div>
+
+                  <p>
+                    <span className="font-semibold text-gray-800">Material:</span>{" "}
+                    {product.material || "N/A"}
+                  </p>
+
+                  {(product.size || product.weight) && (
+                    <div className="flex flex-wrap gap-4 pt-1 text-xs sm:text-sm text-gray-700">
+                      {product.size && (
+                        <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
+                          <Ruler size={14} className="text-gray-500" /> Size: {product.size}
+                        </span>
+                      )}
+                      {product.weight && (
+                        <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
+                          <Scale size={14} className="text-gray-500" /> Weight: {product.weight}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="pt-1">
+                    <span className="font-semibold text-gray-800">Availability:</span>{" "}
+                    <span
+                      className={
+                        product.stock > 0
+                          ? "text-emerald-600 font-semibold"
+                          : "text-red-600 font-semibold"
+                      }
+                    >
+                      {product.stock > 0
+                        ? `${product.stock} units in stock`
+                        : "Out of Stock"}
+                    </span>
+                  </p>
                 </div>
 
-                {/* DELIVERY SELECTION */}
-                <div className="space-y-2">
-                  <span className="text-sm font-semibold" style={{ color: INK }}>Delivery Speed</span>
-                  <div className="grid grid-cols-2 gap-3">
+                {/* DELIVERY PINCODE CHECKER */}
+                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <MapPin size={18} className="text-indigo-600" />
+                    <h3 className="font-semibold text-gray-800 text-sm sm:text-base">
+                      Check Delivery & Serviceability
+                    </h3>
+                  </div>
+                  <form onSubmit={handleCheckDelivery} className="flex gap-2">
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="Enter 6-digit Pincode"
+                      value={pincode}
+                      onChange={(e) => setPincode(e.target.value.replace(/\D/g, ""))}
+                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="submit"
+                      disabled={checkingPincode}
+                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium px-4 py-2 rounded-xl text-sm transition"
+                    >
+                      {checkingPincode ? "Checking..." : "Check"}
+                    </button>
+                  </form>
+
+                  {deliveryStatus && (
+                    <div
+                      className={`mt-3 flex items-center gap-2 text-xs sm:text-sm font-medium ${
+                        deliveryStatus.success ? "text-emerald-700" : "text-red-600"
+                      }`}
+                    >
+                      {deliveryStatus.success ? (
+                        <CheckCircle2 size={16} />
+                      ) : (
+                        <XCircle size={16} />
+                      )}
+                      <span>{deliveryStatus.message}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* DYNAMIC BACKEND DELIVERY OPTIONS */}
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
+                    Select Delivery Option
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <button
                       type="button"
                       onClick={() => setSelectedDeliveryMethod("standard")}
-                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
-                        selectedDeliveryMethod === "standard" ? "border-2 shadow-sm" : ""
+                      className={`relative p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                        selectedDeliveryMethod === "standard"
+                          ? "border-indigo-600 bg-indigo-50/70 shadow-sm ring-2 ring-indigo-500/20"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
                       }`}
-                      style={{
-                        borderColor: selectedDeliveryMethod === "standard" ? AMBER_DARK : BORDER,
-                        backgroundColor: selectedDeliveryMethod === "standard" ? "#FFFBEB" : "white",
-                      }}
                     >
-                      <span className="text-xs font-bold" style={{ color: INK }}>Standard Delivery</span>
-                      <span className="text-xs font-medium text-emerald-600 mt-1">FREE (3-5 Days)</span>
+                      <div className={`p-2 rounded-lg ${selectedDeliveryMethod === "standard" ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-600"}`}>
+                        <Truck size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-xs sm:text-sm text-gray-800">Standard Delivery</span>
+                          <span className="text-xs font-bold text-indigo-700">
+                            {backendDeliveryCharge === 0 ? "FREE" : `₹${backendDeliveryCharge}`}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500">
+                          {product?.delivery?.time ? `Estimated: ${product.delivery.time} Days` : "Delivered in 3-5 Business Days"}
+                        </p>
+                      </div>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => setSelectedDeliveryMethod("express")}
-                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
-                        selectedDeliveryMethod === "express" ? "border-2 shadow-sm" : ""
+                      className={`relative p-3.5 rounded-xl border text-left flex items-start gap-3 transition-all ${
+                        selectedDeliveryMethod === "express"
+                          ? "border-indigo-600 bg-indigo-50/70 shadow-sm ring-2 ring-indigo-500/20"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
                       }`}
-                      style={{
-                        borderColor: selectedDeliveryMethod === "express" ? AMBER_DARK : BORDER,
-                        backgroundColor: selectedDeliveryMethod === "express" ? "#FFFBEB" : "white",
-                      }}
                     >
-                      <span className="text-xs font-bold" style={{ color: INK }}>Express Delivery</span>
-                      <span className="text-xs font-medium mt-1" style={{ color: AMBER_DARK }}>+₹150 (1-2 Days)</span>
+                      <div className={`p-2 rounded-lg ${selectedDeliveryMethod === "express" ? "bg-amber-500 text-white" : "bg-gray-100 text-gray-600"}`}>
+                        <Zap size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-xs sm:text-sm text-gray-800">Express Delivery</span>
+                          <span className="text-xs font-bold text-indigo-700">
+                            ₹{backendDeliveryCharge + 100}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500">Faster Express Delivery</p>
+                      </div>
                     </button>
                   </div>
                 </div>
-              </div>
 
-              {/* DYNAMIC BREAKDOWN & PRICING */}
-              <div className="p-4 rounded-xl space-y-2 mt-4" style={{ backgroundColor: BG_LIGHT, border: `1px solid ${BORDER}` }}>
-                <div className="flex justify-between items-center text-xs sm:text-sm" style={{ color: MUTED }}>
-                  <span>Base Price ({quantity} item{quantity > 1 ? "s" : ""})</span>
-                  <span className="font-medium" style={{ color: INK }}>
-                    ₹{itemSubtotal.toLocaleString()}
-                  </span>
+                {/* DYNAMIC BACKEND PAYMENT METHODS */}
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
+                    Select Payment Method
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
+                    {availablePaymentMethods.map((method) => {
+                      const Icon = method.icon;
+                      const isSelected = selectedPayment === method.id;
+                      return (
+                        <button
+                          key={method.id}
+                          type="button"
+                          onClick={() => setSelectedPayment(method.id)}
+                          className={`p-3 rounded-xl border flex items-center justify-between transition-all cursor-pointer text-left ${
+                            isSelected
+                              ? "border-indigo-600 bg-indigo-50/80 shadow-sm ring-2 ring-indigo-500/20"
+                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50/50"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2 rounded-lg ${isSelected ? "bg-indigo-600 text-white" : "bg-gray-100 text-gray-500"}`}>
+                              <Icon size={18} />
+                            </div>
+                            <div>
+                              <p className={`text-xs sm:text-sm font-semibold ${isSelected ? "text-indigo-900" : "text-gray-800"}`}>
+                                {method.label}
+                              </p>
+                              <p className="text-[10px] text-gray-400">{method.desc}</p>
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0">
+                              <Check size={12} strokeWidth={3} />
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
-                {product.gst > 0 && (
-                  <div className="flex justify-between items-center text-xs sm:text-sm" style={{ color: MUTED }}>
-                    <span className="flex items-center gap-1">
-                      <Percent size={14} />
-                      GST ({product.gst}%)
-                    </span>
-                    <span className="font-medium" style={{ color: INK }}>
-                      +₹{gstAmount.toLocaleString()}
+                {/* PRICING TIERS */}
+                <div className="mb-5 sm:mb-6">
+                  <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
+                    Quantity Wise Pricing
+                  </h3>
+
+                  <div
+                    ref={priceScrollRef}
+                    className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pt-3 pb-4 price-scroll"
+                  >
+                    <div className="flex gap-3 min-w-max px-1">
+                      {pricingTiers.map((tier, index) => {
+                        const isActive = unitPrice === tier.price;
+
+                        return (
+                          <div
+                            key={index}
+                            ref={isActive ? activeCardRef : null}
+                            className={`flex-shrink-0 w-[100px] px-2.5 py-3 rounded-xl border text-center transition-all duration-300 ${
+                              isActive
+                                ? "border-indigo-500 bg-indigo-50 shadow-md scale-105"
+                                : "border-gray-200 bg-gray-50"
+                            }`}
+                          >
+                            <p className="text-[10px] text-gray-500 mb-1">
+                              {tier.minQty}+ units
+                            </p>
+                            <p
+                              className={`text-sm font-bold leading-tight ${
+                                isActive ? "text-indigo-700" : "text-gray-800"
+                              }`}
+                            >
+                              ₹{tier.price}
+                            </p>
+                            <p className="text-[9px] text-gray-400 mt-1">
+                              / unit
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* QUANTITY SELECTOR */}
+                <div className="mb-5 sm:mb-6">
+                  <div className="flex items-center justify-between mb-2.5 sm:mb-3">
+                    <p className="text-sm font-medium text-gray-700">
+                      Select Quantity
+                    </p>
+                    <span className="text-xs sm:text-sm font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full">
+                      {quantity} units
                     </span>
                   </div>
+
+                  <div className="mb-3 sm:mb-4">
+                    <input
+                      type="number"
+                      min="1"
+                      max={maxStock}
+                      value={quantity}
+                      onChange={(e) => handleQuantityChange(e.target.value)}
+                      className="w-full border-2 border-gray-200 focus:border-indigo-500 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-semibold text-center outline-none transition"
+                      placeholder="Enter quantity"
+                    />
+                  </div>
+
+                  <div className="mb-3 sm:mb-4">
+                    <input
+                      type="range"
+                      min="1"
+                      max={maxStock}
+                      value={quantity}
+                      onChange={(e) => handleQuantityChange(e.target.value)}
+                      className="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                    {quickQtys.map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => setQuantity(q)}
+                        className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition ${
+                          quantity === q
+                            ? "bg-indigo-600 text-white shadow"
+                            : "bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700"
+                        }`}
+                      >
+                        {q === maxStock ? `Max (${q})` : q}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* TOTAL PRICE BREAKDOWN */}
+                <div className="mb-6 sm:mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 space-y-2">
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
+                    <span>
+                      Unit Price (₹{unitPrice} × {quantity})
+                    </span>
+                    <span className="font-medium">₹{totalPrice.toLocaleString()}</span>
+                  </div>
+
+                  {product.gst > 0 && (
+                    <div className="flex justify-between items-center text-xs sm:text-sm text-indigo-700">
+                      <span className="flex items-center gap-1">
+                        <Percent size={13} /> GST ({product.gst}%)
+                      </span>
+                      <span className="font-medium">+ ₹{gstAmount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
+                    <span>Delivery Charge</span>
+                    <span className="font-medium">
+                      {deliveryCharge === 0 ? "FREE" : `+ ₹${deliveryCharge}`}
+                    </span>
+                  </div>
+
+                  <div className="border-t border-indigo-200/60 pt-2 flex justify-between items-center">
+                    <span className="text-gray-800 font-bold text-sm sm:text-base">
+                      Grand Total
+                    </span>
+                    <span className="text-xl sm:text-2xl font-extrabold text-indigo-700">
+                      ₹{grandTotal.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* DESCRIPTION */}
+                {product.description && (
+                  <div className="mb-5 sm:mb-6">
+                    <h3 className="font-semibold text-gray-800 mb-1.5 sm:mb-2 text-base sm:text-lg">
+                      Description
+                    </h3>
+                    <p className="text-gray-600 leading-relaxed text-sm sm:text-base whitespace-pre-line">
+                      {product.description}
+                    </p>
+                  </div>
                 )}
+              </div>
 
-                <div className="flex justify-between items-center text-xs sm:text-sm" style={{ color: MUTED }}>
-                  <span className="flex items-center gap-1">
-                    <Truck size={14} />
-                    Delivery ({selectedDeliveryMethod === "express" ? "Express" : "Standard"})
-                  </span>
-                  <span className="font-medium" style={{ color: INK }}>
-                    {deliveryCharge === 0 ? "FREE" : `+₹${deliveryCharge.toLocaleString()}`}
-                  </span>
-                </div>
-
-                <div className="pt-2 border-t flex justify-between items-center" style={{ borderColor: BORDER }}>
-                  <span className="font-bold text-sm sm:text-base" style={{ color: INK }}>
-                    Grand Total
-                  </span>
-                  <span className="text-xl sm:text-2xl font-black" style={{ color: AMBER_DARK }}>
-                    ₹{grandTotal.toLocaleString()}
-                  </span>
-                </div>
+              {/* ACTION BUTTONS */}
+              <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mt-auto pt-3 sm:pt-4">
+                <button
+                  disabled={product.stock === 0}
+                  onClick={handleAddToCart}
+                  className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition shadow-lg"
+                >
+                  <ShoppingCart size={18} />
+                  Add to Cart
+                </button>
+                <button
+                  onClick={() => navigate("/cart")}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition shadow-lg"
+                >
+                  Go to Cart
+                </button>
               </div>
             </div>
-
-            {/* ACTION BUTTONS */}
-            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t" style={{ borderColor: BORDER }}>
-              <button
-                type="button"
-                onClick={handleAddToCart}
-                disabled={product.stock <= 0}
-                className="flex-1 py-3.5 sm:py-4 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white"
-                style={{ background: STEEL }}
-              >
-                <ShoppingCart size={20} />
-                Add to Cart
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  handleAddToCart();
-                  navigate("/cart");
-                }}
-                disabled={product.stock <= 0}
-                className="flex-1 py-3.5 sm:py-4 px-6 rounded-xl font-bold flex items-center justify-center gap-2 transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white"
-                style={{ background: AMBER_DARK }}
-              >
-                <Zap size={20} />
-                Buy Now
-              </button>
-            </div>
           </div>
-
         </div>
       </div>
     </div>
