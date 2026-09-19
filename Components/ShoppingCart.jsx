@@ -1,283 +1,504 @@
-import React, { useState } from "react";
-import { ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { useContext, useMemo, useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import toast from "react-hot-toast";
+import { load } from "@cashfreepayments/cashfree-js";
+
+import {
+  ShoppingBag,
+  Trash2,
+  Plus,
+  Minus,
+  ArrowLeft,
+  Package,
+  CheckCircle2,
+  X,
+  Truck,
+  ShoppingBag as BagIcon,
+} from "lucide-react";
+import { CartContext } from "./Context";
 
 // ======================================================
-// SAMPLE PRODUCTS DATA
+// DESIGN TOKENS — shared with the rest of the store's UI
 // ======================================================
-const INITIAL_PRODUCTS = [
-  {
-    id: 1,
-    title: "Hacksaw frame full size",
-    brand: "PEDWAL",
-    material: "Carbonated Iron",
-    price: 1,
-    stock: 9618,
-    category: "Hacksaw frame",
-    inStock: true,
-    image: "https://via.placeholder.com/200?text=Hacksaw+Frame",
-  },
-  {
-    id: 2,
-    title: "Junior hacksaw frame with blade",
-    brand: "PEDWAL",
-    material: "Carbonated Iron",
-    price: 20,
-    stock: 9735,
-    category: "Junior hacksaw",
-    inStock: true,
-    image: "https://via.placeholder.com/200?text=Junior+Hacksaw",
-  },
-  {
-    id: 3,
-    title: "Measuring tape pair 3m+5m",
-    brand: "PEDWAL",
-    material: "Carbonated Iron",
-    price: 80,
-    stock: 9998,
-    category: "Measuring tape",
-    inStock: true,
-    image: "https://via.placeholder.com/200?text=Measuring+Tape",
-  },
-  {
-    id: 4,
-    title: "Heavy Duty Hammer",
-    brand: "PEDWAL",
-    material: "Cast Iron",
-    price: 150,
-    stock: 4500,
-    category: "Hammers",
-    inStock: true,
-    image: "https://via.placeholder.com/200?text=Hammer",
-  },
-  {
-    id: 5,
-    title: "40 PC Socket Wrench Set",
-    brand: "PEDWAL",
-    material: "Chrome Vanadium",
-    price: 450,
-    stock: 2100,
-    category: "Socket set",
-    inStock: true,
-    image: "https://via.placeholder.com/200?text=Socket+Set",
-  },
-  {
-    id: 6,
-    title: "Precision Screwdriver Set",
-    brand: "PEDWAL",
-    material: "Alloy Steel",
-    price: 120,
-    stock: 890,
-    category: "Screwdrivers",
-    inStock: true,
-    image: "https://via.placeholder.com/200?text=Screwdriver+Set",
-  },
-];
+const INK = "#15181C";
+const MUTED = "#6B7280";
+const BORDER = "#E6E8EB";
+const SURFACE = "#FFFFFF";
+const SURFACE_MUTED = "#F1F2EF";
+const BG = "#F5F6F4";
+const AMBER = "#F0A420";
+const AMBER_DARK = "#C97F0F";
+const STEEL = "#2B4A5E";
+const STEEL_TINT = "#EAF0F3";
 
-const CATEGORIES = [
-  { name: "Hacksaw frame", count: 1 },
-  { name: "Junior hacksaw", count: 1 },
-  { name: "Measuring tape", count: 1 },
-  { name: "Hammers", count: 1 },
-  { name: "Socket set", count: 1 },
-  { name: "Screwdrivers", count: 1 },
-];
+const ShoppingCart = () => {
+  const navigate = useNavigate();
+  const { cart, clearCart, increaseQty, decreaseQty, removeFromCart } =
+    useContext(CartContext);
 
-const ProductListingPage = () => {
-  const [maxPrice, setMaxPrice] = useState(5000);
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [showOrderPopup, setShowOrderPopup] = useState(false);
+  const [confirmedOrderData, setConfirmedOrderData] = useState(null);
+  const [cashfree, setCashfree] = useState(null);
 
-  // Filter Logic
-  const filteredProducts = INITIAL_PRODUCTS.filter((product) => {
-    const matchesPrice = product.price <= maxPrice;
-    const matchesCategory = selectedCategory
-      ? product.category === selectedCategory
-      : true;
-    return matchesPrice && matchesCategory;
-  });
+  // Initialize Cashfree SDK on component mount
+  useEffect(() => {
+    const initCashfree = async () => {
+      try {
+        const cashfreeInstance = await load({
+          mode: "production", // Set to "sandbox" for testing mode
+        });
+        setCashfree(cashfreeInstance);
+      } catch (error) {
+        console.error("Failed to initialize Cashfree SDK:", error);
+      }
+    };
+    initCashfree();
+  }, []);
+
+  const totalItems = useMemo(() => {
+    return cart.reduce((total, item) => total + Number(item.quantity || 1), 0);
+  }, [cart]);
+
+  // Dynamic Subtotal Calculation
+  const subTotal = useMemo(() => {
+    return cart.reduce((total, item) => {
+      const price = Number(item.price || 0);
+      const qty = Number(item.quantity || 1);
+      return total + price * qty;
+    }, 0);
+  }, [cart]);
+
+  // Dynamic GST Calculation
+  const gst = useMemo(() => {
+    return cart.reduce((totalGst, item) => {
+      const price = Number(item.price || 0);
+      const qty = Number(item.quantity || 1);
+      const gstRate =
+        item.gst !== undefined && item.gst !== "" ? Number(item.gst) : 18;
+      const itemSubtotal = price * qty;
+      const itemGst = (itemSubtotal * gstRate) / 100;
+      return totalGst + itemGst;
+    }, 0);
+  }, [cart]);
+
+  const grandTotal = useMemo(() => Math.round(subTotal + gst), [subTotal, gst]);
+
+  const getItemId = (item) => item._id || item.id;
+
+  const getSelectedLabel = (item) => {
+    if (item.selectedOption?.label) return item.selectedOption.label;
+    if (item.selectedQty) return `${item.selectedQty} Piece`;
+    return "1 unit";
+  };
+
+  const getOptionQty = (item) => {
+    return item.selectedOption?.quantity || item.selectedQty || 1;
+  };
+
+  const getImage = (item) => {
+    return (
+      item.image ||
+      item.images?.[0] ||
+      "https://via.placeholder.com/200?text=No+Image"
+    );
+  };
+
+  const continueShopping = () => navigate("/");
+
+  const checkoutHandler = async () => {
+    try {
+      const user = JSON.parse(localStorage.getItem("user"));
+      if (!user) {
+        toast.error("Please Login First");
+        navigate("/login");
+        return;
+      }
+
+      if (cart.length === 0) {
+        toast.error("Your cart is empty");
+        return;
+      }
+
+      if (!cashfree) {
+        toast.error("Payment gateway initializing. Please try again in a moment.");
+        return;
+      }
+
+      setLoading(true);
+
+      // 1. First, create order record in backend database
+      const orderData = {
+        userId: user._id,
+        customerName: user.name,
+        customerEmail: user.email || "customer@pedwal.in",
+        customerPhone: user.mobile || "9999999999",
+        items: cart.map((item) => {
+          const gstRate =
+            item.gst !== undefined && item.gst !== "" ? Number(item.gst) : 18;
+          const lineTotal =
+            Number(item.price || 0) * Number(item.quantity || 1);
+          const itemGst = (lineTotal * gstRate) / 100;
+
+          return {
+            id: String(getItemId(item)),
+            title: item.name || item.title,
+            brand: item.brand || "N/A",
+            image: getImage(item),
+            price: Number(item.price),
+            quantity: Number(item.quantity || 1),
+            gstRate: gstRate,
+            gstAmount: Math.round(itemGst),
+            lineTotal: lineTotal,
+            selectedOption: item.selectedOption || null,
+          };
+        }),
+        totalItems,
+        subTotal,
+        gst: Math.round(gst),
+        totalAmount: Number(grandTotal),
+      };
+
+      const { data: dbOrderData } = await axios.post(
+        "https://backend-3-axez.onrender.com/api/orders/create",
+        orderData
+      );
+
+      const dbOrderId = dbOrderData?.order?._id || `ORD-${Date.now()}`;
+
+      // 2. Create Cashfree Payment Session
+      const { data: paymentSessionRes } = await axios.post(
+        "https://backend-3-axez.onrender.com/api/payments/create-session",
+        {
+          amount: grandTotal,
+          customerId: user._id,
+          customerName: user.name,
+          customerEmail: user.email || "customer@pedwal.in",
+          customerPhone: user.phone || "9999999999",
+        }
+      );
+
+      if (paymentSessionRes.success && paymentSessionRes.payment_session_id) {
+        setConfirmedOrderData({
+          orderId: paymentSessionRes.order_id || dbOrderId,
+          totalAmount: grandTotal,
+          totalItems,
+        });
+
+        // 3. Open Cashfree Seamless Modal/Redirect
+        const checkoutOptions = {
+          paymentSessionId: paymentSessionRes.payment_session_id,
+          redirectTarget: "_self", // Seamless popup or redirect flow
+        };
+
+        cashfree.checkout(checkoutOptions);
+        clearCart();
+      } else {
+        toast.error("Could not initiate payment session.");
+      }
+    } catch (err) {
+      console.error("Checkout error:", err);
+      toast.error(err.response?.data?.message || "Unable to proceed to payment");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#F5F6F4] text-[#15181C] py-8 px-4 sm:px-8">
-      {/* PAGE HEADER */}
-      <div className="max-w-7xl mx-auto mb-6">
-        <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
-          Our products
-        </h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Browse the current collection of tools & hardware
-        </p>
-      </div>
-
-      {/* MAIN CONTAINER (FLEX LAYOUT) */}
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-6 items-start">
-        
-        {/* ====================================================== */}
-        {/* 1. FIXED FILTER SIDEBAR (lg:sticky keeps it fixed on desktop) */}
-        {/* ====================================================== */}
-        <aside className="w-full lg:w-72 flex-shrink-0 bg-[#213543] text-white p-5 rounded-3xl shadow-sm lg:sticky lg:top-6 transition-all">
-          <div className="flex items-center gap-2 mb-6">
-            <Filter size={20} className="text-[#F0A420]" />
-            <h2 className="text-xl font-bold tracking-wide">Filters</h2>
+    <div className="min-h-screen py-8 px-3 sm:px-6 relative" style={{ background: BG }}>
+      {/* EMPTY CART VIEW */}
+      {cart.length === 0 && !showOrderPopup ? (
+        <div className="max-w-2xl mx-auto py-12">
+          <div className="rounded-3xl p-8 sm:p-12 text-center" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+            <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: SURFACE_MUTED }}>
+              <ShoppingBag size={36} style={{ color: MUTED }} />
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-bold" style={{ color: INK }}>
+              Your cart is empty
+            </h2>
+            <p className="mt-2 text-sm" style={{ color: MUTED }}>
+              Looks like you haven't added anything yet.
+            </p>
+            <button
+              onClick={continueShopping}
+              className="mt-6 inline-flex items-center gap-2 text-white px-6 py-3 rounded-xl font-semibold transition text-sm"
+              style={{ background: STEEL }}
+            >
+              <ArrowLeft size={18} />
+              Continue shopping
+            </button>
           </div>
-
-          {/* SHOP BY CATEGORY SECTION */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-gray-300">
-                Shop by category
-              </span>
-              <span className="text-xs bg-slate-700/80 text-gray-300 font-bold px-2 py-0.5 rounded-full">
-                {INITIAL_PRODUCTS.length}
-              </span>
-            </div>
-
-            {/* Category horizontal scroll container */}
-            <div className="flex items-center gap-1.5 mb-2">
-              <button className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-700 text-gray-300">
-                <ChevronLeft size={14} />
-              </button>
-              <button className="p-1 rounded-full bg-slate-700/50 hover:bg-slate-700 text-gray-300">
-                <ChevronRight size={14} />
-              </button>
-            </div>
-
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none">
-              {CATEGORIES.map((cat, idx) => (
-                <button
-                  key={idx}
-                  onClick={() =>
-                    setSelectedCategory(
-                      selectedCategory === cat.name ? null : cat.name
-                    )
-                  }
-                  className={`min-w-[100px] p-3 rounded-2xl text-left border transition flex flex-col justify-between ${
-                    selectedCategory === cat.name
-                      ? "bg-[#F0A420] text-black border-[#F0A420]"
-                      : "bg-slate-800/40 text-gray-200 border-slate-700/60 hover:border-slate-500"
-                  }`}
-                >
-                  <span className="text-[11px] font-medium line-clamp-2 leading-tight">
-                    {cat.name}
-                  </span>
-                  <span className="text-[10px] opacity-75 mt-2">
-                    {cat.count} item
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* PRICE SLIDER SECTION */}
-          <div>
-            <div className="flex justify-between items-center mb-3">
-              <span className="text-xs font-semibold text-gray-300">
-                Maximum price
-              </span>
-              <span className="bg-[#F0A420] text-black text-xs font-extrabold px-2.5 py-1 rounded-lg">
-                ₹{maxPrice}
-              </span>
-            </div>
-
-            <input
-              type="range"
-              min="0"
-              max="5000"
-              step="50"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(Number(e.target.value))}
-              className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-[#F0A420]"
-            />
-
-            <div className="flex justify-between text-[11px] text-gray-400 mt-2 font-medium">
-              <span>₹0</span>
-              <span>₹5000+</span>
-            </div>
-          </div>
-        </aside>
-
-        {/* ====================================================== */}
-        {/* 2. SCROLLABLE PRODUCT GRID */}
-        {/* ====================================================== */}
-        <main className="flex-1 w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredProducts.length > 0 ? (
-            filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                className="bg-white rounded-3xl p-4 border border-[#E6E8EB] flex flex-col justify-between hover:shadow-md transition"
-              >
-                <div>
-                  {/* Image Container with In Stock Badge */}
-                  <div className="relative w-full h-48 bg-[#F1F2EF] rounded-2xl mb-4 overflow-hidden flex items-center justify-center p-4">
-                    {product.inStock && (
-                      <span className="absolute top-2.5 right-2.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold px-2.5 py-0.5 rounded-full">
-                        In stock
-                      </span>
-                    )}
-                    <img
-                      src={product.image}
-                      alt={product.title}
-                      className="max-h-full object-contain"
-                    />
-                  </div>
-
-                  {/* Title & Specs */}
-                  <h3 className="font-bold text-base line-clamp-2 mb-2 text-[#15181C]">
-                    {product.title}
-                  </h3>
-                  <div className="text-xs text-gray-500 space-y-0.5 mb-4">
-                    <p>
-                      Brand: <span className="font-medium text-gray-700">{product.brand}</span>
-                    </p>
-                    <p>
-                      Material: <span className="font-medium text-gray-700">{product.material}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Pricing & Stock */}
-                <div>
-                  <div className="flex justify-between items-end mb-4">
-                    <div>
-                      <span className="text-[10px] text-gray-400 block">Price</span>
-                      <span className="text-xl font-extrabold text-[#15181C]">
-                        ₹{product.price}
-                      </span>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-[10px] text-gray-400 block">Stock</span>
-                      <span className="text-sm font-bold text-emerald-600">
-                        {product.stock}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="grid grid-cols-2 gap-2 mb-2">
-                    <button className="bg-[#2B4A5E] hover:bg-[#1f3747] text-white text-xs font-bold py-2.5 rounded-xl transition">
-                      Buy now
-                    </button>
-                    <button className="bg-[#F0A420] hover:bg-[#d99115] text-black text-xs font-bold py-2.5 rounded-xl transition">
-                      Add to cart
-                    </button>
-                  </div>
-
-                  <button className="w-full border border-gray-200 hover:bg-gray-50 text-gray-600 text-xs font-semibold py-2 rounded-xl transition">
-                    View more varieties
-                  </button>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="col-span-full py-16 text-center bg-white rounded-3xl border border-gray-200">
-              <p className="text-gray-500 font-medium text-sm">
-                No products match the selected filters.
+        </div>
+      ) : (
+        /* ACTIVE CART VIEW */
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+            <div>
+              <h1 className="text-2xl sm:text-4xl font-extrabold" style={{ color: INK }}>
+                Shopping cart
+              </h1>
+              <p className="text-xs sm:text-sm mt-1" style={{ color: MUTED }}>
+                {totalItems} item{totalItems !== 1 ? "s" : ""} in your cart
               </p>
             </div>
-          )}
-        </main>
+            <button
+              onClick={continueShopping}
+              className="inline-flex items-center gap-2 font-medium transition text-sm"
+              style={{ color: STEEL }}
+            >
+              <ArrowLeft size={18} />
+              Continue shopping
+            </button>
+          </div>
 
-      </div>
+          <div className="grid lg:grid-cols-3 gap-6 items-start">
+            {/* Scrollable Products List */}
+            <div className="lg:col-span-2 space-y-4 max-h-[calc(100vh-140px)] overflow-y-auto pr-1">
+              {cart.map((item, index) => {
+                const itemId = getItemId(item);
+                const image = getImage(item);
+                const name = item.name || item.title || "Product";
+                const optionLabel = getSelectedLabel(item);
+                const optionQty = getOptionQty(item);
+
+                const unitPrice = Number(item.price || 0);
+                const qty = Number(item.quantity || 1);
+                const lineTotal = unitPrice * qty;
+                const itemGstRate =
+                  item.gst !== undefined && item.gst !== ""
+                    ? Number(item.gst)
+                    : 18;
+
+                return (
+                  <div
+                    key={`${itemId}-${optionQty}-${unitPrice}-${index}`}
+                    className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 transition"
+                    style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
+                  >
+                    <div className="w-full sm:w-32 h-32 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: SURFACE_MUTED }}>
+                      <img
+                        src={image}
+                        alt={name}
+                        className="w-full h-full object-contain p-2"
+                        onError={(e) => {
+                          e.target.src =
+                            "https://via.placeholder.com/200?text=No+Image";
+                        }}
+                      />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <h2 className="text-base sm:text-lg font-bold line-clamp-2" style={{ color: INK }}>
+                        {name}
+                      </h2>
+
+                      {item.brand && (
+                        <p className="text-xs mt-1" style={{ color: MUTED }}>
+                          Brand: {item.brand}
+                        </p>
+                      )}
+
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <span
+                          className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full"
+                          style={{ background: STEEL_TINT, color: STEEL }}
+                        >
+                          <Package size={12} />
+                          {optionLabel}
+                        </span>
+                        <span
+                          className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
+                          style={{ background: SURFACE_MUTED, color: MUTED }}
+                        >
+                          GST: {itemGstRate}%
+                        </span>
+                      </div>
+
+                      <p className="text-xs mt-2" style={{ color: MUTED }}>
+                        Unit price:{" "}
+                        <span className="font-medium" style={{ color: INK }}>
+                          ₹{unitPrice.toLocaleString()}
+                        </span>
+                      </p>
+
+                      <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
+                        <div className="flex items-center rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+                          <button
+                            onClick={() => decreaseQty(itemId, optionQty)}
+                            className="w-8 h-8 flex items-center justify-center transition"
+                            style={{ background: SURFACE_MUTED, color: INK }}
+                          >
+                            <Minus size={14} />
+                          </button>
+                          <span className="w-10 text-center font-bold text-sm" style={{ color: INK }}>
+                            {qty}
+                          </span>
+                          <button
+                            onClick={() => increaseQty(itemId, optionQty)}
+                            className="w-8 h-8 flex items-center justify-center transition"
+                            style={{ background: SURFACE_MUTED, color: INK }}
+                          >
+                            <Plus size={14} />
+                          </button>
+                        </div>
+
+                        <div className="text-right">
+                          <p className="text-[10px]" style={{ color: MUTED }}>Total</p>
+                          <p className="text-base font-extrabold" style={{ color: AMBER_DARK }}>
+                            ₹{lineTotal.toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex sm:flex-col justify-end items-end pt-2 sm:pt-0 border-t sm:border-t-0" style={{ borderColor: BORDER }}>
+                      <button
+                        onClick={() => removeFromCart(itemId, optionQty)}
+                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
+                        style={{ color: "#B4302F" }}
+                      >
+                        <Trash2 size={15} />
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Fixed Order Summary Card */}
+            <div className="lg:col-span-1 lg:sticky lg:top-8">
+              <div className="rounded-2xl p-5" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                <h2 className="text-lg font-bold mb-4" style={{ color: INK }}>
+                  Order summary
+                </h2>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between" style={{ color: MUTED }}>
+                    <span>Total items</span>
+                    <span className="font-semibold" style={{ color: INK }}>
+                      {totalItems}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between" style={{ color: MUTED }}>
+                    <span>Subtotal</span>
+                    <span className="font-semibold" style={{ color: INK }}>
+                      ₹{subTotal.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between" style={{ color: MUTED }}>
+                    <span>Estimated GST</span>
+                    <span className="font-semibold" style={{ color: INK }}>
+                      ₹{Math.round(gst).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <hr className="my-4" style={{ borderColor: BORDER }} />
+
+                <div className="flex justify-between items-center mb-5">
+                  <span className="text-base font-bold" style={{ color: INK }}>
+                    Grand total
+                  </span>
+                  <span className="text-xl font-extrabold" style={{ color: AMBER_DARK }}>
+                    ₹{grandTotal.toLocaleString()}
+                  </span>
+                </div>
+
+                <button
+                  onClick={checkoutHandler}
+                  disabled={loading || cart.length === 0}
+                  className="w-full py-3 rounded-xl font-semibold transition text-sm disabled:opacity-50"
+                  style={{ background: AMBER, color: "#1A1200" }}
+                >
+                  {loading ? "Processing..." : "Pay via Cashfree"}
+                </button>
+
+                <button
+                  onClick={clearCart}
+                  disabled={cart.length === 0}
+                  className="w-full mt-2.5 py-2.5 rounded-xl font-semibold transition text-xs disabled:opacity-50"
+                  style={{ border: `1px solid #E9C7C6`, color: "#B4302F" }}
+                >
+                  Clear cart
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ORDER CONFIRMED POPUP MODAL */}
+      {showOrderPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 animate-fade-in">
+          <div className="rounded-3xl max-w-md w-full p-6 text-center relative" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+            <button
+              onClick={() => {
+                setShowOrderPopup(false);
+                navigate("/");
+              }}
+              className="absolute top-4 right-4 rounded-full p-1.5 transition"
+              style={{ background: SURFACE_MUTED, color: MUTED }}
+            >
+              <X size={18} />
+            </button>
+
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#E4F3E9" }}>
+              <CheckCircle2 size={48} style={{ color: "#1D7A43" }} />
+            </div>
+
+            <h2 className="text-2xl font-extrabold mb-1" style={{ color: INK }}>
+              Order confirmed!
+            </h2>
+            <p className="text-xs mb-6" style={{ color: MUTED }}>
+              Thank you for shopping with us. Your payment has been processed.
+            </p>
+
+            <div className="rounded-2xl p-4 text-left space-y-3 mb-6" style={{ background: SURFACE_MUTED, border: `1px solid ${BORDER}` }}>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: MUTED }}>Order ID</span>
+                <span className="font-bold" style={{ color: INK }}>
+                  #{confirmedOrderData?.orderId}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: MUTED }}>Items ordered</span>
+                <span className="font-semibold" style={{ color: INK }}>
+                  {confirmedOrderData?.totalItems} item(s)
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span style={{ color: MUTED }}>Amount paid</span>
+                <span className="font-bold text-sm" style={{ color: AMBER_DARK }}>
+                  ₹{confirmedOrderData?.totalAmount.toLocaleString()}
+                </span>
+              </div>
+              <div className="pt-2 border-t flex items-center gap-2 text-xs font-medium" style={{ borderColor: BORDER, color: STEEL }}>
+                <Truck size={16} />
+                <span>Arriving soon at your doorstep!</span>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              <button
+                onClick={() => {
+                  setShowOrderPopup(false);
+                  navigate("/");
+                }}
+                className="w-full font-semibold py-3 rounded-xl transition text-sm flex items-center justify-center gap-2 text-white"
+                style={{ background: STEEL }}
+              >
+                <BagIcon size={16} /> Continue shopping
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ProductListingPage;
+export default ShoppingCart;
