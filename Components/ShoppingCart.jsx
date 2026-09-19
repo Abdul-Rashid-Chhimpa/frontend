@@ -15,6 +15,8 @@ import {
   X,
   Truck,
   ShoppingBag as BagIcon,
+  Tag,
+  Sparkles,
 } from "lucide-react";
 import { CartContext } from "./Context";
 
@@ -103,6 +105,33 @@ const ShoppingCart = () => {
       item.images?.[0] ||
       "https://via.placeholder.com/200?text=No+Image"
     );
+  };
+
+  // Helper to determine if an item is "New" (e.g. flag or created in the last 30 days)
+  const isNewProduct = (item) => {
+    if (item.isNew || item.isNewArrival) return true;
+    if (item.createdAt) {
+      const createdDate = new Date(item.createdAt);
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return createdDate >= thirtyDaysAgo;
+    }
+    return false;
+  };
+
+  // Helper to calculate or retrieve offer string/percentage
+  const getOfferLabel = (item) => {
+    if (item.offerTag) return item.offerTag;
+    if (item.discountPercentage) return `${item.discountPercentage}% OFF`;
+    if (item.originalPrice && Number(item.originalPrice) > Number(item.price)) {
+      const discount = Math.round(
+        ((Number(item.originalPrice) - Number(item.price)) /
+          Number(item.originalPrice)) *
+          100
+      );
+      return `${discount}% OFF`;
+    }
+    return item.offer || null;
   };
 
   const continueShopping = () => navigate("/");
@@ -266,6 +295,7 @@ const ShoppingCart = () => {
                 const optionQty = getOptionQty(item);
 
                 const unitPrice = Number(item.price || 0);
+                const originalPrice = item.originalPrice ? Number(item.originalPrice) : null;
                 const qty = Number(item.quantity || 1);
                 const lineTotal = unitPrice * qty;
                 const itemGstRate =
@@ -273,13 +303,17 @@ const ShoppingCart = () => {
                     ? Number(item.gst)
                     : 18;
 
+                const isNew = isNewProduct(item);
+                const offerText = getOfferLabel(item);
+
                 return (
                   <div
                     key={`${itemId}-${optionQty}-${unitPrice}-${index}`}
-                    className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 transition"
+                    className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 transition relative overflow-hidden"
                     style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
                   >
-                    <div className="w-full sm:w-32 h-32 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: SURFACE_MUTED }}>
+                    {/* Image Container with Badges */}
+                    <div className="w-full sm:w-32 h-32 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden relative" style={{ background: SURFACE_MUTED }}>
                       <img
                         src={image}
                         alt={name}
@@ -292,12 +326,28 @@ const ShoppingCart = () => {
                     </div>
 
                     <div className="flex-1 min-w-0">
+                      {/* NEW & OFFER TAGS */}
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                        {isNew && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md text-white bg-emerald-600">
+                            <Sparkles size={10} />
+                            New
+                          </span>
+                        )}
+                        {offerText && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-300">
+                            <Tag size={10} />
+                            {offerText}
+                          </span>
+                        )}
+                      </div>
+
                       <h2 className="text-base sm:text-lg font-bold line-clamp-2" style={{ color: INK }}>
                         {name}
                       </h2>
 
                       {item.brand && (
-                        <p className="text-xs mt-1" style={{ color: MUTED }}>
+                        <p className="text-xs mt-0.5" style={{ color: MUTED }}>
                           Brand: {item.brand}
                         </p>
                       )}
@@ -323,6 +373,11 @@ const ShoppingCart = () => {
                         <span className="font-medium" style={{ color: INK }}>
                           ₹{unitPrice.toLocaleString()}
                         </span>
+                        {originalPrice && originalPrice > unitPrice && (
+                          <span className="line-through text-xs ml-1.5" style={{ color: MUTED }}>
+                            ₹{originalPrice.toLocaleString()}
+                          </span>
+                        )}
                       </p>
 
                       <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
