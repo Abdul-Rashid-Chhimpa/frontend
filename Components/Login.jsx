@@ -11,6 +11,9 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
+  // Lockout UI Warning banner state
+  const [lockoutError, setLockoutError] = useState("");
+
   // Forgot Password states
   const [showForgot, setShowForgot] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
@@ -37,6 +40,8 @@ const Login = () => {
 
   const loginHandler = async (e) => {
     e.preventDefault();
+    setLockoutError(""); // Clear previous lockout banner
+
     if (!email.trim()) {
       toast.error("Email is required");
       return;
@@ -77,8 +82,17 @@ const Login = () => {
         navigate("/", { replace: true });
       }
     } catch (error) {
-      console.log(error);
-      toast.error(error.response?.data?.message || "Login Failed");
+      console.log("Login Error →", error);
+      const errorMsg =
+        error.response?.data?.message || "Login Failed. Please try again.";
+
+      // Handle HTTP 429 (Account Lockout) or 400 (Failed Attempts)
+      if (error.response?.status === 429) {
+        setLockoutError(errorMsg);
+        toast.error(errorMsg, { duration: 5000 });
+      } else {
+        toast.error(errorMsg);
+      }
     } finally {
       setLoading(false);
     }
@@ -108,12 +122,15 @@ const Login = () => {
       }
     } catch (error) {
       console.log("Forgot Password Error →", error);
+      const errorMsg =
+        error.response?.data?.message || "Failed to send reset link";
+
       if (error.code === "ECONNABORTED") {
         toast.error("Request timed out. Please try again.");
+      } else if (error.response?.status === 429) {
+        toast.error(errorMsg, { duration: 6000 });
       } else {
-        toast.error(
-          error.response?.data?.message || "Failed to send reset link"
-        );
+        toast.error(errorMsg);
       }
     } finally {
       setForgotLoading(false);
@@ -177,10 +194,20 @@ const Login = () => {
           </div>
 
           <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-8 sm:p-10 shadow-2xl shadow-indigo-950/50">
-            <div className="mb-8">
+            <div className="mb-6">
               <h2 className="text-2xl font-bold text-white tracking-tight">Welcome back</h2>
               <p className="text-slate-400 text-sm mt-1">Please enter your details to sign in.</p>
             </div>
+
+            {/* Lockout Warning Banner */}
+            {lockoutError && (
+              <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-start gap-3">
+                <svg className="w-5 h-5 shrink-0 text-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <div className="leading-relaxed font-medium">{lockoutError}</div>
+              </div>
+            )}
 
             <form onSubmit={loginHandler} className="space-y-5">
               {/* Email Input */}
