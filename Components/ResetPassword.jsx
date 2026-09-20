@@ -34,51 +34,48 @@ const ResetPassword = () => {
   const strength = getStrengthLabel();
 
   // ================= SUBMIT HANDLER =================
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!token) {
-      toast.error("Reset token is missing in URL!");
-      return;
+  if (!token) {
+    toast.error("Reset token is missing in URL!");
+    return;
+  }
+
+  if (password !== confirm) {
+    toast.error("Passwords do not match!");
+    return;
+  }
+
+  if (strengthScore < 3) {
+    toast.error("Please create a stronger password!");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const cleanToken = token.trim();
+
+    const { data } = await axios.post(
+      `https://backend-3-axez.onrender.com/api/auth/reset-password/${cleanToken}`,
+      { password }
+    );
+
+    if (data.success) {
+      toast.success(data.message || "Password reset successful!");
+      navigate("/login");
     }
-
-    if (password !== confirm) {
-      toast.error("Passwords do not match!");
-      return;
-    }
-
-    if (strengthScore < 3) {
-      toast.error("Please create a stronger password!");
-      return;
-    }
-
-    try {
-      setLoading(true);
-
-      // 1. Clean token from spaces/special characters added by email clients
-      const cleanedToken = decodeURIComponent(token).trim();
-
-      console.log("Submitting Token:", cleanedToken);
-
-      const { data } = await axios.post(
-        `https://backend-3-axez.onrender.com/api/auth/reset-password/${cleanedToken}`,
-        { password }
-      );
-
-      if (data.success) {
-        toast.success(data.message || "Password reset successful!");
-        navigate("/login");
-      }
-    } catch (error) {
-      console.error("Reset Password Error:", error);
-      toast.error(
-        error.response?.data?.message || "Link expired or invalid token. Please request a new link."
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  } catch (error) {
+    console.error("Reset Password Error:", error);
+    toast.error(
+      error.response?.data?.message || "Link expired or invalid token. Please request a new link."
+    );
+  } finally {
+    setLoading(false);
+  }
+}; 
+  
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 p-4">
       <div className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-3xl p-8 w-full max-w-md shadow-2xl">
