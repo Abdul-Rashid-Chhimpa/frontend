@@ -37,6 +37,11 @@ const ResetPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!token) {
+      toast.error("Reset token is missing from URL.");
+      return;
+    }
+
     if (password !== confirm) {
       toast.error("Passwords do not match!");
       return;
@@ -50,8 +55,11 @@ const ResetPassword = () => {
     try {
       setLoading(true);
 
+      // Clean & encode token string to avoid URL string mutation issues
+      const cleanToken = encodeURIComponent(token.trim());
+
       const { data } = await axios.post(
-        `https://backend-3-axez.onrender.com/api/auth/reset-password/${token}`,
+        `https://backend-3-axez.onrender.com/api/auth/reset-password/${cleanToken}`,
         { password }
       );
 
@@ -61,7 +69,6 @@ const ResetPassword = () => {
       }
     } catch (error) {
       console.error("Reset Password Error:", error);
-      // Detailed error message from backend
       toast.error(
         error.response?.data?.message || "Link expired or invalid token. Please request a new link."
       );
