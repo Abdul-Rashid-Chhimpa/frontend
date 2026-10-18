@@ -87,12 +87,27 @@ const Card = () => {
   const [visibleProducts, setVisibleProducts] = useState(8);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
+  // --- 1. FETCH PRODUCTS WITH USERID HEADER FIX ---
   const fetchProducts = async () => {
     try {
       setLoading(true);
+
+      // LocalStorage se User Details aur ID extract karein
+      const storedUser = JSON.parse(localStorage.getItem("user") || "null");
+      const userId = localStorage.getItem("userId") || storedUser?._id || "";
+
       const { data } = await axios.get(
-        "https://backend-3-axez.onrender.com/api/products"
+        "https://backend-3-axez.onrender.com/api/products",
+        {
+          headers: {
+            "x-user-id": userId,
+          },
+          params: {
+            userId: userId, // Query param fallback
+          },
+        }
       );
+
       if (data.success) {
         setProducts(data.products || []);
       } else {
@@ -143,6 +158,7 @@ const Card = () => {
     );
   };
 
+  // Base / Lowest Price Calculator
   const getLowestPrice = (product) => {
     if (product.pricing && product.pricing.length > 0) {
       return Math.min(
@@ -150,6 +166,18 @@ const Card = () => {
       );
     }
     return Number(product.price || 0);
+  };
+
+  // --- 2. CALCULATE FINAL DISCOUNTED PRICE ---
+  const getCalculatedPrice = (product) => {
+    const basePrice = getLowestPrice(product);
+    const discountPercent = Number(product.discountPercent || product.offer || 0);
+
+    if (discountPercent > 0) {
+      const discountAmount = (basePrice * discountPercent) / 100;
+      return Math.round(basePrice - discountAmount);
+    }
+    return basePrice;
   };
 
   const getRating = (product) => {
@@ -166,7 +194,11 @@ const Card = () => {
     const categoryMatch =
       selectedCategory.length === 0 ||
       selectedCategory.includes(productCategory);
-    const priceMatch = getLowestPrice(product) <= maxPrice;
+    
+    // Max price filter is checked against final calculated price
+    const currentPrice = getCalculatedPrice(product);
+    const priceMatch = currentPrice <= maxPrice;
+    
     const discountPercentage = product.discountPercent || product.offer || 0;
     const offerMatch = !showOnlyOffers || discountPercentage > 0;
     const newArrivalMatch = !showOnlyNew || Boolean(product.isNewProduct);
@@ -267,7 +299,7 @@ const Card = () => {
         </button>
       </div>
 
-      {/* Special Filters — Discount Offers blinks */}
+      {/* Special Filters */}
       <div className="mb-6 border-b border-white/10 pb-5">
         <h3 className="text-sm font-semibold text-white/80 mb-3">Special Filters</h3>
         <div className="space-y-2.5">
@@ -436,7 +468,7 @@ const Card = () => {
   return (
     <div className="min-h-screen flex flex-col" style={{ background: BG }}>
       <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 py-5 sm:py-6 flex flex-col flex-1">
-        {/* Header — always visible */}
+        {/* Header */}
         <div className="shrink-0 mb-4 sm:mb-5">
           <h1
             className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight"
@@ -473,9 +505,9 @@ const Card = () => {
           </p>
         </div>
 
-        {/* ========== MAIN LAYOUT: FIXED FILTER + SCROLLABLE CARDS ========== */}
+        {/* LAYOUT */}
         <div className="flex-1 grid lg:grid-cols-4 gap-5 lg:gap-6 min-h-0">
-          {/* LEFT: FIXED FILTER (does NOT scroll with cards) */}
+          {/* LEFT: FIXED FILTER */}
           <div className="hidden lg:block lg:col-span-1">
             <div
               className="rounded-2xl xl:rounded-3xl overflow-hidden shadow-md"
@@ -497,7 +529,7 @@ const Card = () => {
             </div>
           </div>
 
-          {/* Mobile filter — from LEFT */}
+          {/* Mobile filter */}
           {showMobileFilter && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div
@@ -515,11 +547,10 @@ const Card = () => {
             </div>
           )}
 
-          {/* RIGHT: SCROLLABLE PRODUCT CARDS */}
+          {/* RIGHT: PRODUCT CARDS */}
           <div
             className="lg:col-span-3 min-h-0"
             style={{
-              // On desktop: cards area scrolls independently
               maxHeight: "calc(100vh - 11rem)",
               overflowY: "auto",
               WebkitOverflowScrolling: "touch",
@@ -549,12 +580,14 @@ const Card = () => {
               <>
                 <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                   {filteredProducts.slice(0, visibleProducts).map((product) => {
-                    const lowestPrice = getLowestPrice(product);
-                    const finalPrice = lowestPrice || Number(product.price) || 0;
-                    const inStock = product.stock > 0;
-                    const discountPercentage =
-                      product.discountPercent || product.offer || 0;
+                    const basePrice = getLowestPrice(product);
+                    const discountPercentage = Number(
+                      product.discountPercent || product.offer || 0
+                    );
+                    const finalPrice = getCalculatedPrice(product);
+                    const hasDiscount = discountPercentage > 0;
                     const discountTagNote = product.discountNote || "";
+                    const inStock = product.stock > 0;
                     const rating = getRating(product);
 
                     return (
@@ -580,7 +613,8 @@ const Card = () => {
                             }}
                           />
 
-                          {discountPercentage > 0 && (
+                          {/* --- 3. DYNAMIC DISCOUNT BADGE (SPECIAL / GENERAL) --- */}
+                          {hasDiscount && (
                             <span
                               className="absolute top-2 left-0 animated-discount-badge text-[10px] sm:text-xs font-bold text-white px-2.5 py-1 flex items-center gap-1 shadow-md z-10"
                               style={{
@@ -648,12 +682,27 @@ const Card = () => {
                                 <p className="text-[9px]" style={{ color: MUTED }}>
                                   Price
                                 </p>
-                                <h3
-                                  className="text-lg sm:text-xl font-extrabold"
-                                  style={{ color: INK }}
-                                >
-                                  ₹{finalPrice}
-                                </h3>
+                                {/* --- 4. DISCOUNTED PRICE VS ORIGINAL PRICE DISPLAY --- */}
+                                {hasDiscount ? (
+                                  <div className="flex items-baseline gap-1.5">
+                                    <h3
+                                      className="text-lg sm:text-xl font-extrabold"
+                                      style={{ color: "#D9381E" }}
+                                    >
+                                      ₹{finalPrice}
+                                    </h3>
+                                    <span className="text-xs text-gray-400 line-through font-medium">
+                                      ₹{basePrice}
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <h3
+                                    className="text-lg sm:text-xl font-extrabold"
+                                    style={{ color: INK }}
+                                  >
+                                    ₹{basePrice}
+                                  </h3>
+                                )}
                               </div>
                               <div className="text-right">
                                 <p className="text-[9px]" style={{ color: MUTED }}>
