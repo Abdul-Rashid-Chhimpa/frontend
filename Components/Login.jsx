@@ -66,8 +66,12 @@ const Login = () => {
         return;
       }
 
+      // --- SAVE TOKEN, USER OBJECT AND EXPLICIT USERID FOR DISCOUNTS ---
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      if (data.user?._id) {
+        localStorage.setItem("userId", data.user._id);
+      }
 
       if (rememberMe) {
         localStorage.setItem("rememberedEmail", email.trim());
