@@ -54,7 +54,7 @@ const COMPANY_STATE = "rajasthan";
 // ------------------------------------------------------
 // 1. Put the image file in:  public/payment-qr.jpg
 // 2. The path below will work automatically
-const PAYMENT_QR_SRC = "/payment-qr.jpg";
+const PAYMENT_QR_SRC = "/pedwal_qr_scanner.jpg";
 
 // ======================================================
 // TEAR LINE
