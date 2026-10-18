@@ -27,7 +27,6 @@ const BG = "#F5F6F4";
 const STEEL = "#2B4A5E";
 
 // Endpoints tried in order until one returns a user list.
-// Remove / reorder these to match your backend.
 const USER_LIST_ENDPOINTS = [
   "/api/users",
   "/api/users/all",
@@ -49,7 +48,7 @@ const GetAllProducts = () => {
   const [expandedDesc, setExpandedDesc] = useState({});
   const [updating, setUpdating] = useState(false);
 
-  // --- USER SEARCH & SELECTION STATES (for targeted discount) ---
+  // --- USER SEARCH & SELECTION STATES ---
   const [allUsers, setAllUsers] = useState([]);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [usersLoading, setUsersLoading] = useState(false);
@@ -65,13 +64,10 @@ const GetAllProducts = () => {
     "Credit / Debit Card",
   ];
 
-  // Turns a user id into a readable label (name / email / phone)
   const getUserLabel = (id) => {
     const u = allUsers.find((x) => String(x._id) === String(id));
     const shortId = String(id).slice(-6);
-
     if (!u) return `User ...${shortId}`;
-
     return u.name || u.email || getUserPhone(u) || `User ...${shortId}`;
   };
 
@@ -79,7 +75,6 @@ const GetAllProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // Admin route returns full data (discountTargetType + allowedUserIds)
       const { data } = await axios.get(`${API}/admin/all`);
       if (data.success) setProducts(data.products || []);
     } catch (error) {
@@ -98,15 +93,12 @@ const GetAllProducts = () => {
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     setUsersError("");
-
     let lastError = null;
 
     for (const path of USER_LIST_ENDPOINTS) {
       try {
         const res = await axios.get(`${BASE_URL}${path}`);
-
         const body = res.data;
-
         const list = Array.isArray(body)
           ? body
           : body?.users || body?.data || body?.result || [];
@@ -126,13 +118,11 @@ const GetAllProducts = () => {
     setUsersLoading(false);
   }, [BASE_URL]);
 
-  // Load users once on page load so selected users' names can show on the cards
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load users when the edit modal is on "Selected Users Only"
   useEffect(() => {
     if (
       editProduct?.discountTargetType === "selected" &&
@@ -202,24 +192,19 @@ const GetAllProducts = () => {
     setExpandedDesc((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // --- USER SELECTION TOGGLE ---
   const toggleUserSelection = (userId) => {
     const id = String(userId);
-
     setEditProduct((prev) => {
       const current = prev.allowedUserIds || [];
       const exists = current.includes(id);
       const updatedIds = exists
         ? current.filter((x) => x !== id)
         : [...current, id];
-
       return { ...prev, allowedUserIds: updatedIds };
     });
   };
 
-  // Full list is shown by default; typing filters it (1+ characters)
   const searchLower = userSearchTerm.trim().toLowerCase();
-
   const filteredUsers = searchLower
     ? allUsers.filter((u) => {
         const nameMatch = u.name && String(u.name).toLowerCase().includes(searchLower);
@@ -321,8 +306,9 @@ const GetAllProducts = () => {
       discountNote: product.discountNote || "",
       discountTargetType: product.discountTargetType === "selected" ? "selected" : "all",
       allowedUserIds: normalizeAllowedIds(product.allowedUserIds),
-      otherUsersDiscountPercent: product.otherUsersDiscountPercent ?? "",
-      otherUsersDiscountNote: product.otherUsersDiscountNote ?? "",
+      // ✅ Schema ke hisaab se sahi names
+      defaultDiscountPercent: product.defaultDiscountPercent ?? "",
+      defaultDiscountNote: product.defaultDiscountNote ?? "",
       deliveryCharge: deliveryCharge ?? "",
       deliveryTime: deliveryTime ?? "",
       paymentMethods: paymentMethods,
@@ -366,25 +352,28 @@ const GetAllProducts = () => {
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(formattedPricing));
 
-      // Offer & New Arrival fields
+      // Offer & New Arrival
       formData.append("isNewProduct", Boolean(editProduct.isNewProduct));
       formData.append("discountPercent", Number(editProduct.discountPercent) || 0);
       formData.append("discountNote", editProduct.discountNote || "");
 
-      // --- USER TARGETING FIELDS ---
+      // --- USER TARGETING + DEFAULT (OTHER USERS) DISCOUNT ---
       formData.append("discountTargetType", editProduct.discountTargetType || "all");
+
+      // ✅ Schema ke hisaab se sahi names bhejo
       formData.append(
-        "otherUsersDiscountPercent",
+        "defaultDiscountPercent",
         editProduct.discountTargetType === "selected"
-          ? Number(editProduct.otherUsersDiscountPercent) || 0
+          ? Number(editProduct.defaultDiscountPercent) || 0
           : 0
       );
       formData.append(
-        "otherUsersDiscountNote",
+        "defaultDiscountNote",
         editProduct.discountTargetType === "selected"
-          ? editProduct.otherUsersDiscountNote || ""
+          ? editProduct.defaultDiscountNote || ""
           : ""
       );
+
       formData.append(
         "allowedUserIds",
         JSON.stringify(
@@ -448,7 +437,6 @@ const GetAllProducts = () => {
             </div>
             <div className="h-10 w-28 rounded-xl shimmer" style={{ background: BORDER }} />
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="rounded-2xl overflow-hidden border" style={{ background: SURFACE, borderColor: BORDER }}>
@@ -516,7 +504,9 @@ const GetAllProducts = () => {
               const isTargeted = product.discountTargetType === "selected";
               const targetedIds = normalizeAllowedIds(product.allowedUserIds);
               const targetedCount = targetedIds.length;
-              const otherPercent = Number(product.otherUsersDiscountPercent) || 0;
+
+              // ✅ Schema ke hisaab se sahi fields
+              const otherPercent = Number(product.defaultDiscountPercent) || 0;
               const specialPercent = Number(product.discountPercent) || 0;
 
               return (
@@ -535,7 +525,6 @@ const GetAllProducts = () => {
                       }}
                     />
 
-                    {/* New Arrival Badge */}
                     {product.isNewProduct && (
                       <span className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
                         NEW
@@ -570,7 +559,6 @@ const GetAllProducts = () => {
                     </h2>
 
                     <div className="flex flex-wrap gap-2 mt-2.5">
-                      {/* discountNote (special offer tag) */}
                       {product.discountNote && (
                         <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200">
                           {product.discountNote}
@@ -610,7 +598,7 @@ const GetAllProducts = () => {
                       )}
                     </div>
 
-                    {/* ===== TARGETED DISCOUNT BOX (Special + Other users) ===== */}
+                    {/* ===== TARGETED DISCOUNT BOX ===== */}
                     {isTargeted && (
                       <div className="mt-3 p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 text-xs space-y-1.5">
                         <p className="font-semibold text-amber-800 flex items-center gap-1">
@@ -634,14 +622,14 @@ const GetAllProducts = () => {
                           )}
                         </div>
 
-                        {/* Other users discount - clearly visible */}
+                        {/* Other users discount */}
                         <p className="text-amber-900 pt-1 border-t border-amber-200/60">
                           <span className="font-semibold">Other users (not selected) see: </span>
                           {otherPercent > 0 ? (
                             <span className="font-bold text-rose-700">
                               {otherPercent}% OFF
-                              {product.otherUsersDiscountNote
-                                ? ` (${product.otherUsersDiscountNote})`
+                              {product.defaultDiscountNote
+                                ? ` (${product.defaultDiscountNote})`
                                 : ""}
                             </span>
                           ) : (
@@ -672,11 +660,7 @@ const GetAllProducts = () => {
                           From ₹{lowestPrice.toLocaleString()}
                         </p>
 
-                        {/* 
-                          MAIN DISCOUNT BADGE:
-                          - Agar targeted hai → Other users ka discount dikhao (public wala)
-                          - Warna normal discountPercent dikhao
-                        */}
+                        {/* Main badge */}
                         {isTargeted ? (
                           otherPercent > 0 && (
                             <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
@@ -692,7 +676,6 @@ const GetAllProducts = () => {
                           )
                         )}
 
-                        {/* Special badge (sirf jab targeted ho) */}
                         {isTargeted && specialPercent > 0 && (
                           <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
                             {specialPercent}% Special
@@ -701,7 +684,7 @@ const GetAllProducts = () => {
                       </div>
                     </div>
 
-                    {/* Delivery & Payment Details */}
+                    {/* Delivery & Payment */}
                     <div className="mt-3 pt-3 border-t text-xs space-y-2 p-2.5 rounded-xl" style={{ borderColor: BORDER, background: BG }}>
                       <div className="flex items-start gap-1.5" style={{ color: INK }}>
                         <Truck size={15} style={{ color: STEEL }} className="flex-shrink-0 mt-0.5" />
@@ -860,8 +843,7 @@ const GetAllProducts = () => {
                           type="file"
                           accept="image/*"
                           onChange={(e) => {
-                            if (e.target.files[0])
-                              replaceImage(index, e.target.files[0]);
+                            if (e.target.files[0]) replaceImage(index, e.target.files[0]);
                           }}
                         />
                       </label>
@@ -886,7 +868,7 @@ const GetAllProducts = () => {
                 </div>
               </div>
 
-              {/* Mark as NEW Arrival Box */}
+              {/* Mark as NEW */}
               <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
                 <div>
                   <label htmlFor="isNewProduct" className="font-bold text-emerald-950 flex items-center gap-2 cursor-pointer text-sm sm:text-base">
@@ -894,7 +876,7 @@ const GetAllProducts = () => {
                     Mark as "NEW" Arrival
                   </label>
                   <p className="text-xs text-emerald-700 mt-0.5">
-                    Displays an animated "NEW" badge on product cards to boost visibility
+                    Displays an animated "NEW" badge on product cards
                   </p>
                 </div>
                 <input
@@ -977,7 +959,6 @@ const GetAllProducts = () => {
                     </label>
                   </div>
 
-                  {/* USER SEARCH & SELECTION SECTION */}
                   {editProduct.discountTargetType === "selected" && (
                     <div className="mt-3 bg-white p-3 sm:p-4 rounded-xl border border-rose-200 space-y-3">
                       {/* DISCOUNT FOR OTHER (NON-SELECTED) USERS */}
@@ -988,16 +969,16 @@ const GetAllProducts = () => {
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <input
                             type="number"
-                            name="otherUsersDiscountPercent"
-                            value={editProduct.otherUsersDiscountPercent ?? ""}
+                            name="defaultDiscountPercent"   // ✅ sahi name
+                            value={editProduct.defaultDiscountPercent ?? ""}
                             onChange={handleEditChange}
                             placeholder="e.g. 5 (leave empty for no discount)"
                             className="w-full bg-white rounded-lg px-3 py-2 text-xs sm:text-sm outline-none border border-rose-200 focus:border-rose-400"
                           />
                           <input
                             type="text"
-                            name="otherUsersDiscountNote"
-                            value={editProduct.otherUsersDiscountNote ?? ""}
+                            name="defaultDiscountNote"     // ✅ sahi name
+                            value={editProduct.defaultDiscountNote ?? ""}
                             onChange={handleEditChange}
                             placeholder="e.g. Regular Sale"
                             className="w-full bg-white rounded-lg px-3 py-2 text-xs sm:text-sm outline-none border border-rose-200 focus:border-rose-400"
@@ -1030,14 +1011,12 @@ const GetAllProducts = () => {
                         )}
                       </div>
 
-                      {/* LIST HEADER */}
                       <div className="flex items-center justify-between h-6 text-[11px] text-gray-500">
                         <span>
                           {usersLoading
                             ? "Loading users..."
                             : `Showing ${filteredUsers.length} of ${allUsers.length} users`}
                         </span>
-
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
@@ -1058,7 +1037,6 @@ const GetAllProducts = () => {
                         </div>
                       </div>
 
-                      {/* USER LIST */}
                       <div
                         className="h-56 overflow-y-auto border border-gray-100 rounded-lg bg-white"
                         style={{ scrollbarGutter: "stable" }}
@@ -1107,11 +1085,9 @@ const GetAllProducts = () => {
                                   onChange={() => toggleUserSelection(user._id)}
                                   className="w-4 h-4 shrink-0 accent-rose-600 cursor-pointer"
                                 />
-
                                 <div className="w-8 h-8 shrink-0 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-bold uppercase">
                                   {displayName.charAt(0)}
                                 </div>
-
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs sm:text-sm text-gray-800 font-medium truncate">
                                     {displayName}
@@ -1126,13 +1102,11 @@ const GetAllProducts = () => {
                         )}
                       </div>
 
-                      {/* SELECTED USERS */}
                       <div className="pt-1">
                         <p className="text-[11px] font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
                           <UserCheck size={13} className="text-emerald-600" />
                           Selected Users ({(editProduct.allowedUserIds || []).length})
                         </p>
-
                         <div className="h-16 overflow-y-auto rounded-lg border border-dashed border-gray-200 bg-gray-50/60 p-2">
                           {(editProduct.allowedUserIds || []).length === 0 ? (
                             <p className="text-[11px] text-gray-400">
@@ -1272,7 +1246,6 @@ const GetAllProducts = () => {
                     + Add Tier
                   </button>
                 </div>
-
                 <div className="space-y-2.5">
                   {editProduct.pricing?.map((p, index) => (
                     <div key={index} className="flex items-center gap-2">
@@ -1323,7 +1296,7 @@ const GetAllProducts = () => {
                 />
               </div>
 
-              {/* Submit / Cancel Actions */}
+              {/* Actions */}
               <div className="flex gap-3 pt-4 border-t" style={{ borderColor: BORDER }}>
                 <button
                   type="button"
