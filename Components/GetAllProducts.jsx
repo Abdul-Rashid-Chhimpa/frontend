@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import {
   Pencil,
@@ -11,6 +11,9 @@ import {
   Truck,
   CreditCard,
   Tag,
+  Users,
+  Search,
+  UserCheck,
 } from "lucide-react";
 
 // ======================================================
@@ -23,6 +26,22 @@ const SURFACE = "#FFFFFF";
 const BG = "#F5F6F4";
 const STEEL = "#2B4A5E";
 
+// Endpoints tried in order until one returns a user list.
+// Remove / reorder these to match your backend.
+const USER_LIST_ENDPOINTS = [
+  "/api/users",
+  "/api/users/all",
+  "/api/admin/users",
+];
+
+const getUserPhone = (u) => String(u?.phone || u?.mobile || u?.mobileNumber || "");
+
+// Backend may send allowedUserIds as ["id1"] or [{_id: "id1", ...}]
+const normalizeAllowedIds = (list) =>
+  Array.isArray(list)
+    ? list.map((u) => String(u && typeof u === "object" ? u._id : u)).filter(Boolean)
+    : [];
+
 const GetAllProducts = () => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,7 +49,14 @@ const GetAllProducts = () => {
   const [expandedDesc, setExpandedDesc] = useState({});
   const [updating, setUpdating] = useState(false);
 
-  const API = "https://backend-3-axez.onrender.com/api/products";
+  // --- USER SEARCH & SELECTION STATES (for targeted discount) ---
+  const [allUsers, setAllUsers] = useState([]);
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState("");
+
+  const BASE_URL = "https://backend-3-axez.onrender.com";
+  const API = `${BASE_URL}/api/products`;
 
   const AVAILABLE_PAYMENT_METHODS = [
     "Cash on Delivery",
@@ -56,6 +82,50 @@ const GetAllProducts = () => {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // ================= FETCH USERS =================
+  const fetchUsers = useCallback(async () => {
+    setUsersLoading(true);
+    setUsersError("");
+
+    let lastError = null;
+
+    for (const path of USER_LIST_ENDPOINTS) {
+      try {
+        const res = await axios.get(`${BASE_URL}${path}`);
+
+        const body = res.data;
+
+        const list = Array.isArray(body)
+          ? body
+          : body?.users || body?.data || body?.result || [];
+
+        if (Array.isArray(list)) {
+          setAllUsers(list);
+          setUsersLoading(false);
+          return;
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    console.error("Failed to fetch user list:", lastError);
+    setUsersError("Could not load users. Please check the users API and try again.");
+    setUsersLoading(false);
+  }, [BASE_URL]);
+
+  // Load users when the edit modal is on "Selected Users Only"
+  useEffect(() => {
+    if (
+      editProduct?.discountTargetType === "selected" &&
+      allUsers.length === 0 &&
+      !usersLoading
+    ) {
+      fetchUsers();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editProduct?.discountTargetType]);
 
   // ================= DELETE PRODUCT =================
   const deleteProduct = async (id) => {
@@ -113,6 +183,45 @@ const GetAllProducts = () => {
 
   const toggleDescription = (id) => {
     setExpandedDesc((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // --- USER SELECTION TOGGLE ---
+  const toggleUserSelection = (userId) => {
+    const id = String(userId);
+
+    setEditProduct((prev) => {
+      const current = prev.allowedUserIds || [];
+      const exists = current.includes(id);
+      const updatedIds = exists
+        ? current.filter((x) => x !== id)
+        : [...current, id];
+
+      return { ...prev, allowedUserIds: updatedIds };
+    });
+  };
+
+  // Full list is shown by default; typing filters it (1+ characters)
+  const searchLower = userSearchTerm.trim().toLowerCase();
+
+  const filteredUsers = searchLower
+    ? allUsers.filter((u) => {
+        const nameMatch = u.name && String(u.name).toLowerCase().includes(searchLower);
+        const emailMatch = u.email && String(u.email).toLowerCase().includes(searchLower);
+        const phoneMatch = getUserPhone(u).includes(searchLower);
+        return nameMatch || emailMatch || phoneMatch;
+      })
+    : allUsers;
+
+  const selectAllShown = () => {
+    setEditProduct((prev) => {
+      const merged = new Set(prev.allowedUserIds || []);
+      filteredUsers.forEach((u) => merged.add(String(u._id)));
+      return { ...prev, allowedUserIds: Array.from(merged) };
+    });
+  };
+
+  const clearSelectedUsers = () => {
+    setEditProduct((prev) => ({ ...prev, allowedUserIds: [] }));
   };
 
   // ================= IMAGE HANDLING =================
@@ -180,13 +289,40 @@ const GetAllProducts = () => {
         }
       });
     }
+    setUserSearchTerm("");
     setEditProduct(null);
+  };
+
+  // ================= OPEN EDIT MODAL =================
+  const openEditModal = (product, deliveryCharge, deliveryTime, paymentMethods) => {
+    setUserSearchTerm("");
+
+    setEditProduct({
+      ...product,
+      isNewProduct: product.isNewProduct || false,
+      discountPercent: product.discountPercent || "",
+      discountNote: product.discountNote || "",
+      discountTargetType: product.discountTargetType === "selected" ? "selected" : "all",
+      allowedUserIds: normalizeAllowedIds(product.allowedUserIds),
+      deliveryCharge: deliveryCharge ?? "",
+      deliveryTime: deliveryTime ?? "",
+      paymentMethods: paymentMethods,
+      newImages: [],
+    });
   };
 
   // ================= UPDATE PRODUCT FUNCTION =================
   const updateProduct = async () => {
     if (!editProduct.pricing || editProduct.pricing.length === 0) {
       alert("At least one pricing option is required.");
+      return;
+    }
+
+    if (
+      editProduct.discountTargetType === "selected" &&
+      (editProduct.allowedUserIds || []).length === 0
+    ) {
+      alert("Please select at least one user for targeted discount");
       return;
     }
 
@@ -216,6 +352,17 @@ const GetAllProducts = () => {
       formData.append("isNewProduct", Boolean(editProduct.isNewProduct));
       formData.append("discountPercent", Number(editProduct.discountPercent) || 0);
       formData.append("discountNote", editProduct.discountNote || "");
+
+      // --- USER TARGETING FIELDS (same names as Add Product) ---
+      formData.append("discountTargetType", editProduct.discountTargetType || "all");
+      formData.append(
+        "allowedUserIds",
+        JSON.stringify(
+          editProduct.discountTargetType === "selected"
+            ? editProduct.allowedUserIds || []
+            : []
+        )
+      );
 
       const deliveryPayload = {
         charge: Number(editProduct.deliveryCharge) || 0,
@@ -336,6 +483,11 @@ const GetAllProducts = () => {
               const deliveryTime = product.deliveryTime || product.delivery?.time;
               const paymentMethods = product.paymentMethods || product.payment || [];
 
+              const isTargeted = product.discountTargetType === "selected";
+              const targetedCount = Array.isArray(product.allowedUserIds)
+                ? product.allowedUserIds.length
+                : 0;
+
               return (
                 <div
                   key={product._id}
@@ -391,6 +543,12 @@ const GetAllProducts = () => {
                       {product.discountNote && (
                         <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200">
                           {product.discountNote}
+                        </span>
+                      )}
+                      {isTargeted && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200">
+                          <Users size={11} />
+                          Special: {targetedCount} user{targetedCount !== 1 ? "s" : ""}
                         </span>
                       )}
                       {product.category && (
@@ -530,16 +688,7 @@ const GetAllProducts = () => {
                     <div className="flex gap-2.5 mt-auto pt-5">
                       <button
                         onClick={() =>
-                          setEditProduct({
-                            ...product,
-                            isNewProduct: product.isNewProduct || false,
-                            discountPercent: product.discountPercent || "",
-                            discountNote: product.discountNote || "",
-                            deliveryCharge: deliveryCharge ?? "",
-                            deliveryTime: deliveryTime ?? "",
-                            paymentMethods: paymentMethods,
-                            newImages: [],
-                          })
+                          openEditModal(product, deliveryCharge, deliveryTime, paymentMethods)
                         }
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition text-white"
                         style={{ background: STEEL }}
@@ -665,7 +814,7 @@ const GetAllProducts = () => {
                 />
               </div>
 
-              {/* Offer & Discount Section — bound to discountPercent / discountNote */}
+              {/* Offer & Discount Section — bound to discountPercent / discountNote / user targeting */}
               <div className="p-4 rounded-2xl border border-rose-200 bg-rose-50/40 space-y-3">
                 <h3 className="font-bold text-rose-950 flex items-center gap-2 text-sm sm:text-base">
                   <Tag size={18} className="text-rose-600" />
@@ -700,6 +849,200 @@ const GetAllProducts = () => {
                       style={{ color: INK }}
                     />
                   </div>
+                </div>
+
+                {/* TARGET USER OPTION */}
+                <div className="pt-3 border-t border-rose-200/60">
+                  <label className="block text-xs font-semibold text-rose-900 mb-2 flex items-center gap-1.5">
+                    <Users size={15} className="text-rose-600" />
+                    Who can see this discount?
+                  </label>
+                  <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-rose-900">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="discountTargetType"
+                        value="all"
+                        checked={editProduct.discountTargetType !== "selected"}
+                        onChange={handleEditChange}
+                        className="accent-rose-600 cursor-pointer"
+                      />
+                      All Users (Public)
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="discountTargetType"
+                        value="selected"
+                        checked={editProduct.discountTargetType === "selected"}
+                        onChange={handleEditChange}
+                        className="accent-rose-600 cursor-pointer"
+                      />
+                      Selected Users Only (Special Discount)
+                    </label>
+                  </div>
+
+                  {/* USER SEARCH & SELECTION SECTION */}
+                  {editProduct.discountTargetType === "selected" && (
+                    <div className="mt-3 bg-white p-3 sm:p-4 rounded-xl border border-rose-200 space-y-3">
+                      {/* SEARCH */}
+                      <div className="relative">
+                        <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search user by Name, Email or Phone..."
+                          value={userSearchTerm}
+                          onChange={(e) => setUserSearchTerm(e.target.value)}
+                          className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-rose-500"
+                        />
+                        {userSearchTerm && (
+                          <button
+                            type="button"
+                            onClick={() => setUserSearchTerm("")}
+                            className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                            title="Clear search"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* LIST HEADER (fixed height so layout never jumps) */}
+                      <div className="flex items-center justify-between h-6 text-[11px] text-gray-500">
+                        <span>
+                          {usersLoading
+                            ? "Loading users..."
+                            : `Showing ${filteredUsers.length} of ${allUsers.length} users`}
+                        </span>
+
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={selectAllShown}
+                            disabled={filteredUsers.length === 0}
+                            className="font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            Select all shown
+                          </button>
+                          <button
+                            type="button"
+                            onClick={clearSelectedUsers}
+                            disabled={(editProduct.allowedUserIds || []).length === 0}
+                            className="font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                          >
+                            Clear
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* USER LIST (fixed height + scroll) */}
+                      <div
+                        className="h-56 overflow-y-auto border border-gray-100 rounded-lg bg-white"
+                        style={{ scrollbarGutter: "stable" }}
+                      >
+                        {usersLoading ? (
+                          <div className="h-full flex items-center justify-center text-xs text-gray-400">
+                            Loading users...
+                          </div>
+                        ) : usersError ? (
+                          <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center">
+                            <p className="text-xs text-red-500">{usersError}</p>
+                            <button
+                              type="button"
+                              onClick={fetchUsers}
+                              className="text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg transition"
+                            >
+                              Retry
+                            </button>
+                          </div>
+                        ) : filteredUsers.length === 0 ? (
+                          <div className="h-full flex items-center justify-center text-xs text-gray-400 px-4 text-center">
+                            {allUsers.length === 0
+                              ? "No users available."
+                              : `No users found matching "${userSearchTerm}"`}
+                          </div>
+                        ) : (
+                          filteredUsers.map((user) => {
+                            const isSelected = (editProduct.allowedUserIds || []).includes(
+                              String(user._id)
+                            );
+                            const displayName = user.name || "No Name";
+                            const subText = [user.email, getUserPhone(user)]
+                              .filter(Boolean)
+                              .join(" · ");
+
+                            return (
+                              <label
+                                key={user._id}
+                                className={`flex items-center gap-3 h-14 px-3 border-b border-gray-100 last:border-b-0 cursor-pointer select-none transition-colors ${
+                                  isSelected ? "bg-rose-50" : "hover:bg-gray-50"
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleUserSelection(user._id)}
+                                  className="w-4 h-4 shrink-0 accent-rose-600 cursor-pointer"
+                                />
+
+                                <div className="w-8 h-8 shrink-0 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-bold uppercase">
+                                  {displayName.charAt(0)}
+                                </div>
+
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-xs sm:text-sm text-gray-800 font-medium truncate">
+                                    {displayName}
+                                  </p>
+                                  <p className="text-[11px] text-gray-400 truncate">
+                                    {subText || "No contact info"}
+                                  </p>
+                                </div>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+
+                      {/* SELECTED USERS (always rendered, fixed height) */}
+                      <div className="pt-1">
+                        <p className="text-[11px] font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
+                          <UserCheck size={13} className="text-emerald-600" />
+                          Selected Users ({(editProduct.allowedUserIds || []).length})
+                        </p>
+
+                        <div className="h-16 overflow-y-auto rounded-lg border border-dashed border-gray-200 bg-gray-50/60 p-2">
+                          {(editProduct.allowedUserIds || []).length === 0 ? (
+                            <p className="text-[11px] text-gray-400">
+                              No users selected yet. Tick the checkbox next to a user above.
+                            </p>
+                          ) : (
+                            <div className="flex flex-wrap gap-1.5">
+                              {(editProduct.allowedUserIds || []).map((id) => {
+                                const matchedUser = allUsers.find(
+                                  (u) => String(u._id) === String(id)
+                                );
+                                return (
+                                  <span
+                                    key={id}
+                                    className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 text-[11px] px-2 py-0.5 rounded-full font-medium"
+                                  >
+                                    {matchedUser?.name || matchedUser?.email || id}
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleUserSelection(id)}
+                                      className="hover:text-rose-900"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
