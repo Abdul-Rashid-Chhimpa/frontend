@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import {
   PackagePlus,
@@ -51,6 +51,16 @@ const INITIAL_PRODUCT_STATE = {
   allowedUserIds: [],
 };
 
+// Endpoints tried in order until one returns a user list.
+// Remove / reorder these to match your backend.
+const USER_LIST_ENDPOINTS = [
+  "/api/users",
+  "/api/users/all",
+  "/api/admin/users",
+];
+
+const getUserPhone = (u) => String(u?.phone || u?.mobile || u?.mobileNumber || "");
+
 const AddProduct = () => {
   const [images, setImages] = useState([]);
   const [imageFiles, setImageFiles] = useState([]);
@@ -64,6 +74,7 @@ const AddProduct = () => {
   const [allUsers, setAllUsers] = useState([]);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState("");
 
   const apiUrl = process.env.REACT_APP_API_URL || "https://backend-3-axez.onrender.com";
 
@@ -74,25 +85,45 @@ const AddProduct = () => {
     };
   }, [images]);
 
-  // Fetch users when targeted discount is toggled
+  // ================= FETCH USERS =================
+  const fetchUsers = useCallback(async () => {
+    setUsersLoading(true);
+    setUsersError("");
+
+    let lastError = null;
+
+    for (const path of USER_LIST_ENDPOINTS) {
+      try {
+        const res = await axios.get(`${apiUrl}${path}`);
+
+        const body = res.data;
+
+        const list = Array.isArray(body)
+          ? body
+          : body?.users || body?.data || body?.result || [];
+
+        if (Array.isArray(list)) {
+          setAllUsers(list);
+          setUsersLoading(false);
+          return;
+        }
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    console.error("Failed to fetch user list:", lastError);
+    setUsersError("Could not load users. Please check the users API and try again.");
+    setUsersLoading(false);
+  }, [apiUrl]);
+
+  // Load users as soon as "Selected Users Only" is chosen
   useEffect(() => {
     if (product.discountTargetType === "selected" && allUsers.length === 0) {
-      const fetchUsers = async () => {
-        try {
-          setUsersLoading(true);
-          const res = await axios.get(`${apiUrl}/api/users`);
-          // Expecting res.data.users or res.data as array
-          const fetchedList = Array.isArray(res.data) ? res.data : res.data.users || [];
-          setAllUsers(fetchedList);
-        } catch (err) {
-          console.error("Failed to fetch user list:", err);
-        } finally {
-          setUsersLoading(false);
-        }
-      };
       fetchUsers();
     }
-  }, [product.discountTargetType, allUsers.length, apiUrl]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product.discountTargetType]);
 
   // ================= IMAGE HANDLERS =================
   const handleImageChange = (e) => {
@@ -198,17 +229,29 @@ const AddProduct = () => {
     });
   };
 
-  // Filtered users list based on 3+ characters input
-  const filteredUsers =
-    userSearchTerm.trim().length >= 3
-      ? allUsers.filter((u) => {
-          const searchLower = userSearchTerm.toLowerCase();
-          const nameMatch = u.name && u.name.toLowerCase().includes(searchLower);
-          const emailMatch = u.email && u.email.toLowerCase().includes(searchLower);
-          const phoneMatch = u.phone && u.phone.includes(searchLower);
-          return nameMatch || emailMatch || phoneMatch;
-        })
-      : [];
+  // Full list is shown by default; typing filters it (1+ characters)
+  const searchLower = userSearchTerm.trim().toLowerCase();
+
+  const filteredUsers = searchLower
+    ? allUsers.filter((u) => {
+        const nameMatch = u.name && String(u.name).toLowerCase().includes(searchLower);
+        const emailMatch = u.email && String(u.email).toLowerCase().includes(searchLower);
+        const phoneMatch = getUserPhone(u).includes(searchLower);
+        return nameMatch || emailMatch || phoneMatch;
+      })
+    : allUsers;
+
+  const selectAllShown = () => {
+    setProduct((prev) => {
+      const merged = new Set(prev.allowedUserIds);
+      filteredUsers.forEach((u) => merged.add(u._id));
+      return { ...prev, allowedUserIds: Array.from(merged) };
+    });
+  };
+
+  const clearSelectedUsers = () => {
+    setProduct((prev) => ({ ...prev, allowedUserIds: [] }));
+  };
 
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
@@ -530,94 +573,158 @@ const AddProduct = () => {
                 {/* USER SEARCH & SELECTION SECTION */}
                 {product.discountTargetType === "selected" && (
                   <div className="mt-3 bg-white p-3 sm:p-4 rounded-xl border border-rose-200 space-y-3">
+                    {/* SEARCH */}
                     <div className="relative">
                       <Search size={16} className="absolute left-3 top-3 text-gray-400" />
                       <input
                         type="text"
-                        placeholder="Type at least 3 characters to search user (Name, Email, Phone)..."
+                        placeholder="Search user by Name, Email or Phone..."
                         value={userSearchTerm}
                         onChange={(e) => setUserSearchTerm(e.target.value)}
-                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-rose-500"
+                        className="w-full pl-9 pr-9 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-rose-500"
                       />
+                      {userSearchTerm && (
+                        <button
+                          type="button"
+                          onClick={() => setUserSearchTerm("")}
+                          className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600"
+                          title="Clear search"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
                     </div>
 
-                    {usersLoading && (
-                      <p className="text-xs text-gray-500 py-1">Loading users...</p>
-                    )}
+                    {/* LIST HEADER (fixed height so layout never jumps) */}
+                    <div className="flex items-center justify-between h-6 text-[11px] text-gray-500">
+                      <span>
+                        {usersLoading
+                          ? "Loading users..."
+                          : `Showing ${filteredUsers.length} of ${allUsers.length} users`}
+                      </span>
 
-                    {/* SEARCH RESULTS DISPLAY */}
-                    {userSearchTerm.trim().length >= 3 && !usersLoading && (
-                      <div className="max-h-40 overflow-y-auto border border-gray-100 rounded-lg divide-y">
-                        {filteredUsers.length > 0 ? (
-                          filteredUsers.map((user) => {
-                            const isSelected = product.allowedUserIds.includes(user._id);
-                            return (
-                              <div
-                                key={user._id}
-                                onClick={() => toggleUserSelection(user._id)}
-                                className={`p-2 flex items-center justify-between text-xs cursor-pointer hover:bg-rose-50/50 transition ${
-                                  isSelected ? "bg-rose-50 font-semibold" : ""
-                                }`}
-                              >
-                                <div>
-                                  <p className="text-gray-800">{user.name || "No Name"}</p>
-                                  <p className="text-gray-400 text-[11px]">
-                                    {user.email || user.phone}
-                                  </p>
-                                </div>
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => {}}
-                                  className="accent-rose-600"
-                                />
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={selectAllShown}
+                          disabled={filteredUsers.length === 0}
+                          className="font-semibold text-rose-600 hover:text-rose-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Select all shown
+                        </button>
+                        <button
+                          type="button"
+                          onClick={clearSelectedUsers}
+                          disabled={product.allowedUserIds.length === 0}
+                          className="font-semibold text-gray-500 hover:text-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* USER LIST (fixed height + scroll) */}
+                    <div
+                      className="h-56 overflow-y-auto border border-gray-100 rounded-lg bg-white"
+                      style={{ scrollbarGutter: "stable" }}
+                    >
+                      {usersLoading ? (
+                        <div className="h-full flex items-center justify-center text-xs text-gray-400">
+                          Loading users...
+                        </div>
+                      ) : usersError ? (
+                        <div className="h-full flex flex-col items-center justify-center gap-2 px-4 text-center">
+                          <p className="text-xs text-red-500">{usersError}</p>
+                          <button
+                            type="button"
+                            onClick={fetchUsers}
+                            className="text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-lg transition"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      ) : filteredUsers.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-xs text-gray-400 px-4 text-center">
+                          {allUsers.length === 0
+                            ? "No users available."
+                            : `No users found matching "${userSearchTerm}"`}
+                        </div>
+                      ) : (
+                        filteredUsers.map((user) => {
+                          const isSelected = product.allowedUserIds.includes(user._id);
+                          const displayName = user.name || "No Name";
+                          const subText = [user.email, getUserPhone(user)]
+                            .filter(Boolean)
+                            .join(" · ");
+
+                          return (
+                            <label
+                              key={user._id}
+                              className={`flex items-center gap-3 h-14 px-3 border-b border-gray-100 last:border-b-0 cursor-pointer select-none transition-colors ${
+                                isSelected ? "bg-rose-50" : "hover:bg-gray-50"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleUserSelection(user._id)}
+                                className="w-4 h-4 shrink-0 accent-rose-600 cursor-pointer"
+                              />
+
+                              <div className="w-8 h-8 shrink-0 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-bold uppercase">
+                                {displayName.charAt(0)}
                               </div>
-                            );
-                          })
-                        ) : (
-                          <p className="p-2 text-xs text-gray-400 text-center">
-                            No users found matching "{userSearchTerm}"
+
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs sm:text-sm text-gray-800 font-medium truncate">
+                                  {displayName}
+                                </p>
+                                <p className="text-[11px] text-gray-400 truncate">
+                                  {subText || "No contact info"}
+                                </p>
+                              </div>
+                            </label>
+                          );
+                        })
+                      )}
+                    </div>
+
+                    {/* SELECTED USERS (always rendered, fixed height) */}
+                    <div className="pt-1">
+                      <p className="text-[11px] font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
+                        <UserCheck size={13} className="text-emerald-600" />
+                        Selected Users ({product.allowedUserIds.length})
+                      </p>
+
+                      <div className="h-16 overflow-y-auto rounded-lg border border-dashed border-gray-200 bg-gray-50/60 p-2">
+                        {product.allowedUserIds.length === 0 ? (
+                          <p className="text-[11px] text-gray-400">
+                            No users selected yet. Tick the checkbox next to a user above.
                           </p>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {product.allowedUserIds.map((id) => {
+                              const matchedUser = allUsers.find((u) => u._id === id);
+                              return (
+                                <span
+                                  key={id}
+                                  className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 text-[11px] px-2 py-0.5 rounded-full font-medium"
+                                >
+                                  {matchedUser?.name || matchedUser?.email || id}
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleUserSelection(id)}
+                                    className="hover:text-rose-900"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </span>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
-                    )}
-
-                    {userSearchTerm.trim().length > 0 &&
-                      userSearchTerm.trim().length < 3 && (
-                        <p className="text-[11px] text-amber-600">
-                          Please type at least 3 characters to search.
-                        </p>
-                      )}
-
-                    {/* SELECTED USERS CHIPS */}
-                    {product.allowedUserIds.length > 0 && (
-                      <div className="pt-2">
-                        <p className="text-[11px] font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
-                          <UserCheck size={13} className="text-emerald-600" />
-                          Selected Users ({product.allowedUserIds.length}):
-                        </p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {product.allowedUserIds.map((id) => {
-                            const matchedUser = allUsers.find((u) => u._id === id);
-                            return (
-                              <span
-                                key={id}
-                                className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 text-[11px] px-2 py-0.5 rounded-full font-medium"
-                              >
-                                {matchedUser?.name || matchedUser?.email || id}
-                                <button
-                                  type="button"
-                                  onClick={() => toggleUserSelection(id)}
-                                  className="hover:text-rose-900"
-                                >
-                                  <X size={12} />
-                                </button>
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
