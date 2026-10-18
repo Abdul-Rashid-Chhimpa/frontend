@@ -4,9 +4,6 @@ import {
   Package,
   ArrowLeft,
   ShoppingCart,
-  MapPin,
-  CheckCircle2,
-  XCircle,
   Truck,
   ShieldCheck,
   RotateCcw,
@@ -38,15 +35,9 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Delivery Pincode Checker
-  const [pincode, setPincode] = useState("");
-  const [deliveryStatus, setDeliveryStatus] = useState(null);
-  const [checkingPincode, setCheckingPincode] = useState(false);
-
   // Payment & Delivery
   const [selectedPayment, setSelectedPayment] = useState("");
-  const [selectedDeliveryMethod, setSelectedDeliveryMethod] =
-    useState("standard");
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("standard");
 
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
@@ -56,7 +47,6 @@ const ProductDetails = () => {
     let isMounted = true;
     setSelectedImage(0);
     setQuantity(1);
-    setDeliveryStatus(null);
 
     if (location.state?.product) {
       setProduct(location.state.product);
@@ -172,7 +162,6 @@ const ProductDetails = () => {
   // ================= PRICING TIERS =================
   const pricingTiers = useMemo(() => {
     if (!product) return [{ minQty: 1, price: 0 }];
-
     if (product.pricing && product.pricing.length > 0) {
       return [...product.pricing]
         .map((tier) => ({
@@ -181,7 +170,6 @@ const ProductDetails = () => {
         }))
         .sort((a, b) => a.minQty - b.minQty);
     }
-
     return [
       {
         minQty: 1,
@@ -206,16 +194,12 @@ const ProductDetails = () => {
   }, [quantity, pricingTiers]);
 
   // ================= DISCOUNT / OFFER =================
-  // offer % from backend
   const discountPercent = useMemo(() => {
     return Number(product?.discountPercent || product?.offer || 0) || 0;
   }, [product]);
 
-  // ORIGINAL price = tier / unit price (e.g. ₹50)
   const originalUnitPrice = baseUnitPrice;
 
-  // AFTER OFFER price = original × (1 - discount%)
-  // Example: 50 with 15% off → 42.5
   const unitPrice = useMemo(() => {
     if (discountPercent > 0 && discountPercent < 100) {
       return (
@@ -226,7 +210,6 @@ const ProductDetails = () => {
   }, [originalUnitPrice, discountPercent]);
 
   const hasDiscount = discountPercent > 0 && unitPrice < originalUnitPrice;
-
   const totalOriginalPrice = originalUnitPrice * quantity;
   const totalPrice = unitPrice * quantity;
   const totalSavings = hasDiscount ? totalOriginalPrice - totalPrice : 0;
@@ -253,10 +236,9 @@ const ProductDetails = () => {
     return backendDeliveryCharge + 100;
   }, [selectedDeliveryMethod, backendDeliveryCharge]);
 
-  // GST only when present
+  // GST
   const gstPercent = Number(product?.gst) || 0;
   const hasGst = gstPercent > 0;
-
   const gstAmount = useMemo(() => {
     if (!hasGst) return 0;
     return (totalPrice * gstPercent) / 100;
@@ -286,37 +268,6 @@ const ProductDetails = () => {
       });
     }
   }, [quantity]);
-
-  // ================= PINCODE =================
-  const handleCheckDelivery = (e) => {
-    e.preventDefault();
-    if (!pincode || pincode.trim().length !== 6) {
-      setDeliveryStatus({
-        success: false,
-        message: "Please enter a valid 6-digit pincode.",
-      });
-      return;
-    }
-
-    setCheckingPincode(true);
-    setTimeout(() => {
-      if (/^[1-9][0-9]{5}$/.test(pincode)) {
-        const estDays = product?.delivery?.time
-          ? `${product.delivery.time} days`
-          : "3-5 business days";
-        setDeliveryStatus({
-          success: true,
-          message: `Delivery available! Estimated delivery in ${estDays}.`,
-        });
-      } else {
-        setDeliveryStatus({
-          success: false,
-          message: "Delivery not available for this location.",
-        });
-      }
-      setCheckingPincode(false);
-    }, 600);
-  };
 
   const handleQuantityChange = (value) => {
     let qty = Number(value);
@@ -578,51 +529,6 @@ const ProductDetails = () => {
                         : "Out of Stock"}
                     </span>
                   </p>
-                </div>
-
-                {/* PINCODE CHECKER */}
-                <div className="mb-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
-                  <div className="flex items-center gap-2 mb-2.5">
-                    <MapPin size={18} className="text-indigo-600" />
-                    <h3 className="font-semibold text-gray-800 text-sm sm:text-base">
-                      Check Delivery & Serviceability
-                    </h3>
-                  </div>
-                  <form onSubmit={handleCheckDelivery} className="flex gap-2">
-                    <input
-                      type="text"
-                      maxLength={6}
-                      placeholder="Enter 6-digit Pincode"
-                      value={pincode}
-                      onChange={(e) =>
-                        setPincode(e.target.value.replace(/\D/g, ""))
-                      }
-                      className="flex-1 border border-gray-300 rounded-xl px-3 py-2 text-sm outline-none focus:border-indigo-500"
-                    />
-                    <button
-                      type="submit"
-                      disabled={checkingPincode}
-                      className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white font-medium px-4 py-2 rounded-xl text-sm transition"
-                    >
-                      {checkingPincode ? "Checking..." : "Check"}
-                    </button>
-                  </form>
-                  {deliveryStatus && (
-                    <div
-                      className={`mt-3 flex items-center gap-2 text-xs sm:text-sm font-medium ${
-                        deliveryStatus.success
-                          ? "text-emerald-700"
-                          : "text-red-600"
-                      }`}
-                    >
-                      {deliveryStatus.success ? (
-                        <CheckCircle2 size={16} />
-                      ) : (
-                        <XCircle size={16} />
-                      )}
-                      <span>{deliveryStatus.message}</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* DELIVERY OPTIONS */}
