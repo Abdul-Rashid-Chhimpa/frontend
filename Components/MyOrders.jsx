@@ -18,13 +18,11 @@ import {
 // ======================================================
 // API
 // ======================================================
-
 const API_BASE = "https://backend-3-axez.onrender.com";
 
 // ======================================================
 // DESIGN TOKENS
 // ======================================================
-
 const INK = "#15181C";
 const MUTED = "#6B7280";
 const BORDER = "#E6E8EB";
@@ -32,52 +30,34 @@ const SURFACE_MUTED = "#F1F2EF";
 const BG = "#F5F6F4";
 const PAPER = "#FBFAF8";
 const DASH = "#CDD1CB";
-
 const AMBER = "#F0A420";
 const AMBER_DARK = "#C97F0F";
-
 const STEEL = "#2B4A5E";
 const STEEL_TINT = "#EAF0F3";
 
 // ======================================================
 // INVOICE SETTINGS
 // ======================================================
-
-// Invoice number prefix  ->  PLC/25-26/0001
 const INVOICE_PREFIX = "PLC";
-
-// Company home state (used for CGST+SGST vs IGST decision)
 const COMPANY_STATE = "rajasthan";
 
-// ------------------------------------------------------
-// PAYMENT QR  (Real Pedwal Life Creation QR)
-// ------------------------------------------------------
-// 1. Put the image file in:  public/payment-qr.jpg
-// 2. The path below will work automatically
+// Public folder paths
 const PAYMENT_QR_SRC = "/pedwal_qr_scanner.jpg";
+const LOGO_SRC = "/pedwal-logo.png";   // ← Pedwal logo (public folder mein daalo)
 
 // ======================================================
 // TEAR LINE
 // ======================================================
-
 const TearLine = () => (
   <div className="relative my-1">
     <div style={{ borderTop: `2px dashed ${DASH}` }} />
-
     <div
       className="absolute -left-4 sm:-left-6 -top-2.5 w-5 h-5 rounded-full"
-      style={{
-        background: BG,
-        border: `1px solid ${BORDER}`,
-      }}
+      style={{ background: BG, border: `1px solid ${BORDER}` }}
     />
-
     <div
       className="absolute -right-4 sm:-right-6 -top-2.5 w-5 h-5 rounded-full"
-      style={{
-        background: BG,
-        border: `1px solid ${BORDER}`,
-      }}
+      style={{ background: BG, border: `1px solid ${BORDER}` }}
     />
   </div>
 );
@@ -85,476 +65,160 @@ const TearLine = () => (
 // ======================================================
 // NUMBER TO WORDS
 // ======================================================
-
 const numberToWords = (num) => {
-  if (!num || isNaN(num)) {
-    return "Rupees Zero Only";
-  }
-
-  const a = [
-    "",
-    "One ",
-    "Two ",
-    "Three ",
-    "Four ",
-    "Five ",
-    "Six ",
-    "Seven ",
-    "Eight ",
-    "Nine ",
-    "Ten ",
-    "Eleven ",
-    "Twelve ",
-    "Thirteen ",
-    "Fourteen ",
-    "Fifteen ",
-    "Sixteen ",
-    "Seventeen ",
-    "Eighteen ",
-    "Nineteen ",
-  ];
-
-  const b = [
-    "",
-    "",
-    "Twenty",
-    "Thirty",
-    "Forty",
-    "Fifty",
-    "Sixty",
-    "Seventy",
-    "Eighty",
-    "Ninety",
-  ];
-
+  if (!num || isNaN(num)) return "Rupees Zero Only";
+  const a = ["", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ", "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "];
+  const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
   const inWords = (n) => {
-    if ((n = n.toString()).length > 9) {
-      return "overflow";
-    }
-
-    const n_array = ("000000000" + n)
-      .substr(-9)
-      .match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-
-    if (!n_array) {
-      return "";
-    }
-
+    if ((n = n.toString()).length > 9) return "overflow";
+    const n_array = ("000000000" + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    if (!n_array) return "";
     let str = "";
-
-    str +=
-      n_array[1] != 0
-        ? (a[Number(n_array[1])] ||
-            b[n_array[1][0]] + " " + a[n_array[1][1]]) + "Crore "
-        : "";
-
-    str +=
-      n_array[2] != 0
-        ? (a[Number(n_array[2])] ||
-            b[n_array[2][0]] + " " + a[n_array[2][1]]) + "Lakh "
-        : "";
-
-    str +=
-      n_array[3] != 0
-        ? (a[Number(n_array[3])] ||
-            b[n_array[3][0]] + " " + a[n_array[3][1]]) + "Thousand "
-        : "";
-
-    str +=
-      n_array[4] != 0
-        ? (a[Number(n_array[4])] ||
-            b[n_array[4][0]] + " " + a[n_array[4][1]]) + "Hundred "
-        : "";
-
-    str +=
-      n_array[5] != 0
-        ? (str !== "" ? "and " : "") +
-          (a[Number(n_array[5])] ||
-            b[n_array[5][0]] + " " + a[n_array[5][1]])
-        : "";
-
+    str += n_array[1] != 0 ? (a[Number(n_array[1])] || b[n_array[1][0]] + " " + a[n_array[1][1]]) + "Crore " : "";
+    str += n_array[2] != 0 ? (a[Number(n_array[2])] || b[n_array[2][0]] + " " + a[n_array[2][1]]) + "Lakh " : "";
+    str += n_array[3] != 0 ? (a[Number(n_array[3])] || b[n_array[3][0]] + " " + a[n_array[3][1]]) + "Thousand " : "";
+    str += n_array[4] != 0 ? (a[Number(n_array[4])] || b[n_array[4][0]] + " " + a[n_array[4][1]]) + "Hundred " : "";
+    str += n_array[5] != 0 ? (str !== "" ? "and " : "") + (a[Number(n_array[5])] || b[n_array[5][0]] + " " + a[n_array[5][1]]) : "";
     return str;
   };
-
   return `Rupees ${inWords(Math.floor(num)).trim()} Only`;
 };
 
 // ======================================================
 // STEPPER CONFIG
 // ======================================================
-
 const STEPPER_STEPS = [
-  {
-    key: "Pending",
-    label: "Pending",
-    icon: Clock,
-    color: "#F59E0B",
-    bgSoft: "#FFFBEB",
-    ring: "ring-amber-200",
-  },
-  {
-    key: "Confirmed",
-    label: "Confirmed",
-    icon: CheckCircle2,
-    color: "#4F46E5",
-    bgSoft: "#EEF2FF",
-    ring: "ring-indigo-200",
-  },
-  {
-    key: "Shipped",
-    label: "Shipped",
-    icon: Truck,
-    color: "#2563EB",
-    bgSoft: "#EFF6FF",
-    ring: "ring-blue-200",
-  },
-  {
-    key: "Delivered",
-    label: "Delivered",
-    icon: CheckCircle,
-    color: "#059669",
-    bgSoft: "#ECFDF5",
-    ring: "ring-emerald-200",
-  },
+  { key: "Pending", label: "Pending", icon: Clock, color: "#F59E0B", bgSoft: "#FFFBEB", ring: "ring-amber-200" },
+  { key: "Confirmed", label: "Confirmed", icon: CheckCircle2, color: "#4F46E5", bgSoft: "#EEF2FF", ring: "ring-indigo-200" },
+  { key: "Shipped", label: "Shipped", icon: Truck, color: "#2563EB", bgSoft: "#EFF6FF", ring: "ring-blue-200" },
+  { key: "Delivered", label: "Delivered", icon: CheckCircle, color: "#059669", bgSoft: "#ECFDF5", ring: "ring-emerald-200" },
 ];
 
 // ======================================================
-// NORMALIZE STATUS
+// HELPERS
 // ======================================================
-
 const normalizeStatus = (status) => {
-  if (!status) {
-    return "Pending";
-  }
-
+  if (!status) return "Pending";
   const value = String(status).trim();
-
-  if (
-    value === "Order Confirmed" ||
-    value === "Processing" ||
-    value === "Confirmed"
-  ) {
-    return "Confirmed";
-  }
-
-  if (
-    value === "Order Shipped" ||
-    value === "Shipped" ||
-    value === "Out for Delivery"
-  ) {
-    return "Shipped";
-  }
-
-  if (
-    value === "Order Delivered" ||
-    value === "Delivered" ||
-    value === "Completed"
-  ) {
-    return "Delivered";
-  }
-
-  if (value === "Cancelled" || value === "Canceled") {
-    return "Cancelled";
-  }
-
+  if (["Order Confirmed", "Processing", "Confirmed"].includes(value)) return "Confirmed";
+  if (["Order Shipped", "Shipped", "Out for Delivery"].includes(value)) return "Shipped";
+  if (["Order Delivered", "Delivered", "Completed"].includes(value)) return "Delivered";
+  if (["Cancelled", "Canceled"].includes(value)) return "Cancelled";
   return "Pending";
 };
 
-// ======================================================
-// STEP INDEX
-// ======================================================
-
 const getStepIndex = (status) => {
-  const normalized = normalizeStatus(status);
-
-  const idx = STEPPER_STEPS.findIndex((step) => step.key === normalized);
-
+  const idx = STEPPER_STEPS.findIndex((s) => s.key === normalizeStatus(status));
   return idx >= 0 ? idx : 0;
 };
 
-// ======================================================
-// DATE FORMAT
-// ======================================================
-
 const formatDateTime = (value) => {
-  if (!value) {
-    return null;
-  }
-
+  if (!value) return null;
   try {
     const d = new Date(value);
-
-    if (isNaN(d.getTime())) {
-      return String(value);
-    }
-
-    return d.toLocaleString("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    if (isNaN(d.getTime())) return String(value);
+    return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
   } catch {
     return String(value);
   }
 };
 
-// ======================================================
-// SERIAL INVOICE NUMBERS
-// ======================================================
-
 const getFinancialYearLabel = (dateValue) => {
   const d = new Date(dateValue);
-
-  if (isNaN(d.getTime())) {
-    return "00-00";
-  }
-
+  if (isNaN(d.getTime())) return "00-00";
   const startYear = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
-
   return `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
 };
 
+// Serial number starts from 1001
 const buildInvoiceNumberMap = (allOrders) => {
   const sorted = [...allOrders].sort((x, y) => {
     const tx = new Date(x.createdAt || 0).getTime();
     const ty = new Date(y.createdAt || 0).getTime();
-
-    if (tx !== ty) {
-      return tx - ty;
-    }
-
+    if (tx !== ty) return tx - ty;
     return String(x._id).localeCompare(String(y._id));
   });
-
   const counters = {};
   const map = {};
-
   sorted.forEach((order) => {
     const fy = getFinancialYearLabel(order.createdAt);
-
-    counters[fy] = (counters[fy] || 0) + 1;
-
-    map[String(order._id)] = `${INVOICE_PREFIX}/${fy}/${String(
-      counters[fy]
-    ).padStart(4, "0")}`;
+    counters[fy] = (counters[fy] || 1000) + 1; // ← 1001 se start
+    map[String(order._id)] = `${INVOICE_PREFIX}/${fy}/${String(counters[fy]).padStart(4, "0")}`;
   });
-
   return map;
 };
 
-// ======================================================
-// STATE / GST HELPERS
-// ======================================================
-
 const getCustomerState = (order, user) => {
-  const fromOrder =
-    order?.state ||
-    order?.shippingAddress?.state ||
-    (typeof order?.address === "object" ? order?.address?.state : "") ||
-    "";
-
+  const fromOrder = order?.state || order?.shippingAddress?.state || (typeof order?.address === "object" ? order?.address?.state : "") || "";
   return String(fromOrder || user?.state || "Rajasthan").trim();
 };
 
 const isRajasthanState = (stateName, stateCode) => {
   const s = String(stateName || "").trim().toLowerCase();
   const c = String(stateCode || "").trim().toLowerCase();
-
-  return (
-    s === COMPANY_STATE ||
-    s === "rj" ||
-    c === "rj" ||
-    c === "08" ||
-    c.includes("(08)")
-  );
+  return s === COMPANY_STATE || s === "rj" || c === "rj" || c === "08" || c.includes("(08)");
 };
 
 const getCustomerMobile = (user, order) =>
-  user?.mobile ||
-  user?.phone ||
-  user?.mobileNumber ||
-  user?.phoneNumber ||
-  order?.mobile ||
-  order?.phone ||
-  "N/A";
-
-// ======================================================
-// STEP TIME
-// ======================================================
+  user?.mobile || user?.phone || user?.mobileNumber || user?.phoneNumber || order?.mobile || order?.phone || "N/A";
 
 const getStepTime = (stepKey, order, currentStatus) => {
   const normalizedCurrent = normalizeStatus(currentStatus);
-
-  const history = Array.isArray(order?.statusHistory)
-    ? order.statusHistory
-    : [];
-
-  const normalizeHistoryEntry = (entry) => ({
-    ...entry,
-    status: normalizeStatus(entry?.status),
-    at:
-      entry?.at ||
-      entry?.timestamp ||
-      entry?.updatedAt ||
-      entry?.dateTime ||
-      entry?.createdAt ||
-      null,
-  });
-
+  const history = Array.isArray(order?.statusHistory) ? order.statusHistory : [];
   const matchingHistory = history
-    .map(normalizeHistoryEntry)
+    .map((entry) => ({
+      ...entry,
+      status: normalizeStatus(entry?.status),
+      at: entry?.at || entry?.timestamp || entry?.updatedAt || entry?.dateTime || entry?.createdAt || null,
+    }))
     .filter((entry) => entry.status === stepKey && entry.at);
-
-  if (matchingHistory.length > 0) {
-    return formatDateTime(matchingHistory[matchingHistory.length - 1].at);
-  }
-
-  if (stepKey === "Pending") {
-    return formatDateTime(
-      order?.createdAt || order?.orderDate || order?.pendingAt
-    );
-  }
-
+  if (matchingHistory.length > 0) return formatDateTime(matchingHistory[matchingHistory.length - 1].at);
+  if (stepKey === "Pending") return formatDateTime(order?.createdAt || order?.orderDate || order?.pendingAt);
   const fieldMap = {
     Confirmed: order?.confirmedAt || order?.statusUpdatedAt,
     Shipped: order?.shippedAt || order?.statusUpdatedAt,
     Delivered: order?.deliveredAt || order?.statusUpdatedAt,
   };
-
-  if (stepKey === normalizedCurrent && fieldMap[stepKey]) {
-    return formatDateTime(fieldMap[stepKey]);
-  }
-
-  if (fieldMap[stepKey]) {
-    return formatDateTime(fieldMap[stepKey]);
-  }
-
+  if (stepKey === normalizedCurrent && fieldMap[stepKey]) return formatDateTime(fieldMap[stepKey]);
+  if (fieldMap[stepKey]) return formatDateTime(fieldMap[stepKey]);
   return null;
 };
 
 // ======================================================
 // ORDER STEPPER
 // ======================================================
-
 const OrderStepper = ({ status, order }) => {
   const currentStatus = normalizeStatus(status);
   const currentIndex = getStepIndex(currentStatus);
-
-  const progressPercent =
-    currentIndex <= 0 ? 0 : (currentIndex / (STEPPER_STEPS.length - 1)) * 100;
-
+  const progressPercent = currentIndex <= 0 ? 0 : (currentIndex / (STEPPER_STEPS.length - 1)) * 100;
   return (
     <div className="w-full px-1 sm:px-3 py-4 sm:py-5">
       <div className="relative">
         <div className="absolute top-5 left-[10%] right-[10%] h-1 rounded-full bg-gray-200 overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all duration-700 ease-out"
-            style={{
-              width: `${progressPercent}%`,
-              background:
-                "linear-gradient(90deg, #F59E0B 0%, #4F46E5 40%, #2563EB 70%, #059669 100%)",
-            }}
-          />
+          <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${progressPercent}%`, background: "linear-gradient(90deg, #F59E0B 0%, #4F46E5 40%, #2563EB 70%, #059669 100%)" }} />
         </div>
-
         <div className="relative z-10 flex justify-between">
           {STEPPER_STEPS.map((step, index) => {
             const Icon = step.icon;
             const isCompleted = index < currentIndex;
             const isActive = index === currentIndex;
             const timeLabel = getStepTime(step.key, order, currentStatus);
-
             return (
-              <div
-                key={step.key}
-                className="flex flex-col items-center flex-1 min-w-0 px-0.5"
-                style={{
-                  animation: `stepPop 0.45s ease ${index * 0.08}s both`,
-                }}
-              >
-                <div
-                  className={`
-                    relative
-                    w-9 h-9
-                    sm:w-11 sm:h-11
-                    rounded-full
-                    flex items-center justify-center
-                    border-2
-                    transition-all duration-500 ease-out
-                    ${isActive ? `ring-4 ${step.ring} scale-110` : ""}
-                    ${isCompleted || isActive ? "shadow-md" : ""}
-                  `}
-                  style={{
-                    backgroundColor:
-                      isCompleted || isActive ? step.color : "#FFFFFF",
-                    borderColor:
-                      isCompleted || isActive ? step.color : "#D1D5DB",
-                    color: isCompleted || isActive ? "#FFFFFF" : "#9CA3AF",
-                  }}
-                >
-                  {isCompleted ? (
-                    <CheckCircle size={18} className="sm:w-5 sm:h-5" />
-                  ) : (
-                    <Icon
-                      size={16}
-                      className={`sm:w-[18px] sm:h-[18px] ${
-                        isActive ? "animate-pulse" : ""
-                      }`}
-                    />
-                  )}
-
-                  {isActive && (
-                    <span
-                      className="absolute inset-0 rounded-full animate-ping opacity-30"
-                      style={{
-                        backgroundColor: step.color,
-                      }}
-                    />
-                  )}
+              <div key={step.key} className="flex flex-col items-center flex-1 min-w-0 px-0.5" style={{ animation: `stepPop 0.45s ease ${index * 0.08}s both` }}>
+                <div className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center border-2 transition-all duration-500 ease-out ${isActive ? `ring-4 ${step.ring} scale-110` : ""} ${isCompleted || isActive ? "shadow-md" : ""}`} style={{ backgroundColor: isCompleted || isActive ? step.color : "#FFFFFF", borderColor: isCompleted || isActive ? step.color : "#D1D5DB", color: isCompleted || isActive ? "#FFFFFF" : "#9CA3AF" }}>
+                  {isCompleted ? <CheckCircle size={18} className="sm:w-5 sm:h-5" /> : <Icon size={16} className={`sm:w-[18px] sm:h-[18px] ${isActive ? "animate-pulse" : ""}`} />}
+                  {isActive && <span className="absolute inset-0 rounded-full animate-ping opacity-30" style={{ backgroundColor: step.color }} />}
                 </div>
-
-                <p
-                  className="mt-2.5 text-[10px] sm:text-xs font-bold text-center leading-tight"
-                  style={{
-                    color: isActive || isCompleted ? step.color : "#9CA3AF",
-                  }}
-                >
-                  {step.label}
-                </p>
-
+                <p className="mt-2.5 text-[10px] sm:text-xs font-bold text-center leading-tight" style={{ color: isActive || isCompleted ? step.color : "#9CA3AF" }}>{step.label}</p>
                 <div className="mt-1 min-h-[28px] sm:min-h-[32px] flex items-start justify-center">
-                  {timeLabel && (
-                    <span
-                      className="text-[9px] sm:text-[10px] font-medium text-center leading-snug px-1 rounded-md"
-                      style={{
-                        color: step.color,
-                        backgroundColor: step.bgSoft,
-                      }}
-                    >
-                      {timeLabel}
-                    </span>
-                  )}
+                  {timeLabel && <span className="text-[9px] sm:text-[10px] font-medium text-center leading-snug px-1 rounded-md" style={{ color: step.color, backgroundColor: step.bgSoft }}>{timeLabel}</span>}
                 </div>
               </div>
             );
           })}
         </div>
       </div>
-
-      <style>{`
-        @keyframes stepPop {
-          from {
-            opacity: 0;
-            transform: translateY(8px) scale(0.9);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
-        }
-      `}</style>
+      <style>{`@keyframes stepPop { from { opacity: 0; transform: translateY(8px) scale(0.9); } to { opacity: 1; transform: translateY(0) scale(1); } }`}</style>
     </div>
   );
 };
@@ -562,20 +226,13 @@ const OrderStepper = ({ status, order }) => {
 // ======================================================
 // MAIN COMPONENT
 // ======================================================
-
 const MyOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
-
   const previousStatusesRef = useRef({});
   const firstFetchDoneRef = useRef(false);
-
   const user = JSON.parse(localStorage.getItem("user")) || {};
-
-  // ====================================================
-  // COMPANY DETAILS
-  // ====================================================
 
   const companyDetails = {
     name: "PEDWAL LIFE CREATION",
@@ -593,32 +250,18 @@ const MyOrders = () => {
   // ====================================================
   // FETCH ORDERS
   // ====================================================
-
   const fetchOrders = async (silent = false) => {
     try {
-      if (!silent) {
-        setLoading(true);
-      }
-
+      if (!silent) setLoading(true);
       let gstMap = {};
-
       try {
         const productRes = await axios.get(`${API_BASE}/api/products`);
         const productList = productRes.data.products || productRes.data || [];
-
-        productList.forEach((prod) => {
-          gstMap[String(prod._id)] =
-            prod.gst !== undefined ? Number(prod.gst) : 0;
-        });
-      } catch (prodErr) {
-        console.error("Error fetching products for GST:", prodErr);
-      }
+        productList.forEach((prod) => { gstMap[String(prod._id)] = prod.gst !== undefined ? Number(prod.gst) : 0; });
+      } catch (prodErr) { console.error("Error fetching products for GST:", prodErr); }
 
       const { data } = await axios.get(`${API_BASE}/api/orders/all`);
-
-      if (!data.success) {
-        return;
-      }
+      if (!data.success) return;
 
       const allOrders = data.orders || [];
       const invoiceMap = buildInvoiceNumberMap(allOrders);
@@ -631,39 +274,20 @@ const MyOrders = () => {
 
       myOrders = myOrders.map((order) => {
         const updatedItems = order.items?.map((item) => {
-          const targetId = String(
-            item.productId?._id || item.productId || item.id || item._id || ""
-          );
-
+          const targetId = String(item.productId?._id || item.productId || item.id || item._id || "");
           let finalGst = 0;
-
-          if (item.gst !== undefined && item.gst !== null && Number(item.gst) > 0) {
-            finalGst = Number(item.gst);
-          } else if (targetId && gstMap[targetId] !== undefined) {
-            finalGst = gstMap[targetId];
-          } else if (
-            item.productId &&
-            typeof item.productId === "object" &&
-            item.productId.gst !== undefined
-          ) {
-            finalGst = Number(item.productId.gst);
-          }
-
-          return {
-            ...item,
-            gst: finalGst,
-          };
+          if (item.gst !== undefined && item.gst !== null && Number(item.gst) > 0) finalGst = Number(item.gst);
+          else if (targetId && gstMap[targetId] !== undefined) finalGst = gstMap[targetId];
+          else if (item.productId && typeof item.productId === "object" && item.productId.gst !== undefined) finalGst = Number(item.productId.gst);
+          return { ...item, gst: finalGst };
         });
-
         return {
           ...order,
           items: updatedItems || [],
           status: order.status || "Pending",
           invoiceNo: order.invoiceNumber || invoiceMap[String(order._id)],
           statusUpdatedAt: order.statusUpdatedAt || order.updatedAt || null,
-          statusHistory: Array.isArray(order.statusHistory)
-            ? order.statusHistory
-            : [],
+          statusHistory: Array.isArray(order.statusHistory) ? order.statusHistory : [],
         };
       });
 
@@ -671,28 +295,12 @@ const MyOrders = () => {
         const orderId = String(order._id);
         const oldStatus = previousStatusesRef.current[orderId];
         const newStatus = normalizeStatus(order.status);
-
-        if (
-          firstFetchDoneRef.current &&
-          oldStatus === "Pending" &&
-          newStatus === "Confirmed"
-        ) {
-          toast.success(
-            `Your Order #${orderId.slice(-6).toUpperCase()} has been Confirmed!`,
-            {
-              duration: 6000,
-              position: "top-center",
-              style: {
-                borderRadius: "12px",
-                background: "#059669",
-                color: "#fff",
-                fontWeight: "600",
-                padding: "14px 18px",
-              },
-            }
-          );
+        if (firstFetchDoneRef.current && oldStatus === "Pending" && newStatus === "Confirmed") {
+          toast.success(`Your Order #${orderId.slice(-6).toUpperCase()} has been Confirmed!`, {
+            duration: 6000, position: "top-center",
+            style: { borderRadius: "12px", background: "#059669", color: "#fff", fontWeight: "600", padding: "14px 18px" },
+          });
         }
-
         previousStatusesRef.current[orderId] = newStatus;
       });
 
@@ -700,40 +308,19 @@ const MyOrders = () => {
       setOrders(myOrders);
     } catch (error) {
       console.error("Fetch Orders Error:", error);
-      if (!silent) {
-        toast.error("Failed to fetch orders");
-      }
+      if (!silent) toast.error("Failed to fetch orders");
     } finally {
-      if (!silent) {
-        setLoading(false);
-      }
+      if (!silent) setLoading(false);
     }
   };
 
-  // ====================================================
-  // INITIAL LOAD + AUTO SYNC
-  // ====================================================
-
   useEffect(() => {
     fetchOrders();
-
-    const interval = setInterval(() => {
-      fetchOrders(true);
-    }, 10000);
-
-    const handleFocus = () => {
-      fetchOrders(true);
-    };
-
-    const handleVisibility = () => {
-      if (document.visibilityState === "visible") {
-        fetchOrders(true);
-      }
-    };
-
+    const interval = setInterval(() => fetchOrders(true), 10000);
+    const handleFocus = () => fetchOrders(true);
+    const handleVisibility = () => { if (document.visibilityState === "visible") fetchOrders(true); };
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibility);
-
     return () => {
       clearInterval(interval);
       window.removeEventListener("focus", handleFocus);
@@ -744,34 +331,18 @@ const MyOrders = () => {
   // ====================================================
   // DELETE ORDER
   // ====================================================
-
   const handleDeleteOrder = async (orderId) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to remove this order from your dashboard?"
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
+    if (!window.confirm("Are you sure you want to remove this order from your dashboard?")) return;
     try {
       setDeletingId(orderId);
-
-      const { data } = await axios.put(
-        `${API_BASE}/api/orders/user-delete/${orderId}`
-      );
-
+      const { data } = await axios.put(`${API_BASE}/api/orders/user-delete/${orderId}`);
       if (data.success || data.message) {
         toast.success("Order removed from dashboard");
         setOrders((prev) => prev.filter((item) => item._id !== orderId));
-      } else {
-        toast.error(data.message || "Failed to remove order");
-      }
+      } else toast.error(data.message || "Failed to remove order");
     } catch (error) {
       console.error("Delete Order Error:", error);
-      toast.error(
-        error.response?.data?.message || "Server Error: Unable to remove order"
-      );
+      toast.error(error.response?.data?.message || "Server Error: Unable to remove order");
     } finally {
       setDeletingId(null);
     }
@@ -780,101 +351,54 @@ const MyOrders = () => {
   // ====================================================
   // SHIPPING FEE
   // ====================================================
-
   const extractShippingFee = (order) => {
-    let fee = Number(
-      order.shippingCharge ??
-        order.deliveryFee ??
-        order.shippingCost ??
-        order.deliveryCharge ??
-        order.shippingAmount ??
-        order.delivery?.charge ??
-        0
-    );
-
+    let fee = Number(order.shippingCharge ?? order.deliveryFee ?? order.shippingCost ?? order.deliveryCharge ?? order.shippingAmount ?? order.delivery?.charge ?? 0);
     if (fee === 0 && order.items && Array.isArray(order.items)) {
-      order.items.forEach((item) => {
-        fee += Number(
-          item.deliveryCharge ??
-            item.deliveryFee ??
-            item.shippingCharge ??
-            item.delivery?.charge ??
-            0
-        );
-      });
+      order.items.forEach((item) => { fee += Number(item.deliveryCharge ?? item.deliveryFee ?? item.shippingCharge ?? item.delivery?.charge ?? 0); });
     }
-
     if (fee === 0 && order.totalAmount && order.items) {
-      const itemsSum = order.items.reduce(
-        (acc, item) =>
-          acc + Number(item.price || 0) * Number(item.quantity || 1),
-        0
-      );
-
-      if (Number(order.totalAmount) > itemsSum) {
-        fee = Number(order.totalAmount) - itemsSum;
-      }
+      const itemsSum = order.items.reduce((acc, item) => acc + Number(item.price || 0) * Number(item.quantity || 1), 0);
+      if (Number(order.totalAmount) > itemsSum) fee = Number(order.totalAmount) - itemsSum;
     }
-
     return fee;
   };
 
   // ====================================================
-  // INVOICE
+  // INVOICE (UPDATED with Logo + Discount + Cases/Parcel)
   // ====================================================
-
   const handleDownloadInvoice = (order) => {
     const normalizedStatus = normalizeStatus(order.status);
-
-    const isUnlocked = ["Confirmed", "Shipped", "Delivered"].includes(
-      normalizedStatus
-    );
-
+    const isUnlocked = ["Confirmed", "Shipped", "Delivered"].includes(normalizedStatus);
     if (!isUnlocked) {
       toast.error("Invoice will unlock once the admin confirms your order!");
       return;
     }
-
     const printWindow = window.open("", "_blank");
-
     if (!printWindow) {
-      toast.error(
-        "Popup blocked! Please allow popups to view/download invoice."
-      );
+      toast.error("Popup blocked! Please allow popups to view/download invoice.");
       return;
     }
 
     const orderDate = order.createdAt
-      ? new Date(order.createdAt).toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "2-digit",
-          year: "2-digit",
-        })
+      ? new Date(order.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "2-digit", year: "2-digit" })
       : "N/A";
 
     const customerState = getCustomerState(order, user);
     const customerStateCode = user?.stateCode || "";
     const isIntraState = isRajasthanState(customerState, customerStateCode);
     const customerMobile = getCustomerMobile(user, order);
+    const invoiceNumber = order.invoiceNo || `${INVOICE_PREFIX}/00-00/1001`;
 
-    const invoiceNumber =
-      order.invoiceNo || `${INVOICE_PREFIX}/00-00/0000`;
-
-    const fmt = (n) =>
-      Number(n || 0).toLocaleString("en-IN", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+    const fmt = (n) => Number(n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const itemsList = order.items || [];
-
     let itemsTableRows = "";
-    let totalTaxable = 0;
-    let totalCgst = 0;
-    let totalSgst = 0;
-    let totalIgst = 0;
+    let totalTaxableBeforeDiscount = 0;
+    let totalCgst = 0, totalSgst = 0, totalIgst = 0;
 
     const shippingFee = extractShippingFee(order);
+    const discountAmount = Number(order.discountAmount || order.discount || order.totalDiscount || 0);
+    const discountNote = order.discountNote || order.offerNote || "";
 
     itemsList.forEach((item, i) => {
       const unitPrice = Number(item.price || 0);
@@ -883,28 +407,18 @@ const MyOrders = () => {
       const gstRate = Number(item.gst || 0);
       const taxAmt = gstRate > 0 ? (taxableValue * gstRate) / 100 : 0;
 
-      let cgstRate = 0;
-      let sgstRate = 0;
-      let igstRate = 0;
-      let cgstAmt = 0;
-      let sgstAmt = 0;
-      let igstAmt = 0;
+      let cgstRate = 0, sgstRate = 0, igstRate = 0;
+      let cgstAmt = 0, sgstAmt = 0, igstAmt = 0;
 
       if (isIntraState) {
-        cgstRate = gstRate / 2;
-        sgstRate = gstRate / 2;
-        cgstAmt = taxAmt / 2;
-        sgstAmt = taxAmt / 2;
+        cgstRate = gstRate / 2; sgstRate = gstRate / 2;
+        cgstAmt = taxAmt / 2; sgstAmt = taxAmt / 2;
       } else {
-        igstRate = gstRate;
-        igstAmt = taxAmt;
+        igstRate = gstRate; igstAmt = taxAmt;
       }
 
-      totalTaxable += taxableValue;
-      totalCgst += cgstAmt;
-      totalSgst += sgstAmt;
-      totalIgst += igstAmt;
-
+      totalTaxableBeforeDiscount += taxableValue;
+      totalCgst += cgstAmt; totalSgst += sgstAmt; totalIgst += igstAmt;
       const lineTotal = taxableValue + taxAmt;
 
       itemsTableRows += `
@@ -928,10 +442,8 @@ const MyOrders = () => {
     });
 
     let rowCounter = itemsList.length + 1;
-
     if (shippingFee > 0) {
-      totalTaxable += shippingFee;
-
+      totalTaxableBeforeDiscount += shippingFee;
       itemsTableRows += `
         <tr>
           <td style="text-align:center;">${rowCounter}</td>
@@ -950,21 +462,16 @@ const MyOrders = () => {
           <td style="text-align:right;font-weight:bold;">${fmt(shippingFee)}</td>
         </tr>
       `;
-
-      rowCounter++;
     }
 
-    const totalFilledRows = itemsList.length + (shippingFee > 0 ? 1 : 0);
-    const minRows = Math.max(10, totalFilledRows);
+    // Taxable value AFTER discount
+    let totalTaxable = totalTaxableBeforeDiscount - discountAmount;
+    if (totalTaxable < 0) totalTaxable = 0;
 
+    const totalFilledRows = itemsList.length + (shippingFee > 0 ? 1 : 0);
+    const minRows = Math.max(8, totalFilledRows);
     for (let i = totalFilledRows; i < minRows; i++) {
-      itemsTableRows += `
-        <tr>
-          <td>&nbsp;</td>
-          <td></td><td></td><td></td><td></td><td></td><td></td>
-          <td></td><td></td><td></td><td></td><td></td><td></td><td></td>
-        </tr>
-      `;
+      itemsTableRows += `<tr><td>&nbsp;</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
     }
 
     const totalGstAmount = totalCgst + totalSgst + totalIgst;
@@ -979,233 +486,83 @@ const MyOrders = () => {
       <head>
         <title>${invoiceTitle}</title>
         <style>
-          * {
-            box-sizing: border-box;
-            font-family: Arial, sans-serif;
-            font-size: 11px;
-          }
-          body {
-            padding: 10px;
-            background: #fff;
-            color: #000;
-          }
-          .invoice-container {
-            width: 100%;
-            max-width: 950px;
-            margin: 0 auto;
-            border: 2px solid #000;
-            padding: 10px;
-          }
-          .company-header {
-            text-align: center;
-            border-bottom: 2px solid #000;
-            padding-bottom: 5px;
-            margin-bottom: 5px;
-          }
-          .company-name {
-            font-size: 20px;
-            font-weight: bold;
-            letter-spacing: 0.5px;
-          }
-          .company-sub {
-            font-size: 11px;
-            font-weight: bold;
-            margin-top: 2px;
-          }
-          .info-grid {
-            display: grid;
-            grid-template-columns: 1.2fr 1.2fr 1fr;
-            border: 1px solid #000;
-            margin-bottom: 5px;
-          }
-          .info-box {
-            padding: 5px;
-            border-right: 1px solid #000;
-          }
-          .info-box:last-child {
-            border-right: none;
-          }
-          .info-title {
-            font-weight: bold;
-            text-decoration: underline;
-            font-size: 10px;
-            margin-bottom: 4px;
-            display: block;
-            text-transform: uppercase;
-          }
-          .info-row {
-            display: flex;
-            margin-bottom: 2px;
-          }
-          .info-label {
-            width: 85px;
-            font-weight: bold;
-            flex-shrink: 0;
-          }
-          table.invoice-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 5px;
-          }
-          table.invoice-table th,
-          table.invoice-table td {
-            border: 1px solid #000;
-            padding: 4px 3px;
-            font-size: 10px;
-          }
-          table.invoice-table th {
-            background: #f2f2f2;
-            text-align: center;
-            font-weight: bold;
-          }
-          .total-row td {
-            font-weight: bold;
-            background: #fafafa;
-          }
-          .summary-table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 5px;
-          }
-          .summary-table td {
-            border: 1px solid #000;
-            padding: 4px;
-            font-size: 11px;
-          }
-          .footer-grid {
-            display: grid;
-            grid-template-columns: 1.5fr 1fr;
-            border: 1px solid #000;
-            margin-top: 5px;
-          }
-          .footer-left {
-            border-right: 1px solid #000;
-            padding: 5px;
-          }
-          .bank-wrap {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            gap: 10px;
-          }
-          .qr-box {
-            text-align: center;
-            flex-shrink: 0;
-          }
-          .qr-box img {
-            width: 95px;
-            height: 95px;
-            border: 1px solid #000;
-            padding: 2px;
-          }
-          .qr-box div {
-            font-size: 9px;
-            font-weight: bold;
-            margin-top: 2px;
-          }
-          .footer-right {
-            padding: 5px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-          }
-          @media print {
-            body {
-              padding: 0;
-            }
-            .invoice-container {
-              border: 2px solid #000;
-            }
-          }
+          * { box-sizing: border-box; font-family: Arial, sans-serif; font-size: 11px; }
+          body { padding: 10px; background: #fff; color: #000; }
+          .invoice-container { width: 100%; max-width: 950px; margin: 0 auto; border: 2px solid #000; padding: 12px; }
+          .company-header { display: flex; align-items: center; gap: 15px; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 8px; }
+          .company-header img { width: 70px; height: 70px; object-fit: contain; }
+          .company-info { flex: 1; text-align: center; }
+          .company-name { font-size: 20px; font-weight: bold; letter-spacing: 0.5px; }
+          .company-sub { font-size: 11px; font-weight: bold; margin-top: 2px; }
+          .info-grid { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; border: 1px solid #000; margin-bottom: 6px; }
+          .info-box { padding: 6px; border-right: 1px solid #000; }
+          .info-box:last-child { border-right: none; }
+          .info-title { font-weight: bold; text-decoration: underline; font-size: 10px; margin-bottom: 4px; display: block; text-transform: uppercase; }
+          .info-row { display: flex; margin-bottom: 2px; }
+          .info-label { width: 100px; font-weight: bold; flex-shrink: 0; }
+          table.invoice-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+          table.invoice-table th, table.invoice-table td { border: 1px solid #000; padding: 4px 3px; font-size: 10px; }
+          table.invoice-table th { background: #f2f2f2; text-align: center; font-weight: bold; }
+          .total-row td { font-weight: bold; background: #fafafa; }
+          .summary-table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+          .summary-table td { border: 1px solid #000; padding: 5px; font-size: 11px; }
+          .footer-grid { display: grid; grid-template-columns: 1.5fr 1fr; border: 1px solid #000; margin-top: 6px; }
+          .footer-left { border-right: 1px solid #000; padding: 6px; }
+          .bank-wrap { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 6px; }
+          .qr-box { text-align: center; flex-shrink: 0; }
+          .qr-box img { width: 150px; height: 150px; border: 1px solid #000; padding: 3px; }
+          .qr-box div { font-size: 10px; font-weight: bold; margin-top: 4px; }
+          .footer-right { padding: 6px; display: flex; flex-direction: column; justify-content: space-between; }
+          @media print { body { padding: 0; } .invoice-container { border: 2px solid #000; } }
         </style>
       </head>
       <body>
         <div class="invoice-container">
+
+          <!-- HEADER WITH LOGO (TOP LEFT) -->
           <div class="company-header">
-            <div class="company-name">${companyDetails.name}</div>
-            <div class="company-sub">${companyDetails.address}</div>
-            <div class="company-sub">E-mail Address:- ${companyDetails.email}</div>
-            <div class="company-sub">Contact no. ${companyDetails.phone}</div>
+            <img src="${LOGO_SRC}" alt="Pedwal Logo" onerror="this.style.display='none'" />
+            <div class="company-info">
+              <div class="company-name">${companyDetails.name}</div>
+              <div class="company-sub">${companyDetails.address}</div>
+              <div class="company-sub">E-mail: ${companyDetails.email}</div>
+              <div class="company-sub">Contact: ${companyDetails.phone}</div>
+            </div>
           </div>
 
+          <!-- INFO GRID -->
           <div class="info-grid">
             <div class="info-box">
               <span class="info-title">INVOICE DETAILS</span>
-              <div class="info-row">
-                <span class="info-label">GSTIN no.</span>
-                <span>: ${companyDetails.gstin}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Name</span>
-                <span>: ${companyDetails.name}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Address</span>
-                <span>: ${companyDetails.address}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Invoice no.</span>
-                <span>: <strong>${invoiceNumber}</strong></span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Invoice Date</span>
-                <span>: ${orderDate}</span>
-              </div>
+              <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${companyDetails.gstin}</span></div>
+              <div class="info-row"><span class="info-label">Name</span><span>: ${companyDetails.name}</span></div>
+              <div class="info-row"><span class="info-label">Address</span><span>: ${companyDetails.address}</span></div>
+              <div class="info-row"><span class="info-label">Invoice no.</span><span>: <strong>${invoiceNumber}</strong></span></div>
+              <div class="info-row"><span class="info-label">Invoice Date</span><span>: ${orderDate}</span></div>
+              <div class="info-row"><span class="info-label">Cases / Parcel</span><span>: _______________</span></div>
             </div>
 
             <div class="info-box">
               <span class="info-title">DETAILS OF RECEIVER (BILLED TO)</span>
-              <div class="info-row">
-                <span class="info-label">Name</span>
-                <span>: ${user?.name || "Customer"}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Unique ID</span>
-                <span>: ${customerMobile}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Address</span>
-                <span>: ${user?.address || "N/A"}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">State</span>
-                <span>: ${customerState}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">State Code</span>
-                <span>: ${user?.stateCode || (isIntraState ? "RJ (08)" : "N/A")}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">GSTIN No.</span>
-                <span>: ${user?.gstin || "N/A"}</span>
-              </div>
+              <div class="info-row"><span class="info-label">Name</span><span>: ${user?.name || "Customer"}</span></div>
+              <div class="info-row"><span class="info-label">Unique ID</span><span>: ${customerMobile}</span></div>
+              <div class="info-row"><span class="info-label">Address</span><span>: ${user?.address || "N/A"}</span></div>
+              <div class="info-row"><span class="info-label">State</span><span>: ${customerState}</span></div>
+              <div class="info-row"><span class="info-label">State Code</span><span>: ${user?.stateCode || (isIntraState ? "RJ (08)" : "N/A")}</span></div>
+              <div class="info-row"><span class="info-label">GSTIN No.</span><span>: ${user?.gstin || "N/A"}</span></div>
             </div>
 
             <div class="info-box">
               <span class="info-title">DETAILS OF CONSIGNEE (SHIPPED TO)</span>
-              <div class="info-row">
-                <span class="info-label">Name</span>
-                <span>: ${user?.name || "Customer"}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Address</span>
-                <span>: ${user?.address || "N/A"}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">State</span>
-                <span>: ${customerState}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">State Code</span>
-                <span>: ${user?.stateCode || (isIntraState ? "RJ (08)" : "N/A")}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">GSTIN no.</span>
-                <span>: ${user?.gstin || "N/A"}</span>
-              </div>
+              <div class="info-row"><span class="info-label">Name</span><span>: ${user?.name || "Customer"}</span></div>
+              <div class="info-row"><span class="info-label">Address</span><span>: ${user?.address || "N/A"}</span></div>
+              <div class="info-row"><span class="info-label">State</span><span>: ${customerState}</span></div>
+              <div class="info-row"><span class="info-label">State Code</span><span>: ${user?.stateCode || (isIntraState ? "RJ (08)" : "N/A")}</span></div>
+              <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${user?.gstin || "N/A"}</span></div>
             </div>
           </div>
 
+          <!-- ITEMS TABLE -->
           <table class="invoice-table">
             <thead>
               <tr>
@@ -1222,19 +579,16 @@ const MyOrders = () => {
                 <th rowspan="2">Total</th>
               </tr>
               <tr>
-                <th>Rate</th>
-                <th>Amount</th>
-                <th>Rate</th>
-                <th>Amount</th>
-                <th>Rate</th>
-                <th>Amount</th>
+                <th>Rate</th><th>Amount</th>
+                <th>Rate</th><th>Amount</th>
+                <th>Rate</th><th>Amount</th>
               </tr>
             </thead>
             <tbody>
               ${itemsTableRows}
               <tr class="total-row">
                 <td colspan="6" style="text-align:right;">Total</td>
-                <td style="text-align:right;">${fmt(totalTaxable)}</td>
+                <td style="text-align:right;">${fmt(totalTaxableBeforeDiscount)}</td>
                 <td></td>
                 <td style="text-align:right;">${isIntraState ? fmt(totalCgst) : "-"}</td>
                 <td></td>
@@ -1246,30 +600,27 @@ const MyOrders = () => {
             </tbody>
           </table>
 
+          <!-- SUMMARY (with Discount) -->
           <table class="summary-table">
             <tr>
-              <td style="width:200px;font-weight:bold;">Total Taxable Value</td>
-              <td>Rs. ${fmt(totalTaxable)}</td>
+              <td style="width:240px;font-weight:bold;">Total Taxable Value (before discount)</td>
+              <td>Rs. ${fmt(totalTaxableBeforeDiscount)}</td>
             </tr>
-            ${
-              isIntraState
-                ? `
+            ${discountAmount > 0 ? `
             <tr>
-              <td style="font-weight:bold;">Total CGST</td>
-              <td>Rs. ${fmt(totalCgst)}</td>
-            </tr>
+              <td style="font-weight:bold;color:#B4302F;">Discount ${discountNote ? `(${discountNote})` : ""}</td>
+              <td style="font-weight:bold;color:#B4302F;">- Rs. ${fmt(discountAmount)}</td>
+            </tr>` : ""}
             <tr>
-              <td style="font-weight:bold;">Total SGST</td>
-              <td>Rs. ${fmt(totalSgst)}</td>
+              <td style="font-weight:bold;">Taxable Value (after discount)</td>
+              <td style="font-weight:bold;">Rs. ${fmt(totalTaxable)}</td>
             </tr>
-            `
-                : `
-            <tr>
-              <td style="font-weight:bold;">Total IGST</td>
-              <td>Rs. ${fmt(totalIgst)}</td>
-            </tr>
-            `
-            }
+            ${isIntraState ? `
+            <tr><td style="font-weight:bold;">Total CGST</td><td>Rs. ${fmt(totalCgst)}</td></tr>
+            <tr><td style="font-weight:bold;">Total SGST</td><td>Rs. ${fmt(totalSgst)}</td></tr>
+            ` : `
+            <tr><td style="font-weight:bold;">Total IGST</td><td>Rs. ${fmt(totalIgst)}</td></tr>
+            `}
             <tr>
               <td style="font-weight:bold;">Total Invoice Value (in figure)</td>
               <td style="font-weight:bold;font-size:12px;">Rs. ${fmt(finalGrandTotal)}</td>
@@ -1280,61 +631,40 @@ const MyOrders = () => {
             </tr>
           </table>
 
+          <!-- FOOTER -->
           <div class="footer-grid">
             <div class="footer-left">
-              <strong>TERMS & CONDITIONS AS BELOW:-</strong>
-              <br />
-              1. Goods once sold will not be taken back.
-              <br />
-              2. 18% per month will be charged on the bill if not made within 30 days.
-              <br />
-              3. Subjected to 'RAJASTHAN' jurisdiction only.
-              <br /><br />
-
+              <strong>TERMS & CONDITIONS AS BELOW:-</strong><br/>
+              1. Goods once sold will not be taken back.<br/>
+              2. 18% per month will be charged on the bill if not made within 30 days.<br/>
+              3. Subjected to 'RAJASTHAN' jurisdiction only.<br/><br/>
               <div class="bank-wrap">
                 <div>
-                  <strong>BANK DETAILS :</strong>
-                  <br />
-                  NAME: ${companyDetails.name}
-                  <br />
-                  A/C NO.: ${companyDetails.accountNo}
-                  <br />
-                  IFSC CODE: ${companyDetails.ifscCode}
-                  <br />
-                  BANK: ${companyDetails.bankName}
-                  <br />
+                  <strong>BANK DETAILS :</strong><br/>
+                  NAME: ${companyDetails.name}<br/>
+                  A/C NO.: ${companyDetails.accountNo}<br/>
+                  IFSC CODE: ${companyDetails.ifscCode}<br/>
+                  BANK: ${companyDetails.bankName}<br/>
                   ADDRESS: ${companyDetails.bankAddress}
                 </div>
-
                 <div class="qr-box">
                   <img src="${PAYMENT_QR_SRC}" alt="Payment QR" />
                   <div>SCAN TO PAY</div>
                 </div>
               </div>
             </div>
-
             <div class="footer-right">
-              <div>
-                <strong>For: ${companyDetails.name}</strong>
-              </div>
+              <div><strong>For: ${companyDetails.name}</strong></div>
               <div style="margin-top:40px;">
-                Signature: ________________________
-                <br />
-                Name: ${companyDetails.proprietor}
-                <br />
-                Status: PROPRIETOR
-                <br />
+                Signature: ________________________<br/>
+                Name: ${companyDetails.proprietor}<br/>
+                Status: PROPRIETOR<br/>
                 Date: ${orderDate}
               </div>
             </div>
           </div>
         </div>
-
-        <script>
-          window.onload = function() {
-            window.print();
-          };
-        </script>
+        <script>window.onload = function() { window.print(); };</script>
       </body>
       </html>
     `;
@@ -1346,63 +676,25 @@ const MyOrders = () => {
   // ====================================================
   // STATUS STYLE
   // ====================================================
-
   const getStatusStyle = (status) => {
     const s = normalizeStatus(status);
-
     switch (s) {
-      case "Pending":
-        return {
-          tint: "#FEF6E7",
-          text: AMBER_DARK,
-          icon: <Clock size={14} />,
-        };
-      case "Confirmed":
-        return {
-          tint: "#EEF2FF",
-          text: "#4F46E5",
-          icon: <CheckCircle2 size={14} />,
-        };
-      case "Shipped":
-        return {
-          tint: STEEL_TINT,
-          text: STEEL,
-          icon: <Truck size={14} />,
-        };
-      case "Delivered":
-        return {
-          tint: "#E4F3E9",
-          text: "#1D7A43",
-          icon: <CheckCircle size={14} />,
-        };
-      case "Cancelled":
-        return {
-          tint: "#FBE7E7",
-          text: "#B4302F",
-          icon: <XCircle size={14} />,
-        };
-      default:
-        return {
-          tint: SURFACE_MUTED,
-          text: MUTED,
-          icon: <Package size={14} />,
-        };
+      case "Pending": return { tint: "#FEF6E7", text: AMBER_DARK, icon: <Clock size={14} /> };
+      case "Confirmed": return { tint: "#EEF2FF", text: "#4F46E5", icon: <CheckCircle2 size={14} /> };
+      case "Shipped": return { tint: STEEL_TINT, text: STEEL, icon: <Truck size={14} /> };
+      case "Delivered": return { tint: "#E4F3E9", text: "#1D7A43", icon: <CheckCircle size={14} /> };
+      case "Cancelled": return { tint: "#FBE7E7", text: "#B4302F", icon: <XCircle size={14} /> };
+      default: return { tint: SURFACE_MUTED, text: MUTED, icon: <Package size={14} /> };
     }
   };
 
   // ====================================================
   // LOADING
   // ====================================================
-
   if (loading) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: BG }}
-      >
-        <p className="font-medium" style={{ color: MUTED }}>
-          Loading orders...
-        </p>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: BG }}>
+        <p className="font-medium" style={{ color: MUTED }}>Loading orders...</p>
       </div>
     );
   }
@@ -1410,120 +702,54 @@ const MyOrders = () => {
   // ====================================================
   // UI
   // ====================================================
-
   return (
-    <div
-      className="min-h-screen py-8 px-4 sm:px-6 lg:px-8"
-      style={{ background: BG }}
-    >
+    <div className="min-h-screen py-8 px-4 sm:px-6 lg:px-8" style={{ background: BG }}>
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="flex justify-between items-center">
-          <h1
-            className="text-2xl sm:text-3xl font-bold"
-            style={{ color: INK }}
-          >
-            My orders
-          </h1>
+          <h1 className="text-2xl sm:text-3xl font-bold" style={{ color: INK }}>My orders</h1>
           <span className="text-sm font-medium" style={{ color: MUTED }}>
             {orders.length} order{orders.length !== 1 ? "s" : ""} placed
           </span>
         </div>
 
         {orders.length === 0 ? (
-          <div
-            className="rounded-2xl p-10 sm:p-14 text-center"
-            style={{
-              background: PAPER,
-              border: `2px dashed ${DASH}`,
-            }}
-          >
-            <PackageOpen
-              size={40}
-              className="mx-auto mb-4"
-              style={{ color: MUTED }}
-            />
-            <h2
-              className="text-xl sm:text-2xl font-bold"
-              style={{ color: INK }}
-            >
-              No orders yet
-            </h2>
-            <p className="mt-2 text-sm" style={{ color: MUTED }}>
-              Once you place an order, it'll show up here.
-            </p>
+          <div className="rounded-2xl p-10 sm:p-14 text-center" style={{ background: PAPER, border: `2px dashed ${DASH}` }}>
+            <PackageOpen size={40} className="mx-auto mb-4" style={{ color: MUTED }} />
+            <h2 className="text-xl sm:text-2xl font-bold" style={{ color: INK }}>No orders yet</h2>
+            <p className="mt-2 text-sm" style={{ color: MUTED }}>Once you place an order, it'll show up here.</p>
           </div>
         ) : (
           <div className="space-y-5 sm:space-y-6">
             {orders.map((order) => {
               const displayStatus = normalizeStatus(order.status);
               const statusStyle = getStatusStyle(order.status);
-              const isUnlocked = ["Confirmed", "Shipped", "Delivered"].includes(
-                displayStatus
-              );
+              const isUnlocked = ["Confirmed", "Shipped", "Delivered"].includes(displayStatus);
               const shippingFee = extractShippingFee(order);
 
               return (
-                <div
-                  key={order._id}
-                  className="rounded-2xl overflow-hidden"
-                  style={{
-                    background: PAPER,
-                    border: `1px solid ${BORDER}`,
-                  }}
-                >
-                  <div
-                    className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                    style={{ borderBottom: `1px solid ${BORDER}` }}
-                  >
+                <div key={order._id} className="rounded-2xl overflow-hidden" style={{ background: PAPER, border: `1px solid ${BORDER}` }}>
+                  <div className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3" style={{ borderBottom: `1px solid ${BORDER}` }}>
                     <div className="space-y-1.5">
-                      <div
-                        className="flex items-center gap-2 text-xs sm:text-sm"
-                        style={{ color: MUTED }}
-                      >
+                      <div className="flex items-center gap-2 text-xs sm:text-sm" style={{ color: MUTED }}>
                         <Hash size={13} />
                         <span className="font-mono">{order._id}</span>
                       </div>
                       <div className="flex items-center gap-3 text-xs sm:text-sm">
-                        <span
-                          className="font-semibold font-mono"
-                          style={{ color: INK }}
-                        >
+                        <span className="font-semibold font-mono" style={{ color: INK }}>
                           ₹{Number(order.totalAmount || 0).toLocaleString("en-IN")}
                         </span>
                         {order.createdAt && (
                           <span style={{ color: MUTED }}>
-                            {new Date(order.createdAt).toLocaleDateString(
-                              "en-IN",
-                              {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              }
-                            )}
+                            {new Date(order.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                           </span>
                         )}
                       </div>
                     </div>
-
                     <div className="flex items-center gap-2">
-                      <div
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-                        style={{
-                          background: statusStyle.tint,
-                          color: statusStyle.text,
-                        }}
-                      >
-                        {statusStyle.icon}
-                        {displayStatus}
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: statusStyle.tint, color: statusStyle.text }}>
+                        {statusStyle.icon}{displayStatus}
                       </div>
-
-                      <button
-                        onClick={() => handleDeleteOrder(order._id)}
-                        disabled={deletingId === order._id}
-                        className="p-1.5 rounded-lg transition disabled:opacity-50"
-                        style={{ color: "#B4302F" }}
-                        title="Remove order"
-                      >
+                      <button onClick={() => handleDeleteOrder(order._id)} disabled={deletingId === order._id} className="p-1.5 rounded-lg transition disabled:opacity-50" style={{ color: "#B4302F" }} title="Remove order">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -1535,106 +761,41 @@ const MyOrders = () => {
 
                   <div className="px-4 sm:px-6 py-2">
                     {order.items?.map((item, index) => (
-                      <div
-                        key={index}
-                        className="flex gap-3 items-center py-3"
-                        style={
-                          index !== 0
-                            ? { borderTop: `1px solid ${BORDER}` }
-                            : undefined
-                        }
-                      >
-                        <div
-                          className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
-                          style={{ background: SURFACE_MUTED }}
-                        >
-                          <img
-                            src={
-                              item.image ||
-                              item.images?.[0] ||
-                              item.productId?.images?.[0]
-                            }
-                            className="w-full h-full object-contain p-1.5"
-                            alt=""
-                          />
+                      <div key={index} className="flex gap-3 items-center py-3" style={index !== 0 ? { borderTop: `1px solid ${BORDER}` } : undefined}>
+                        <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden" style={{ background: SURFACE_MUTED }}>
+                          <img src={item.image || item.images?.[0] || item.productId?.images?.[0]} className="w-full h-full object-contain p-1.5" alt="" />
                         </div>
-
                         <div className="flex-1 min-w-0">
-                          <h3
-                            className="font-semibold text-sm truncate"
-                            style={{ color: INK }}
-                          >
-                            {item.title ||
-                              item.name ||
-                              item.productId?.name ||
-                              "Product"}
+                          <h3 className="font-semibold text-sm truncate" style={{ color: INK }}>
+                            {item.title || item.name || item.productId?.name || "Product"}
                           </h3>
-                          <p className="text-xs mt-0.5" style={{ color: MUTED }}>
-                            Qty: {item.quantity} · ₹{item.price}/unit
-                          </p>
+                          <p className="text-xs mt-0.5" style={{ color: MUTED }}>Qty: {item.quantity} · ₹{item.price}/unit</p>
                         </div>
-
-                        <p
-                          className="font-bold text-sm font-mono flex-shrink-0"
-                          style={{ color: INK }}
-                        >
-                          ₹
-                          {(
-                            Number(item.price || 0) *
-                            Number(item.quantity || 1)
-                          ).toLocaleString("en-IN")}
+                        <p className="font-bold text-sm font-mono flex-shrink-0" style={{ color: INK }}>
+                          ₹{(Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString("en-IN")}
                         </p>
                       </div>
                     ))}
                   </div>
 
-                  <div className="px-4 sm:px-6">
-                    <TearLine />
-                  </div>
+                  <div className="px-4 sm:px-6"><TearLine /></div>
 
                   <div className="px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="text-xs sm:text-sm" style={{ color: MUTED }}>
                       {shippingFee > 0 && (
-                        <span>
-                          Delivery fee:{" "}
-                          <strong style={{ color: INK }}>₹{shippingFee}</strong>
-                          {" · "}
-                        </span>
+                        <span>Delivery fee: <strong style={{ color: INK }}>₹{shippingFee}</strong>{" · "}</span>
                       )}
-                      <span
-                        className="font-bold"
-                        style={{ color: AMBER_DARK }}
-                      >
-                        Grand total: ₹
-                        {Number(order.totalAmount || 0).toLocaleString("en-IN")}
+                      <span className="font-bold" style={{ color: AMBER_DARK }}>
+                        Grand total: ₹{Number(order.totalAmount || 0).toLocaleString("en-IN")}
                       </span>
                     </div>
-
                     <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={() => handleDownloadInvoice(order)}
-                        disabled={!isUnlocked}
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
-                        style={{
-                          background: AMBER,
-                          color: "#1A1200",
-                        }}
-                      >
-                        <Download size={15} />
-                        Invoice
+                      <button onClick={() => handleDownloadInvoice(order)} disabled={!isUnlocked} className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: AMBER, color: "#1A1200" }}>
+                        <Download size={15} /> Invoice
                       </button>
-
                       {isUnlocked && (
-                        <button
-                          onClick={() => handleDownloadInvoice(order)}
-                          className="flex items-center gap-2 px-3 py-2 rounded-xl font-semibold text-sm transition"
-                          style={{
-                            background: SURFACE_MUTED,
-                            color: INK,
-                          }}
-                        >
-                          <Printer size={15} />
-                          Print
+                        <button onClick={() => handleDownloadInvoice(order)} className="flex items-center gap-2 px-3 py-2 rounded-xl font-semibold text-sm transition" style={{ background: SURFACE_MUTED, color: INK }}>
+                          <Printer size={15} /> Print
                         </button>
                       )}
                     </div>
