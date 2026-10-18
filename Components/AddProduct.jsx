@@ -49,6 +49,8 @@ const INITIAL_PRODUCT_STATE = {
   // --- USER TARGETING FIELDS ---
   discountTargetType: "all", // 'all' or 'selected'
   allowedUserIds: [],
+  otherUsersDiscountPercent: "",
+  otherUsersDiscountNote: "",
 };
 
 // Endpoints tried in order until one returns a user list.
@@ -311,6 +313,18 @@ const AddProduct = () => {
       // --- APPEND USER TARGETING FIELDS ---
       formData.append("discountTargetType", product.discountTargetType);
       formData.append(
+        "otherUsersDiscountPercent",
+        product.discountTargetType === "selected"
+          ? Number(product.otherUsersDiscountPercent) || 0
+          : 0
+      );
+      formData.append(
+        "otherUsersDiscountNote",
+        product.discountTargetType === "selected"
+          ? product.otherUsersDiscountNote || ""
+          : ""
+      );
+      formData.append(
         "allowedUserIds",
         JSON.stringify(
           product.discountTargetType === "selected" ? product.allowedUserIds : []
@@ -513,7 +527,9 @@ const AddProduct = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-rose-800 mb-1">
-                    Discount Percentage (%)
+                    {product.discountTargetType === "selected"
+                      ? "Special Discount for Selected Users (%)"
+                      : "Discount Percentage (%)"}
                   </label>
                   <input
                     type="number"
@@ -573,6 +589,34 @@ const AddProduct = () => {
                 {/* USER SEARCH & SELECTION SECTION */}
                 {product.discountTargetType === "selected" && (
                   <div className="mt-3 bg-white p-3 sm:p-4 rounded-xl border border-rose-200 space-y-3">
+                    {/* DISCOUNT FOR OTHER (NON-SELECTED) USERS */}
+                    <div className="p-3 rounded-lg bg-rose-50/60 border border-rose-100">
+                      <p className="text-xs font-semibold text-rose-900 mb-2">
+                        Discount for all OTHER users (not selected)
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <input
+                          type="number"
+                          name="otherUsersDiscountPercent"
+                          value={product.otherUsersDiscountPercent}
+                          onChange={handleChange}
+                          placeholder="e.g. 5 (leave empty for no discount)"
+                          className="w-full bg-white rounded-lg px-3 py-2 text-xs sm:text-sm outline-none border border-rose-200 focus:border-rose-400"
+                        />
+                        <input
+                          type="text"
+                          name="otherUsersDiscountNote"
+                          value={product.otherUsersDiscountNote}
+                          onChange={handleChange}
+                          placeholder="e.g. Regular Sale"
+                          className="w-full bg-white rounded-lg px-3 py-2 text-xs sm:text-sm outline-none border border-rose-200 focus:border-rose-400"
+                        />
+                      </div>
+                      <p className="text-[11px] text-rose-700 mt-1.5">
+                        Selected users see the special discount above. Everyone else sees this one.
+                      </p>
+                    </div>
+
                     {/* SEARCH */}
                     <div className="relative">
                       <Search size={16} className="absolute left-3 top-3 text-gray-400" />
