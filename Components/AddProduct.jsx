@@ -16,6 +16,9 @@ import {
   Info,
   Tag,
   Sparkles,
+  Users,
+  Search,
+  UserCheck,
 } from "lucide-react";
 
 const INITIAL_PRODUCT_STATE = {
@@ -40,10 +43,12 @@ const INITIAL_PRODUCT_STATE = {
     card: true,
     netbanking: true,
   },
-  // --- NEW FIELDS ---
   discountPercent: "",
   discountNote: "",
   isNewProduct: true,
+  // --- USER TARGETING FIELDS ---
+  discountTargetType: "all", // 'all' or 'selected'
+  allowedUserIds: [],
 };
 
 const AddProduct = () => {
@@ -55,12 +60,39 @@ const AddProduct = () => {
   const [product, setProduct] = useState(INITIAL_PRODUCT_STATE);
   const [priceList, setPriceList] = useState([{ quantity: "", price: "" }]);
 
+  // --- USER SEARCH & SELECTION STATES ---
+  const [allUsers, setAllUsers] = useState([]);
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  const apiUrl = process.env.REACT_APP_API_URL || "https://backend-3-axez.onrender.com";
+
   // Clean up Object URLs to prevent memory leaks
   useEffect(() => {
     return () => {
       images.forEach((url) => URL.revokeObjectURL(url));
     };
   }, [images]);
+
+  // Fetch users when targeted discount is toggled
+  useEffect(() => {
+    if (product.discountTargetType === "selected" && allUsers.length === 0) {
+      const fetchUsers = async () => {
+        try {
+          setUsersLoading(true);
+          const res = await axios.get(`${apiUrl}/api/users`);
+          // Expecting res.data.users or res.data as array
+          const fetchedList = Array.isArray(res.data) ? res.data : res.data.users || [];
+          setAllUsers(fetchedList);
+        } catch (err) {
+          console.error("Failed to fetch user list:", err);
+        } finally {
+          setUsersLoading(false);
+        }
+      };
+      fetchUsers();
+    }
+  }, [product.discountTargetType, allUsers.length, apiUrl]);
 
   // ================= IMAGE HANDLERS =================
   const handleImageChange = (e) => {
@@ -70,7 +102,6 @@ const AddProduct = () => {
     const updatedFiles = [...imageFiles, ...files].slice(0, 10);
     setImageFiles(updatedFiles);
 
-    // Revoke old previews
     images.forEach((url) => URL.revokeObjectURL(url));
 
     const previews = updatedFiles.map((file) => URL.createObjectURL(file));
@@ -155,6 +186,30 @@ const AddProduct = () => {
     });
   };
 
+  // --- USER SELECTION TOGGLE ---
+  const toggleUserSelection = (userId) => {
+    setProduct((prev) => {
+      const exists = prev.allowedUserIds.includes(userId);
+      const updatedIds = exists
+        ? prev.allowedUserIds.filter((id) => id !== userId)
+        : [...prev.allowedUserIds, userId];
+
+      return { ...prev, allowedUserIds: updatedIds };
+    });
+  };
+
+  // Filtered users list based on 3+ characters input
+  const filteredUsers =
+    userSearchTerm.trim().length >= 3
+      ? allUsers.filter((u) => {
+          const searchLower = userSearchTerm.toLowerCase();
+          const nameMatch = u.name && u.name.toLowerCase().includes(searchLower);
+          const emailMatch = u.email && u.email.toLowerCase().includes(searchLower);
+          const phoneMatch = u.phone && u.phone.includes(searchLower);
+          return nameMatch || emailMatch || phoneMatch;
+        })
+      : [];
+
   // ================= SUBMIT =================
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -170,6 +225,14 @@ const AddProduct = () => {
 
     if (validPricing.length === 0) {
       alert("Please add at least one pricing option");
+      return;
+    }
+
+    if (
+      product.discountTargetType === "selected" &&
+      product.allowedUserIds.length === 0
+    ) {
+      alert("Please select at least one user for targeted discount");
       return;
     }
 
@@ -198,12 +261,18 @@ const AddProduct = () => {
       formData.append("paymentMethods", JSON.stringify(product.paymentMethods));
       formData.append("pricing", JSON.stringify(validPricing));
 
-      // --- NEW FIELDS APPENDED TO FORMDATA ---
       formData.append("discountPercent", product.discountPercent || 0);
       formData.append("discountNote", product.discountNote || "");
       formData.append("isNewProduct", product.isNewProduct);
 
-      const apiUrl = process.env.REACT_APP_API_URL || "https://backend-3-axez.onrender.com";
+      // --- APPEND USER TARGETING FIELDS ---
+      formData.append("discountTargetType", product.discountTargetType);
+      formData.append(
+        "allowedUserIds",
+        JSON.stringify(
+          product.discountTargetType === "selected" ? product.allowedUserIds : []
+        )
+      );
 
       const res = await axios.post(`${apiUrl}/api/products/add-product`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -216,6 +285,7 @@ const AddProduct = () => {
         setImageFiles([]);
         setSelectedImage("");
         setProduct(INITIAL_PRODUCT_STATE);
+        setUserSearchTerm("");
         setPriceList([{ quantity: "", price: "" }]);
         setTimeout(() => setSuccess(false), 3000);
       }
@@ -282,7 +352,6 @@ const AddProduct = () => {
 
               {selectedImage && (
                 <div className="relative mt-4 rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
-                  {/* ANIMATED NEW BADGE PREVIEW */}
                   {product.isNewProduct && (
                     <div className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg animate-pulse">
                       <Sparkles size={14} className="animate-spin" />
@@ -290,7 +359,6 @@ const AddProduct = () => {
                     </div>
                   )}
 
-                  {/* DISCOUNT BADGE PREVIEW */}
                   {Number(product.discountPercent) > 0 && (
                     <div className="absolute top-4 right-4 z-10 bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg">
                       {product.discountPercent}% OFF
@@ -392,12 +460,13 @@ const AddProduct = () => {
               </div>
             </div>
 
-            {/* OFFERS & DISCOUNTS (OPTIONAL) */}
-            <div className="bg-gradient-to-br from-rose-50 to-orange-50 p-4 rounded-2xl border border-rose-200/70">
-              <h2 className="text-base sm:text-lg font-bold text-rose-900 mb-3 flex items-center gap-2">
+            {/* OFFERS & DISCOUNTS (WITH USER TARGETING) */}
+            <div className="bg-gradient-to-br from-rose-50 to-orange-50 p-4 rounded-2xl border border-rose-200/70 space-y-4">
+              <h2 className="text-base sm:text-lg font-bold text-rose-900 flex items-center gap-2">
                 <Tag size={18} className="text-rose-600" />
                 Offer & Discount <span className="text-xs font-normal text-rose-600">(Optional)</span>
               </h2>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-rose-800 mb-1">
@@ -421,10 +490,136 @@ const AddProduct = () => {
                     name="discountNote"
                     value={product.discountNote}
                     onChange={handleChange}
-                    placeholder="e.g. Festive Sale / Limited Time Offer!"
+                    placeholder="e.g. Special VIP Discount!"
                     className="w-full border border-rose-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-rose-500 bg-white"
                   />
                 </div>
+              </div>
+
+              {/* TARGET USER OPTION */}
+              <div className="pt-2 border-t border-rose-200/60">
+                <label className="block text-xs font-semibold text-rose-900 mb-2 flex items-center gap-1.5">
+                  <Users size={15} className="text-rose-600" />
+                  Who can see this discount?
+                </label>
+                <div className="flex items-center gap-4 text-xs font-medium text-rose-900">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="discountTargetType"
+                      value="all"
+                      checked={product.discountTargetType === "all"}
+                      onChange={handleChange}
+                      className="accent-rose-600 cursor-pointer"
+                    />
+                    All Users (Public)
+                  </label>
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="discountTargetType"
+                      value="selected"
+                      checked={product.discountTargetType === "selected"}
+                      onChange={handleChange}
+                      className="accent-rose-600 cursor-pointer"
+                    />
+                    Selected Users Only (Special Discount)
+                  </label>
+                </div>
+
+                {/* USER SEARCH & SELECTION SECTION */}
+                {product.discountTargetType === "selected" && (
+                  <div className="mt-3 bg-white p-3 sm:p-4 rounded-xl border border-rose-200 space-y-3">
+                    <div className="relative">
+                      <Search size={16} className="absolute left-3 top-3 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Type at least 3 characters to search user (Name, Email, Phone)..."
+                        value={userSearchTerm}
+                        onChange={(e) => setUserSearchTerm(e.target.value)}
+                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-xs sm:text-sm outline-none focus:border-rose-500"
+                      />
+                    </div>
+
+                    {usersLoading && (
+                      <p className="text-xs text-gray-500 py-1">Loading users...</p>
+                    )}
+
+                    {/* SEARCH RESULTS DISPLAY */}
+                    {userSearchTerm.trim().length >= 3 && !usersLoading && (
+                      <div className="max-h-40 overflow-y-auto border border-gray-100 rounded-lg divide-y">
+                        {filteredUsers.length > 0 ? (
+                          filteredUsers.map((user) => {
+                            const isSelected = product.allowedUserIds.includes(user._id);
+                            return (
+                              <div
+                                key={user._id}
+                                onClick={() => toggleUserSelection(user._id)}
+                                className={`p-2 flex items-center justify-between text-xs cursor-pointer hover:bg-rose-50/50 transition ${
+                                  isSelected ? "bg-rose-50 font-semibold" : ""
+                                }`}
+                              >
+                                <div>
+                                  <p className="text-gray-800">{user.name || "No Name"}</p>
+                                  <p className="text-gray-400 text-[11px]">
+                                    {user.email || user.phone}
+                                  </p>
+                                </div>
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {}}
+                                  className="accent-rose-600"
+                                />
+                              </div>
+                            );
+                          })
+                        ) : (
+                          <p className="p-2 text-xs text-gray-400 text-center">
+                            No users found matching "{userSearchTerm}"
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {userSearchTerm.trim().length > 0 &&
+                      userSearchTerm.trim().length < 3 && (
+                        <p className="text-[11px] text-amber-600">
+                          Please type at least 3 characters to search.
+                        </p>
+                      )}
+
+                    {/* SELECTED USERS CHIPS */}
+                    {product.allowedUserIds.length > 0 && (
+                      <div className="pt-2">
+                        <p className="text-[11px] font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
+                          <UserCheck size={13} className="text-emerald-600" />
+                          Selected Users ({product.allowedUserIds.length}):
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {product.allowedUserIds.map((id) => {
+                            const matchedUser = allUsers.find((u) => u._id === id);
+                            return (
+                              <span
+                                key={id}
+                                className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 text-[11px] px-2 py-0.5 rounded-full font-medium"
+                              >
+                                {matchedUser?.name || matchedUser?.email || id}
+                                <button
+                                  type="button"
+                                  onClick={() => toggleUserSelection(id)}
+                                  className="hover:text-rose-900"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </span>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
