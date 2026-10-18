@@ -1093,8 +1093,8 @@ const MyOrders = () => {
             flex-shrink: 0;
           }
           .qr-box img {
-            width: 95px;
-            height: 95px;
+            width: 100px;
+            height: 110px;
             border: 1px solid #000;
             padding: 2px;
           }
