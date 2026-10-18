@@ -69,7 +69,8 @@ const GetAllProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get(API);
+      // Admin route returns full data (discountTargetType + allowedUserIds)
+      const { data } = await axios.get(`${API}/admin/all`);
       if (data.success) setProducts(data.products || []);
     } catch (error) {
       console.error(error);
