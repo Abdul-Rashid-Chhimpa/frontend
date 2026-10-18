@@ -321,8 +321,8 @@ const GetAllProducts = () => {
       discountNote: product.discountNote || "",
       discountTargetType: product.discountTargetType === "selected" ? "selected" : "all",
       allowedUserIds: normalizeAllowedIds(product.allowedUserIds),
-      otherUsersDiscountPercent: product.otherUsersDiscountPercent || "",
-      otherUsersDiscountNote: product.otherUsersDiscountNote || "",
+      otherUsersDiscountPercent: product.otherUsersDiscountPercent ?? "",
+      otherUsersDiscountNote: product.otherUsersDiscountNote ?? "",
       deliveryCharge: deliveryCharge ?? "",
       deliveryTime: deliveryTime ?? "",
       paymentMethods: paymentMethods,
@@ -366,13 +366,12 @@ const GetAllProducts = () => {
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(formattedPricing));
 
-      // Offer & New Arrival fields — names now match what the API actually
-      // returns (isNewProduct / discountPercent / discountNote).
+      // Offer & New Arrival fields
       formData.append("isNewProduct", Boolean(editProduct.isNewProduct));
       formData.append("discountPercent", Number(editProduct.discountPercent) || 0);
       formData.append("discountNote", editProduct.discountNote || "");
 
-      // --- USER TARGETING FIELDS (same names as Add Product) ---
+      // --- USER TARGETING FIELDS ---
       formData.append("discountTargetType", editProduct.discountTargetType || "all");
       formData.append(
         "otherUsersDiscountPercent",
@@ -518,6 +517,7 @@ const GetAllProducts = () => {
               const targetedIds = normalizeAllowedIds(product.allowedUserIds);
               const targetedCount = targetedIds.length;
               const otherPercent = Number(product.otherUsersDiscountPercent) || 0;
+              const specialPercent = Number(product.discountPercent) || 0;
 
               return (
                 <div
@@ -535,7 +535,7 @@ const GetAllProducts = () => {
                       }}
                     />
 
-                    {/* New Arrival Badge — reads isNewProduct, matching the API */}
+                    {/* New Arrival Badge */}
                     {product.isNewProduct && (
                       <span className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
                         NEW
@@ -570,7 +570,7 @@ const GetAllProducts = () => {
                     </h2>
 
                     <div className="flex flex-wrap gap-2 mt-2.5">
-                      {/* discountNote, not offerTag */}
+                      {/* discountNote (special offer tag) */}
                       {product.discountNote && (
                         <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200">
                           {product.discountNote}
@@ -610,11 +610,12 @@ const GetAllProducts = () => {
                       )}
                     </div>
 
+                    {/* ===== TARGETED DISCOUNT BOX (Special + Other users) ===== */}
                     {isTargeted && (
                       <div className="mt-3 p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 text-xs space-y-1.5">
                         <p className="font-semibold text-amber-800 flex items-center gap-1">
                           <UserCheck size={13} />
-                          Special discount: {Number(product.discountPercent) || 0}% for {targetedCount} user{targetedCount !== 1 ? "s" : ""}
+                          Special discount: {specialPercent}% for {targetedCount} user{targetedCount !== 1 ? "s" : ""}
                         </p>
 
                         <div className="flex flex-wrap gap-1">
@@ -633,11 +634,19 @@ const GetAllProducts = () => {
                           )}
                         </div>
 
-                        <p className="text-amber-900">
-                          <span className="font-semibold">Other users see: </span>
-                          {otherPercent > 0
-                            ? `${otherPercent}% OFF${product.otherUsersDiscountNote ? ` (${product.otherUsersDiscountNote})` : ""}`
-                            : "No discount"}
+                        {/* Other users discount - clearly visible */}
+                        <p className="text-amber-900 pt-1 border-t border-amber-200/60">
+                          <span className="font-semibold">Other users (not selected) see: </span>
+                          {otherPercent > 0 ? (
+                            <span className="font-bold text-rose-700">
+                              {otherPercent}% OFF
+                              {product.otherUsersDiscountNote
+                                ? ` (${product.otherUsersDiscountNote})`
+                                : ""}
+                            </span>
+                          ) : (
+                            <span className="italic text-amber-700">No discount</span>
+                          )}
                         </p>
                       </div>
                     )}
@@ -658,14 +667,35 @@ const GetAllProducts = () => {
                           GST: {product.gst}%
                         </p>
                       )}
-                      <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
                         <p className="font-bold text-base" style={{ color: "#1D7A43" }}>
                           From ₹{lowestPrice.toLocaleString()}
                         </p>
-                        {/* discountPercent, not discountPercentage */}
-                        {Number(product.discountPercent) > 0 && (
-                          <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
-                            {product.discountPercent}% OFF
+
+                        {/* 
+                          MAIN DISCOUNT BADGE:
+                          - Agar targeted hai → Other users ka discount dikhao (public wala)
+                          - Warna normal discountPercent dikhao
+                        */}
+                        {isTargeted ? (
+                          otherPercent > 0 && (
+                            <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                              {otherPercent}% OFF
+                              <span className="ml-1 text-[10px] font-medium opacity-80">(Others)</span>
+                            </span>
+                          )
+                        ) : (
+                          specialPercent > 0 && (
+                            <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                              {specialPercent}% OFF
+                            </span>
+                          )
+                        )}
+
+                        {/* Special badge (sirf jab targeted ho) */}
+                        {isTargeted && specialPercent > 0 && (
+                          <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                            {specialPercent}% Special
                           </span>
                         )}
                       </div>
@@ -856,7 +886,7 @@ const GetAllProducts = () => {
                 </div>
               </div>
 
-              {/* Mark as NEW Arrival Box — bound to isNewProduct */}
+              {/* Mark as NEW Arrival Box */}
               <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
                 <div>
                   <label htmlFor="isNewProduct" className="font-bold text-emerald-950 flex items-center gap-2 cursor-pointer text-sm sm:text-base">
@@ -877,7 +907,7 @@ const GetAllProducts = () => {
                 />
               </div>
 
-              {/* Offer & Discount Section — bound to discountPercent / discountNote / user targeting */}
+              {/* Offer & Discount Section */}
               <div className="p-4 rounded-2xl border border-rose-200 bg-rose-50/40 space-y-3">
                 <h3 className="font-bold text-rose-950 flex items-center gap-2 text-sm sm:text-base">
                   <Tag size={18} className="text-rose-600" />
@@ -1000,7 +1030,7 @@ const GetAllProducts = () => {
                         )}
                       </div>
 
-                      {/* LIST HEADER (fixed height so layout never jumps) */}
+                      {/* LIST HEADER */}
                       <div className="flex items-center justify-between h-6 text-[11px] text-gray-500">
                         <span>
                           {usersLoading
@@ -1028,7 +1058,7 @@ const GetAllProducts = () => {
                         </div>
                       </div>
 
-                      {/* USER LIST (fixed height + scroll) */}
+                      {/* USER LIST */}
                       <div
                         className="h-56 overflow-y-auto border border-gray-100 rounded-lg bg-white"
                         style={{ scrollbarGutter: "stable" }}
@@ -1096,7 +1126,7 @@ const GetAllProducts = () => {
                         )}
                       </div>
 
-                      {/* SELECTED USERS (always rendered, fixed height) */}
+                      {/* SELECTED USERS */}
                       <div className="pt-1">
                         <p className="text-[11px] font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
                           <UserCheck size={13} className="text-emerald-600" />
