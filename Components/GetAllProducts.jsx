@@ -65,6 +65,16 @@ const GetAllProducts = () => {
     "Credit / Debit Card",
   ];
 
+  // Turns a user id into a readable label (name / email / phone)
+  const getUserLabel = (id) => {
+    const u = allUsers.find((x) => String(x._id) === String(id));
+    const shortId = String(id).slice(-6);
+
+    if (!u) return `User ...${shortId}`;
+
+    return u.name || u.email || getUserPhone(u) || `User ...${shortId}`;
+  };
+
   // ================= FETCH PRODUCTS =================
   const fetchProducts = async () => {
     try {
@@ -115,6 +125,12 @@ const GetAllProducts = () => {
     setUsersError("Could not load users. Please check the users API and try again.");
     setUsersLoading(false);
   }, [BASE_URL]);
+
+  // Load users once on page load so selected users' names can show on the cards
+  useEffect(() => {
+    fetchUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load users when the edit modal is on "Selected Users Only"
   useEffect(() => {
@@ -305,6 +321,8 @@ const GetAllProducts = () => {
       discountNote: product.discountNote || "",
       discountTargetType: product.discountTargetType === "selected" ? "selected" : "all",
       allowedUserIds: normalizeAllowedIds(product.allowedUserIds),
+      otherUsersDiscountPercent: product.otherUsersDiscountPercent || "",
+      otherUsersDiscountNote: product.otherUsersDiscountNote || "",
       deliveryCharge: deliveryCharge ?? "",
       deliveryTime: deliveryTime ?? "",
       paymentMethods: paymentMethods,
@@ -356,6 +374,18 @@ const GetAllProducts = () => {
 
       // --- USER TARGETING FIELDS (same names as Add Product) ---
       formData.append("discountTargetType", editProduct.discountTargetType || "all");
+      formData.append(
+        "otherUsersDiscountPercent",
+        editProduct.discountTargetType === "selected"
+          ? Number(editProduct.otherUsersDiscountPercent) || 0
+          : 0
+      );
+      formData.append(
+        "otherUsersDiscountNote",
+        editProduct.discountTargetType === "selected"
+          ? editProduct.otherUsersDiscountNote || ""
+          : ""
+      );
       formData.append(
         "allowedUserIds",
         JSON.stringify(
@@ -485,9 +515,9 @@ const GetAllProducts = () => {
               const paymentMethods = product.paymentMethods || product.payment || [];
 
               const isTargeted = product.discountTargetType === "selected";
-              const targetedCount = Array.isArray(product.allowedUserIds)
-                ? product.allowedUserIds.length
-                : 0;
+              const targetedIds = normalizeAllowedIds(product.allowedUserIds);
+              const targetedCount = targetedIds.length;
+              const otherPercent = Number(product.otherUsersDiscountPercent) || 0;
 
               return (
                 <div
@@ -579,6 +609,38 @@ const GetAllProducts = () => {
                         </span>
                       )}
                     </div>
+
+                    {isTargeted && (
+                      <div className="mt-3 p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 text-xs space-y-1.5">
+                        <p className="font-semibold text-amber-800 flex items-center gap-1">
+                          <UserCheck size={13} />
+                          Special discount: {Number(product.discountPercent) || 0}% for {targetedCount} user{targetedCount !== 1 ? "s" : ""}
+                        </p>
+
+                        <div className="flex flex-wrap gap-1">
+                          {targetedIds.slice(0, 6).map((id) => (
+                            <span
+                              key={id}
+                              className="inline-flex items-center bg-amber-100 text-amber-900 text-[11px] px-2 py-0.5 rounded-full font-medium"
+                            >
+                              {getUserLabel(id)}
+                            </span>
+                          ))}
+                          {targetedCount > 6 && (
+                            <span className="inline-flex items-center text-[11px] px-2 py-0.5 rounded-full font-medium bg-white border border-amber-200 text-amber-800">
+                              +{targetedCount - 6} more
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-amber-900">
+                          <span className="font-semibold">Other users see: </span>
+                          {otherPercent > 0
+                            ? `${otherPercent}% OFF${product.otherUsersDiscountNote ? ` (${product.otherUsersDiscountNote})` : ""}`
+                            : "No discount"}
+                        </p>
+                      </div>
+                    )}
 
                     <div className="mt-3 text-sm space-y-0.5" style={{ color: MUTED }}>
                       <p>
@@ -824,7 +886,9 @@ const GetAllProducts = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-rose-900 mb-1">
-                      Discount Percentage (%)
+                      {editProduct.discountTargetType === "selected"
+                        ? "Special Discount for Selected Users (%)"
+                        : "Discount Percentage (%)"}
                     </label>
                     <input
                       type="number"
@@ -886,6 +950,34 @@ const GetAllProducts = () => {
                   {/* USER SEARCH & SELECTION SECTION */}
                   {editProduct.discountTargetType === "selected" && (
                     <div className="mt-3 bg-white p-3 sm:p-4 rounded-xl border border-rose-200 space-y-3">
+                      {/* DISCOUNT FOR OTHER (NON-SELECTED) USERS */}
+                      <div className="p-3 rounded-lg bg-rose-50/60 border border-rose-100">
+                        <p className="text-xs font-semibold text-rose-900 mb-2">
+                          Discount for all OTHER users (not selected)
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <input
+                            type="number"
+                            name="otherUsersDiscountPercent"
+                            value={editProduct.otherUsersDiscountPercent ?? ""}
+                            onChange={handleEditChange}
+                            placeholder="e.g. 5 (leave empty for no discount)"
+                            className="w-full bg-white rounded-lg px-3 py-2 text-xs sm:text-sm outline-none border border-rose-200 focus:border-rose-400"
+                          />
+                          <input
+                            type="text"
+                            name="otherUsersDiscountNote"
+                            value={editProduct.otherUsersDiscountNote ?? ""}
+                            onChange={handleEditChange}
+                            placeholder="e.g. Regular Sale"
+                            className="w-full bg-white rounded-lg px-3 py-2 text-xs sm:text-sm outline-none border border-rose-200 focus:border-rose-400"
+                          />
+                        </div>
+                        <p className="text-[11px] text-rose-700 mt-1.5">
+                          Selected users see the special discount above. Everyone else sees this one.
+                        </p>
+                      </div>
+
                       {/* SEARCH */}
                       <div className="relative">
                         <Search size={16} className="absolute left-3 top-3 text-gray-400" />
@@ -1027,7 +1119,7 @@ const GetAllProducts = () => {
                                     key={id}
                                     className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 text-[11px] px-2 py-0.5 rounded-full font-medium"
                                   >
-                                    {matchedUser?.name || matchedUser?.email || id}
+                                    {matchedUser?.name || matchedUser?.email || getUserLabel(id)}
                                     <button
                                       type="button"
                                       onClick={() => toggleUserSelection(id)}
