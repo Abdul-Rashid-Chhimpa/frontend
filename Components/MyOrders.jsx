@@ -1094,7 +1094,7 @@ const MyOrders = () => {
           }
           .qr-box img {
             width: 100px;
-            height: 110px;
+            height: 130px;
             border: 1px solid #000;
             padding: 2px;
           }
