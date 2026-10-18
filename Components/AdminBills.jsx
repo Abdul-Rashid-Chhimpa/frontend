@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import axios from "axios";
 import toast from "react-hot-toast";
 import {
@@ -8,40 +8,79 @@ import {
   Search,
   RefreshCw,
   Trash2,
+  CheckSquare,
+  Square,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-// Helper function: Convert number to Words (Indian Currency Format)
+// ======================================================
+// NUMBER TO WORDS
+// ======================================================
 const numberToWords = (num) => {
   if (!num || isNaN(num)) return "Rupees Zero Only";
   const a = [
     "", "One ", "Two ", "Three ", "Four ", "Five ", "Six ", "Seven ", "Eight ", "Nine ", "Ten ",
-    "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen "
+    "Eleven ", "Twelve ", "Thirteen ", "Fourteen ", "Fifteen ", "Sixteen ", "Seventeen ", "Eighteen ", "Nineteen ",
   ];
   const b = ["", "", "Twenty", "Thirty", "Forty", "Fifty", "Sixty", "Seventy", "Eighty", "Ninety"];
-
   const inWords = (n) => {
     if ((n = n.toString()).length > 9) return "overflow";
-    let n_array = ("000000000" + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+    const n_array = ("000000000" + n).substr(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
     if (!n_array) return "";
     let str = "";
     str += n_array[1] != 0 ? (a[Number(n_array[1])] || b[n_array[1][0]] + " " + a[n_array[1][1]]) + "Crore " : "";
     str += n_array[2] != 0 ? (a[Number(n_array[2])] || b[n_array[2][0]] + " " + a[n_array[2][1]]) + "Lakh " : "";
     str += n_array[3] != 0 ? (a[Number(n_array[3])] || b[n_array[3][0]] + " " + a[n_array[3][1]]) + "Thousand " : "";
     str += n_array[4] != 0 ? (a[Number(n_array[4])] || b[n_array[4][0]] + " " + a[n_array[4][1]]) + "Hundred " : "";
-    str += n_array[5] != 0 ? ((str != "") ? "and " : "") + (a[Number(n_array[5])] || b[n_array[5][0]] + " " + a[n_array[5][1]]) : "";
+    str += n_array[5] != 0 ? (str != "" ? "and " : "") + (a[Number(n_array[5])] || b[n_array[5][0]] + " " + a[n_array[5][1]]) : "";
     return str;
   };
-  const amount = Math.floor(num);
-  return `Rupees ${inWords(amount).trim()} Only`;
+  return `Rupees ${inWords(Math.floor(num)).trim()} Only`;
 };
 
+// ======================================================
+// INVOICE SERIAL (starts from 1001)
+// ======================================================
+const INVOICE_PREFIX = "PLC";
+
+const getFinancialYearLabel = (dateValue) => {
+  const d = new Date(dateValue);
+  if (isNaN(d.getTime())) return "00-00";
+  const startYear = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1;
+  return `${String(startYear).slice(-2)}-${String(startYear + 1).slice(-2)}`;
+};
+
+const buildInvoiceNumberMap = (allOrders) => {
+  const sorted = [...allOrders].sort((x, y) => {
+    const tx = new Date(x.createdAt || 0).getTime();
+    const ty = new Date(y.createdAt || 0).getTime();
+    if (tx !== ty) return tx - ty;
+    return String(x._id).localeCompare(String(y._id));
+  });
+
+  const counters = {};
+  const map = {};
+
+  sorted.forEach((order) => {
+    const fy = getFinancialYearLabel(order.createdAt);
+    counters[fy] = (counters[fy] || 1000) + 1; // 1001 se start
+    map[String(order._id)] = `${INVOICE_PREFIX}/${fy}/${String(counters[fy]).padStart(4, "0")}`;
+  });
+
+  return map;
+};
+
+// ======================================================
+// MAIN COMPONENT
+// ======================================================
 const AdminBills = () => {
   const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [selectedIds, setSelectedIds] = useState([]); // multi-select
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const companyDetails = {
     name: "PEDWAL LIFE CREATION",
@@ -56,25 +95,24 @@ const AdminBills = () => {
     proprietor: "Mohammed Arif",
   };
 
+  // ====================================================
+  // FETCH ORDERS
+  // ====================================================
   const fetchOrders = async () => {
     try {
       setLoading(true);
 
-      // 1. Fetch Global Product Catalog for Real-time Dynamic GST fallback
       let gstMap = {};
       try {
         const prodRes = await axios.get("https://backend-3-axez.onrender.com/api/products");
         const allProducts = prodRes.data.products || prodRes.data || [];
         allProducts.forEach((p) => {
-          if (p._id) {
-            gstMap[String(p._id)] = p.gst !== undefined ? Number(p.gst) : 0;
-          }
+          if (p._id) gstMap[String(p._id)] = p.gst !== undefined ? Number(p.gst) : 0;
         });
       } catch (prodErr) {
-        console.error("Failed fetching dynamic global product GST list:", prodErr);
+        console.error("Failed fetching product GST list:", prodErr);
       }
 
-      // 2. Fetch Orders List
       const token = localStorage.getItem("token");
       const { data } = await axios.get(
         "https://backend-3-axez.onrender.com/api/orders/all",
@@ -82,18 +120,16 @@ const AdminBills = () => {
       );
 
       let rawOrders = [];
-      if (data.success && data.orders) {
-        rawOrders = data.orders;
-      } else if (Array.isArray(data)) {
-        rawOrders = data;
-      }
+      if (data.success && data.orders) rawOrders = data.orders;
+      else if (Array.isArray(data)) rawOrders = data;
 
-      // 3. Dynamic GST Value Injection loop
+      // Serial numbers
+      const invoiceMap = buildInvoiceNumberMap(rawOrders);
+
       const mappedOrders = rawOrders.map((order) => {
         const itemsList = order.items || order.orderItems || [];
         const updatedItems = itemsList.map((item) => {
           const pId = String(item.productId?._id || item.productId || item.id || item._id || "");
-          
           let dynamicGst = 0;
           if (item.gst !== undefined && item.gst !== null && Number(item.gst) >= 0) {
             dynamicGst = Number(item.gst);
@@ -102,20 +138,18 @@ const AdminBills = () => {
           } else if (item.productId && typeof item.productId === "object" && item.productId.gst !== undefined) {
             dynamicGst = Number(item.productId.gst);
           }
-
-          return {
-            ...item,
-            gst: dynamicGst,
-          };
+          return { ...item, gst: dynamicGst };
         });
 
         return {
           ...order,
           items: updatedItems,
+          invoiceNo: order.invoiceNumber || invoiceMap[String(order._id)] || `${INVOICE_PREFIX}/00-00/1001`,
         };
       });
 
       setOrders(mappedOrders);
+      setSelectedIds([]); // clear selection on refresh
     } catch (error) {
       console.error("Error fetching bills:", error);
       toast.error("Failed to fetch bills");
@@ -128,6 +162,9 @@ const AdminBills = () => {
     fetchOrders();
   }, []);
 
+  // ====================================================
+  // SINGLE DELETE
+  // ====================================================
   const handleDeleteOrder = async (orderId) => {
     const confirmDelete = window.confirm("Are you sure you want to permanently delete this order/bill?");
     if (!confirmDelete) return;
@@ -140,6 +177,7 @@ const AdminBills = () => {
       if (data.success || data.message) {
         toast.success("Order/Bill deleted successfully");
         setOrders((prev) => prev.filter((item) => item._id !== orderId));
+        setSelectedIds((prev) => prev.filter((id) => id !== orderId));
       } else {
         toast.error(data.message || "Failed to delete order");
       }
@@ -151,43 +189,98 @@ const AdminBills = () => {
     }
   };
 
-  // Helper Shipping Fee Extraction Handler
+  // ====================================================
+  // MULTI-SELECT + BULK DELETE
+  // ====================================================
+  const toggleSelect = (orderId) => {
+    setSelectedIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === filteredOrders.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(filteredOrders.map((o) => o._id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) {
+      toast.error("Please select at least one bill");
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      `Are you sure you want to permanently delete ${selectedIds.length} selected bill(s)?`
+    );
+    if (!confirmDelete) return;
+
+    try {
+      setBulkDeleting(true);
+      let successCount = 0;
+
+      for (const id of selectedIds) {
+        try {
+          const { data } = await axios.delete(
+            `https://backend-3-axez.onrender.com/api/orders/delete/${id}`
+          );
+          if (data.success || data.message) successCount++;
+        } catch (err) {
+          console.error(`Failed to delete ${id}:`, err);
+        }
+      }
+
+      setOrders((prev) => prev.filter((item) => !selectedIds.includes(item._id)));
+      setSelectedIds([]);
+      toast.success(`${successCount} bill(s) deleted successfully`);
+    } catch (error) {
+      console.error(error);
+      toast.error("Some bills could not be deleted");
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  // ====================================================
+  // SHIPPING FEE
+  // ====================================================
   const extractShippingFee = (order) => {
     let fee = Number(
       order.shippingCharge ??
-      order.deliveryFee ??
-      order.shippingCost ??
-      order.deliveryCharge ??
-      order.shippingAmount ??
-      order.delivery?.charge ??
-      0
+        order.deliveryFee ??
+        order.shippingCost ??
+        order.deliveryCharge ??
+        order.shippingAmount ??
+        order.delivery?.charge ??
+        0
     );
 
     const itemsList = order.items || order.orderItems || [];
     if (fee === 0 && Array.isArray(itemsList)) {
       itemsList.forEach((item) => {
-        const itemShipping = Number(
-          item.deliveryCharge ??
-          item.deliveryFee ??
-          item.shippingCharge ??
-          item.delivery?.charge ??
-          0
+        fee += Number(
+          item.deliveryCharge ?? item.deliveryFee ?? item.shippingCharge ?? item.delivery?.charge ?? 0
         );
-        fee += itemShipping;
       });
     }
 
     if (fee === 0 && order.totalAmount && itemsList.length > 0) {
-      const itemsSum = itemsList.reduce((acc, it) => acc + (Number(it.price || 0) * Number(it.quantity || it.qty || 1)), 0);
+      const itemsSum = itemsList.reduce(
+        (acc, it) => acc + Number(it.price || 0) * Number(it.quantity || it.qty || 1),
+        0
+      );
       if (Number(order.totalAmount) > itemsSum) {
         fee = Number(order.totalAmount) - itemsSum;
       }
     }
-
     return fee;
   };
 
-  // Dynamic GST Invoice Print / Download Handler
+  // ====================================================
+  // PRINT INVOICE
+  // ====================================================
   const handlePrintInvoice = (order) => {
     const printWindow = window.open("", "_blank");
     if (!printWindow) {
@@ -205,6 +298,7 @@ const AdminBills = () => {
 
     const itemsList = order.items || order.orderItems || [];
     const shippingFee = extractShippingFee(order);
+    const invoiceNumber = order.invoiceNo || `${INVOICE_PREFIX}/00-00/1001`;
 
     let itemsTableRows = "";
     let calculatedItemsTotal = 0;
@@ -214,7 +308,6 @@ const AdminBills = () => {
       const unitPrice = Number(item.price || 0);
       const qty = Number(item.quantity || item.qty || 1);
       const lineTotal = unitPrice * qty;
-
       const itemGstRate = Number(item.gst || 0);
       const totalTaxAmt = itemGstRate > 0 ? (lineTotal * itemGstRate) / 100 : 0;
 
@@ -223,21 +316,21 @@ const AdminBills = () => {
 
       itemsTableRows += `
         <tr>
-          <td style="text-align: center;">${i + 1}</td>
+          <td style="text-align:center;">${i + 1}</td>
           <td>${item.title || item.name || item.productId?.name || "Product Item"}</td>
-          <td style="text-align: center;">${item.hsnCode || item.productId?.hsnCode || "8203"}</td>
-          <td style="text-align: center;">${qty}</td>
-          <td style="text-align: center;">${item.unit || "PCS"}</td>
-          <td style="text-align: right;">Rs. ${unitPrice.toFixed(2)}</td>
-          <td style="text-align: right; font-weight: bold;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">${item.discount || "-"}</td>
-          <td style="text-align: center; font-weight: bold;">${itemGstRate}%</td>
-          <td style="text-align: right; font-weight: bold;">Rs. ${totalTaxAmt.toFixed(2)}</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
+          <td style="text-align:center;">${item.hsnCode || item.productId?.hsnCode || "8203"}</td>
+          <td style="text-align:center;">${qty}</td>
+          <td style="text-align:center;">${item.unit || "PCS"}</td>
+          <td style="text-align:right;">Rs. ${unitPrice.toFixed(2)}</td>
+          <td style="text-align:right;font-weight:bold;">Rs. ${lineTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">${item.discount || "-"}</td>
+          <td style="text-align:center;font-weight:bold;">${itemGstRate}%</td>
+          <td style="text-align:right;font-weight:bold;">Rs. ${totalTaxAmt.toFixed(2)}</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">-</td>
         </tr>
       `;
     });
@@ -246,21 +339,21 @@ const AdminBills = () => {
     if (shippingFee > 0) {
       itemsTableRows += `
         <tr>
-          <td style="text-align: center;">${rowCounter}</td>
+          <td style="text-align:center;">${rowCounter}</td>
           <td>Delivery / Shipping Charge</td>
-          <td style="text-align: center;">9965</td>
-          <td style="text-align: center;">1</td>
-          <td style="text-align: center;">NOS</td>
-          <td style="text-align: right;">Rs. ${shippingFee.toFixed(2)}</td>
-          <td style="text-align: right; font-weight: bold;">Rs. ${shippingFee.toFixed(2)}</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">0%</td>
-          <td style="text-align: right;">Rs. 0.00</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
-          <td style="text-align: center;">-</td>
+          <td style="text-align:center;">9965</td>
+          <td style="text-align:center;">1</td>
+          <td style="text-align:center;">NOS</td>
+          <td style="text-align:right;">Rs. ${shippingFee.toFixed(2)}</td>
+          <td style="text-align:right;font-weight:bold;">Rs. ${shippingFee.toFixed(2)}</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">0%</td>
+          <td style="text-align:right;">Rs. 0.00</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">-</td>
+          <td style="text-align:center;">-</td>
         </tr>
       `;
     }
@@ -289,7 +382,7 @@ const AdminBills = () => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Invoice #${order._id ? order._id.slice(-6).toUpperCase() : "N/A"}</title>
+      <title>Invoice ${invoiceNumber}</title>
       <style>
         * { box-sizing: border-box; font-family: Arial, sans-serif; font-size: 11px; }
         body { padding: 10px; background: #fff; color: #000; }
@@ -323,14 +416,16 @@ const AdminBills = () => {
           <div class="company-sub">E-mail Address:- ${companyDetails.email}</div>
           <div class="company-sub">Contact no. ${companyDetails.phone}</div>
         </div>
+
         <div class="info-grid">
           <div class="info-box">
             <span class="info-title">INVOICE DETAILS</span>
             <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${companyDetails.gstin}</span></div>
             <div class="info-row"><span class="info-label">Name</span><span>: ${companyDetails.name}</span></div>
             <div class="info-row"><span class="info-label">Address</span><span>: ${companyDetails.address}</span></div>
-            <div class="info-row"><span class="info-label">Invoice no.</span><span>: ${order._id ? order._id.slice(-6).toUpperCase() : "N/A"}</span></div>
+            <div class="info-row"><span class="info-label">Invoice no.</span><span>: <strong>${invoiceNumber}</strong></span></div>
             <div class="info-row"><span class="info-label">Invoice Date</span><span>: ${orderDate}</span></div>
+            <div class="info-row"><span class="info-label">Cases / Parcel</span><span>: _______________</span></div>
           </div>
           <div class="info-box">
             <span class="info-title">DETAILS OF RECEIVER (BILLED TO)</span>
@@ -347,6 +442,7 @@ const AdminBills = () => {
             <div class="info-row"><span class="info-label">GSTIN no.</span><span>: ${customerGstin}</span></div>
           </div>
         </div>
+
         <table class="invoice-table">
           <thead>
             <tr>
@@ -370,29 +466,31 @@ const AdminBills = () => {
           <tbody>
             ${itemsTableRows}
             <tr class="total-row">
-              <td colspan="6" style="text-align: right;">Total</td>
-              <td style="text-align: right;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-              <td style="text-align: center;">-</td>
-              <td style="text-align: center;">-</td>
-              <td style="text-align: center;">-</td>
-              <td style="text-align: right;">Rs. ${calculatedTotalGstAmount.toFixed(2)}</td>
-              <td style="text-align: center;">-</td>
-              <td style="text-align: center;">-</td>
-              <td style="text-align: center;">-</td>
-              <td style="text-align: center;">-</td>
+              <td colspan="6" style="text-align:right;">Total</td>
+              <td style="text-align:right;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              <td style="text-align:center;">-</td>
+              <td style="text-align:center;">-</td>
+              <td style="text-align:center;">-</td>
+              <td style="text-align:right;">Rs. ${calculatedTotalGstAmount.toFixed(2)}</td>
+              <td style="text-align:center;">-</td>
+              <td style="text-align:center;">-</td>
+              <td style="text-align:center;">-</td>
+              <td style="text-align:center;">-</td>
             </tr>
           </tbody>
         </table>
+
         <table class="summary-table">
           <tr>
-            <td style="width: 200px; font-weight: bold;">Total Invoice Value (in figure)</td>
-            <td style="font-weight: bold; font-size: 12px;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+            <td style="width:200px;font-weight:bold;">Total Invoice Value (in figure)</td>
+            <td style="font-weight:bold;font-size:12px;">Rs. ${finalGrandTotal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           </tr>
           <tr>
-            <td style="font-weight: bold;">Total Invoice Value (in words)</td>
-            <td style="font-weight: bold; font-size: 11px;">${amountInWords}</td>
+            <td style="font-weight:bold;">Total Invoice Value (in words)</td>
+            <td style="font-weight:bold;font-size:11px;">${amountInWords}</td>
           </tr>
         </table>
+
         <div class="footer-grid">
           <div class="footer-left">
             <strong>TERMS & CONDITIONS AS BELOW:-</strong><br/>
@@ -408,7 +506,7 @@ const AdminBills = () => {
           </div>
           <div class="footer-right">
             <div><strong>For: ${companyDetails.name}</strong></div>
-            <div style="margin-top: 40px;">
+            <div style="margin-top:40px;">
               Signature : ________________________<br/>
               Name : ${companyDetails.proprietor}<br/>
               Status : PROPRIETOR<br/>
@@ -425,29 +523,45 @@ const AdminBills = () => {
     printWindow.document.close();
   };
 
-  const filteredOrders = orders.filter((order) => {
-    const custName = order.customerName || order.user?.name || "";
-    const orderId = order._id || "";
-    return (
-      orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      custName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
+  // ====================================================
+  // FILTER
+  // ====================================================
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      const custName = order.customerName || order.user?.name || "";
+      const orderId = order._id || "";
+      const invoiceNo = order.invoiceNo || "";
+      const term = searchTerm.toLowerCase();
+      return (
+        orderId.toLowerCase().includes(term) ||
+        custName.toLowerCase().includes(term) ||
+        invoiceNo.toLowerCase().includes(term)
+      );
+    });
+  }, [orders, searchTerm]);
 
+  const allSelected =
+    filteredOrders.length > 0 && selectedIds.length === filteredOrders.length;
+
+  // ====================================================
+  // UI
+  // ====================================================
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 md:p-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <button
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium"
           >
             <ArrowLeft size={18} /> Back
           </button>
+
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 flex items-center gap-2">
             <ReceiptText className="text-indigo-600" /> Admin Bills & GST Invoices
           </h1>
+
           <button
             onClick={fetchOrders}
             className="p-2 bg-white border border-gray-200 rounded-xl shadow-sm hover:bg-gray-50 flex items-center gap-2 text-sm font-medium text-gray-600"
@@ -456,16 +570,40 @@ const AdminBills = () => {
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 flex items-center gap-3">
-          <Search size={20} className="text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search by Order ID or Customer Name..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full outline-none text-sm text-gray-700"
-          />
+        {/* Search + Bulk Actions */}
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="flex items-center gap-3 flex-1">
+            <Search size={20} className="text-gray-400 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search by Order ID, Invoice No or Customer Name..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full outline-none text-sm text-gray-700"
+            />
+          </div>
+
+          {/* Select All + Bulk Delete */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={toggleSelectAll}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition"
+            >
+              {allSelected ? <CheckSquare size={16} className="text-indigo-600" /> : <Square size={16} />}
+              {allSelected ? "Deselect All" : "Select All"}
+            </button>
+
+            {selectedIds.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                disabled={bulkDeleting}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 disabled:bg-red-400 rounded-xl transition shadow-sm"
+              >
+                <Trash2 size={15} />
+                {bulkDeleting ? "Deleting..." : `Delete (${selectedIds.length})`}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Orders / Bills List */}
@@ -480,33 +618,67 @@ const AdminBills = () => {
             {filteredOrders.map((order) => {
               const amount = Number(order.totalAmount || order.totalPrice || 0);
               const name = order.customerName || order.user?.name || "Customer";
-              const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "N/A";
+              const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "N/A";
               const itemsList = order.items || order.orderItems || [];
               const itemsCount = itemsList.length;
+              const isSelected = selectedIds.includes(order._id);
+              const invoiceNo = order.invoiceNo || "—";
 
               return (
                 <div
                   key={order._id}
-                  className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm hover:shadow-md transition flex flex-col justify-between"
+                  className={`bg-white rounded-2xl p-5 border shadow-sm hover:shadow-md transition flex flex-col justify-between ${
+                    isSelected ? "border-indigo-500 ring-2 ring-indigo-200" : "border-gray-100"
+                  }`}
                 >
                   <div>
+                    {/* Checkbox + Invoice No + Amount */}
                     <div className="flex justify-between items-start mb-3 border-b pb-2">
-                      <div>
-                        <p className="text-[10px] text-gray-400 uppercase font-semibold">Order ID</p>
-                        <p className="font-mono text-xs font-bold text-indigo-600">
-                          #{order._id ? order._id.slice(-8) : "N/A"}
-                        </p>
+                      <div className="flex items-start gap-2">
+                        {/* CHECKBOX */}
+                        <button
+                          onClick={() => toggleSelect(order._id)}
+                          className="mt-0.5 flex-shrink-0 text-indigo-600 hover:text-indigo-800 transition"
+                          title={isSelected ? "Deselect" : "Select"}
+                        >
+                          {isSelected ? <CheckSquare size={20} /> : <Square size={20} className="text-gray-400" />}
+                        </button>
+
+                        <div>
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Invoice No</p>
+                          <p className="font-mono text-xs font-bold text-indigo-600">
+                            {invoiceNo}
+                          </p>
+                        </div>
                       </div>
+
                       <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full">
                         ₹{amount.toLocaleString()}
                       </span>
                     </div>
 
+                    {/* Unique Order ID */}
+                    <div className="mb-2">
+                      <p className="text-[10px] text-gray-400 uppercase font-semibold">Unique Order ID</p>
+                      <p className="font-mono text-[11px] text-gray-700 break-all">
+                        {order._id}
+                      </p>
+                    </div>
+
                     <div className="text-xs text-gray-600 space-y-1 mb-4">
-                      <p><span className="font-semibold text-gray-800">Customer:</span> {name}</p>
-                      <p><span className="font-semibold text-gray-800">Date:</span> {date}</p>
-                      <p><span className="font-semibold text-gray-800">Total Items:</span> {itemsCount}</p>
-                      <p><span className="font-semibold text-gray-800">Status:</span> {order.status || "Pending"}</p>
+                      <p>
+                        <span className="font-semibold text-gray-800">Customer:</span> {name}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-gray-800">Date:</span> {date}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-gray-800">Total Items:</span> {itemsCount}
+                      </p>
+                      <p>
+                        <span className="font-semibold text-gray-800">Status:</span>{" "}
+                        {order.status || "Pending"}
+                      </p>
                     </div>
                   </div>
 
