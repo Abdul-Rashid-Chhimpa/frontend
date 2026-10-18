@@ -48,7 +48,7 @@ const COMPANY_STATE = "rajasthan";
 
 // Real Pedwal QR + Logo (public folder mein daalo)
 const PAYMENT_QR_SRC = "/pedwal_qr_scanner.jpg";
-const LOGO_SRC = "/pedwal-logo.png";
+const LOGO_SRC = "/logowithqoute.png";
 
 // ======================================================
 // TEAR LINE
