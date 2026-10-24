@@ -10,8 +10,11 @@ import {
   Trash2,
   CheckSquare,
   Square,
+  Boxes,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+
+const API_BASE = "https://backend-3-axez.onrender.com";
 
 // ======================================================
 // NUMBER TO WORDS
@@ -82,6 +85,10 @@ const AdminBills = () => {
   const [selectedIds, setSelectedIds] = useState([]); // multi-select
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
+  // --- CASES / PARCELS (admin sets, customer sees in My Orders) ---
+  const [casesDrafts, setCasesDrafts] = useState({}); // { orderId: "3" } typed but not saved yet
+  const [savingCasesId, setSavingCasesId] = useState(null);
+
   const companyDetails = {
     name: "PEDWAL LIFE CREATION",
     address: "NAGAUR-341001, RAJASTHAN",
@@ -144,12 +151,14 @@ const AdminBills = () => {
         return {
           ...order,
           items: updatedItems,
+          casesNumber: Number(order.casesNumber) || 0,
           invoiceNo: order.invoiceNumber || invoiceMap[String(order._id)] || `${INVOICE_PREFIX}/00-00/1001`,
         };
       });
 
       setOrders(mappedOrders);
       setSelectedIds([]); // clear selection on refresh
+      setCasesDrafts({}); // clear unsaved cases inputs on refresh
     } catch (error) {
       console.error("Error fetching bills:", error);
       toast.error("Failed to fetch bills");
@@ -161,6 +170,57 @@ const AdminBills = () => {
   useEffect(() => {
     fetchOrders();
   }, []);
+
+  // ====================================================
+  // SAVE CASES NUMBER (parcels)
+  // ====================================================
+  const handleSaveCases = async (order) => {
+    const draft = casesDrafts[order._id];
+    const raw = draft !== undefined ? draft : order.casesNumber;
+    const value = raw === "" || raw === undefined || raw === null ? 0 : Number(raw);
+
+    if (!Number.isInteger(value) || value < 0 || value > 9999) {
+      toast.error("Enter a valid number of cases (0 or more)");
+      return;
+    }
+
+    try {
+      setSavingCasesId(order._id);
+
+      const token = localStorage.getItem("token");
+
+      const { data } = await axios.put(
+        `${API_BASE}/api/orders/cases/${order._id}`,
+        { casesNumber: value },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      if (data.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o._id === order._id ? { ...o, casesNumber: value } : o))
+        );
+
+        setCasesDrafts((prev) => {
+          const next = { ...prev };
+          delete next[order._id];
+          return next;
+        });
+
+        toast.success(
+          value > 0
+            ? `${value} parcel${value === 1 ? "" : "s"} saved - customer can see it now`
+            : "Cases number cleared"
+        );
+      } else {
+        toast.error(data.message || "Failed to save cases number");
+      }
+    } catch (error) {
+      console.error("Save cases error:", error);
+      toast.error(error.response?.data?.message || "Server Error: Unable to save cases number");
+    } finally {
+      setSavingCasesId(null);
+    }
+  };
 
   // ====================================================
   // SINGLE DELETE
@@ -300,6 +360,9 @@ const AdminBills = () => {
     const shippingFee = extractShippingFee(order);
     const invoiceNumber = order.invoiceNo || `${INVOICE_PREFIX}/00-00/1001`;
 
+    // Cases / parcels set by admin (blank line if not set yet)
+    const casesText = Number(order.casesNumber) > 0 ? String(order.casesNumber) : "_______________";
+
     let itemsTableRows = "";
     let calculatedItemsTotal = 0;
     let calculatedTotalGstAmount = 0;
@@ -425,7 +488,7 @@ const AdminBills = () => {
             <div class="info-row"><span class="info-label">Address</span><span>: ${companyDetails.address}</span></div>
             <div class="info-row"><span class="info-label">Invoice no.</span><span>: <strong>${invoiceNumber}</strong></span></div>
             <div class="info-row"><span class="info-label">Invoice Date</span><span>: ${orderDate}</span></div>
-            <div class="info-row"><span class="info-label">Cases / Parcel</span><span>: _______________</span></div>
+            <div class="info-row"><span class="info-label">Cases / Parcel</span><span>: ${casesText}</span></div>
           </div>
           <div class="info-box">
             <span class="info-title">DETAILS OF RECEIVER (BILLED TO)</span>
@@ -624,6 +687,15 @@ const AdminBills = () => {
               const isSelected = selectedIds.includes(order._id);
               const invoiceNo = order.invoiceNo || "—";
 
+              // Cases / parcels input state
+              const savedCases = Number(order.casesNumber) || 0;
+              const draftCases = casesDrafts[order._id];
+              const casesInputValue =
+                draftCases !== undefined ? draftCases : savedCases > 0 ? String(savedCases) : "";
+              const casesChanged =
+                draftCases !== undefined && Number(draftCases || 0) !== savedCases;
+              const savingCases = savingCasesId === order._id;
+
               return (
                 <div
                   key={order._id}
@@ -678,6 +750,50 @@ const AdminBills = () => {
                       <p>
                         <span className="font-semibold text-gray-800">Status:</span>{" "}
                         {order.status || "Pending"}
+                      </p>
+                    </div>
+
+                    {/* CASES / PARCELS (customer sees this in My Orders) */}
+                    <div className="mb-4 p-3 rounded-xl bg-amber-50/70 border border-amber-100">
+                      <p className="text-[10px] text-amber-800 uppercase font-semibold mb-2 flex items-center gap-1.5">
+                        <Boxes size={13} />
+                        Cases / Parcels
+                      </p>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          min="0"
+                          step="1"
+                          inputMode="numeric"
+                          value={casesInputValue}
+                          onChange={(e) =>
+                            setCasesDrafts((prev) => ({
+                              ...prev,
+                              [order._id]: e.target.value,
+                            }))
+                          }
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleSaveCases(order);
+                          }}
+                          placeholder="e.g. 3"
+                          className="w-full bg-white border border-amber-200 focus:border-amber-400 rounded-lg px-3 py-1.5 text-sm outline-none"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => handleSaveCases(order)}
+                          disabled={savingCases || !casesChanged}
+                          className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg transition"
+                        >
+                          {savingCases ? "Saving..." : "Save"}
+                        </button>
+                      </div>
+
+                      <p className="text-[11px] mt-1.5 text-amber-900/80">
+                        {savedCases > 0
+                          ? `Customer sees: ${savedCases} parcel${savedCases === 1 ? "" : "s"}`
+                          : "Not set yet - customer sees nothing"}
                       </p>
                     </div>
                   </div>
