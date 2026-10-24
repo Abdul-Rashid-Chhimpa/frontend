@@ -13,6 +13,8 @@ import {
   Download,
   Trash2,
   Printer,
+  Boxes,
+  Lock,
 } from "lucide-react";
 
 // ======================================================
@@ -356,7 +358,7 @@ const buildInvoiceNumberMap = (allOrders) => {
   sorted.forEach((order) => {
     const fy = getFinancialYearLabel(order.createdAt);
 
-    counters[fy] = (counters[fy] || 0) + 1;
+    counters[fy] = (counters[fy] || 1000) + 1; // start from 1001
 
     map[String(order._id)] = `${INVOICE_PREFIX}/${fy}/${String(
       counters[fy]
@@ -747,6 +749,8 @@ const MyOrders = () => {
 
           status: order.status || "Pending",
 
+          casesNumber: Number(order.casesNumber) || 0,
+
           invoiceNo: order.invoiceNumber || invoiceMap[String(order._id)],
 
           statusUpdatedAt: order.statusUpdatedAt || order.updatedAt || null,
@@ -938,17 +942,32 @@ const MyOrders = () => {
   // INVOICE
   // ====================================================
 
-  const handleDownloadInvoice = (order) => {
+  const handleDownloadInvoice = (order, billCopy = 1) => {
     const normalizedStatus = normalizeStatus(order.status);
 
-    // Invoice only after admin confirmation
-    const isUnlocked = ["Confirmed", "Shipped", "Delivered"].includes(
+    // Bill 1: unlocks after admin confirms the order
+    const isStatusUnlocked = ["Confirmed", "Shipped", "Delivered"].includes(
       normalizedStatus
     );
 
-    if (!isUnlocked) {
-      toast.error("Invoice will unlock once the admin confirms your order!");
+    // Bill 2 (duplicate with cases): unlocks only after admin sets casesNumber
+    const casesCount = Number(order.casesNumber) || 0;
+    const isCasesUnlocked = casesCount > 0;
 
+    if (billCopy === 1 && !isStatusUnlocked) {
+      toast.error("Invoice will unlock once the admin confirms your order!");
+      return;
+    }
+
+    if (billCopy === 2 && !isCasesUnlocked) {
+      toast.error(
+        "Parcel bill is locked. It will unlock when admin updates the cases / parcel number."
+      );
+      return;
+    }
+
+    if (billCopy === 2 && !isStatusUnlocked) {
+      toast.error("Order is not confirmed yet.");
       return;
     }
 
@@ -974,41 +993,10 @@ const MyOrders = () => {
         })
       : "N/A";
 
-    // ------------------------------------------------
-    // CUSTOMER DETAILS
-    // ------------------------------------------------
+    // Cases number comes only from admin (Order.casesNumber)
+    const casesNumber = casesCount > 0 ? String(casesCount) : "";
 
-    // ------------------------------------------------
-    // CASES NUMBER (filled manually by the user)
-    // ------------------------------------------------
-    // Asked every time the invoice is opened/printed. The last value typed
-    // for this order is remembered. Leave it empty (or press Cancel) to
-    // print a blank line that can be filled by hand on the paper bill.
-
-    const casesKey = `invoice_cases_${order._id}`;
-
-    let savedCases = "";
-
-    try {
-      savedCases = localStorage.getItem(casesKey) || "";
-    } catch (err) {
-      savedCases = "";
-    }
-
-    const casesInput = window.prompt(
-      "Enter Cases Number for this invoice.\n(Leave empty to fill it by hand on the printed bill)",
-      order.casesNumber || savedCases
-    );
-
-    const casesNumber = String(casesInput ?? "").trim();
-
-    try {
-      if (casesNumber) {
-        localStorage.setItem(casesKey, casesNumber);
-      }
-    } catch (err) {
-      // ignore storage errors
-    }
+    const billLabel = billCopy === 2 ? " (Copy 2 – Parcel)" : "";
 
     const escapeHtml = (value) =>
       String(value)
@@ -1205,7 +1193,7 @@ const MyOrders = () => {
 
     const amountInWords = numberToWords(finalGrandTotal);
 
-    const invoiceTitle = `Invoice_${invoiceNumber.replace(/\//g, "-")}`;
+    const invoiceTitle = `Invoice_${invoiceNumber.replace(/\//g, "-")}${billLabel}`;
 
     // =================================================
     // INVOICE HTML
@@ -1850,6 +1838,12 @@ const MyOrders = () => {
         background: BG,
       }}
     >
+      <style>{`
+        @keyframes casesPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(240, 164, 32, 0.35); }
+          50% { box-shadow: 0 0 0 6px rgba(240, 164, 32, 0); }
+        }
+      `}</style>
       <div className="max-w-5xl mx-auto space-y-6">
         {/* PAGE HEADER */}
 
@@ -1923,6 +1917,9 @@ const MyOrders = () => {
                 displayStatus
               );
 
+              const casesCount = Number(order.casesNumber) || 0;
+              const isCasesUnlocked = casesCount > 0;
+
               const shippingFee = extractShippingFee(order);
 
               return (
@@ -1954,7 +1951,7 @@ const MyOrders = () => {
                         <span className="font-mono">{order._id}</span>
                       </div>
 
-                      <div className="flex items-center gap-3 text-xs sm:text-sm">
+                      <div className="flex items-center gap-3 text-xs sm:text-sm flex-wrap">
                         <span
                           className="font-semibold font-mono"
                           style={{
@@ -1978,6 +1975,34 @@ const MyOrders = () => {
                                 year: "numeric",
                               }
                             )}
+                          </span>
+                        )}
+
+                        {/* Cases / Parcels – admin sets this */}
+                        {isCasesUnlocked ? (
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold"
+                            style={{
+                              background: "rgba(240, 164, 32, 0.15)",
+                              color: AMBER_DARK,
+                              border: `1px solid ${AMBER}`,
+                              animation: "casesPulse 2s ease-in-out infinite",
+                            }}
+                          >
+                            <Boxes size={12} />
+                            {casesCount} parcel{casesCount === 1 ? "" : "s"}
+                          </span>
+                        ) : (
+                          <span
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold"
+                            style={{
+                              background: SURFACE_MUTED,
+                              color: MUTED,
+                              border: `1px solid ${BORDER}`,
+                            }}
+                          >
+                            <Lock size={11} />
+                            Parcels pending
                           </span>
                         )}
                       </div>
@@ -2147,36 +2172,52 @@ const MyOrders = () => {
                     {/* ACTIONS */}
 
                     <div className="flex items-center gap-2 flex-wrap">
-                      {/* INVOICE */}
-
+                      {/* BILL 1 – unlocks on admin order confirm */}
                       <button
-                        onClick={() => handleDownloadInvoice(order)}
+                        onClick={() => handleDownloadInvoice(order, 1)}
                         disabled={!isUnlocked}
                         className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
                         style={{
                           background: AMBER,
                           color: "#1A1200",
                         }}
+                        title={
+                          isUnlocked
+                            ? "Download / print invoice"
+                            : "Unlocks when admin confirms order"
+                        }
                       >
-                        <Download size={15} />
-                        Invoice
+                        {!isUnlocked ? <Lock size={14} /> : <Download size={15} />}
+                        Bill 1
                       </button>
 
-                      {/* PRINT */}
-
-                      {isUnlocked && (
-                        <button
-                          onClick={() => handleDownloadInvoice(order)}
-                          className="flex items-center gap-2 px-3 py-2 rounded-xl font-semibold text-sm transition"
-                          style={{
-                            background: SURFACE_MUTED,
-                            color: INK,
-                          }}
-                        >
+                      {/* BILL 2 – unlocks only when admin sets cases number */}
+                      <button
+                        onClick={() => handleDownloadInvoice(order, 2)}
+                        disabled={!isUnlocked || !isCasesUnlocked}
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        style={{
+                          background: isCasesUnlocked ? STEEL : SURFACE_MUTED,
+                          color: isCasesUnlocked ? "#FFFFFF" : MUTED,
+                        }}
+                        title={
+                          isCasesUnlocked
+                            ? "Parcel copy – same details + cases number"
+                            : "Locked until admin updates cases / parcel number"
+                        }
+                      >
+                        {!isCasesUnlocked ? (
+                          <Lock size={14} />
+                        ) : (
                           <Printer size={15} />
-                          Print
-                        </button>
-                      )}
+                        )}
+                        Bill 2
+                        {!isCasesUnlocked && (
+                          <span className="text-[10px] font-bold opacity-80">
+                            LOCKED
+                          </span>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
