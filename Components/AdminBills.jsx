@@ -82,11 +82,11 @@ const AdminBills = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [deletingId, setDeletingId] = useState(null);
-  const [selectedIds, setSelectedIds] = useState([]); // multi-select
+  const [selectedIds, setSelectedIds] = useState([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
 
-  // --- CASES / PARCELS (admin sets, customer sees in My Orders) ---
-  const [casesDrafts, setCasesDrafts] = useState({}); // { orderId: "3" } typed but not saved yet
+  // Cases / Parcels
+  const [casesDrafts, setCasesDrafts] = useState({});
   const [savingCasesId, setSavingCasesId] = useState(null);
 
   const companyDetails = {
@@ -111,7 +111,7 @@ const AdminBills = () => {
 
       let gstMap = {};
       try {
-        const prodRes = await axios.get("https://backend-3-axez.onrender.com/api/products");
+        const prodRes = await axios.get(`${API_BASE}/api/products`);
         const allProducts = prodRes.data.products || prodRes.data || [];
         allProducts.forEach((p) => {
           if (p._id) gstMap[String(p._id)] = p.gst !== undefined ? Number(p.gst) : 0;
@@ -121,16 +121,14 @@ const AdminBills = () => {
       }
 
       const token = localStorage.getItem("token");
-      const { data } = await axios.get(
-        "https://backend-3-axez.onrender.com/api/orders/all",
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const { data } = await axios.get(`${API_BASE}/api/orders/all`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       let rawOrders = [];
       if (data.success && data.orders) rawOrders = data.orders;
       else if (Array.isArray(data)) rawOrders = data;
 
-      // Serial numbers
       const invoiceMap = buildInvoiceNumberMap(rawOrders);
 
       const mappedOrders = rawOrders.map((order) => {
@@ -142,7 +140,11 @@ const AdminBills = () => {
             dynamicGst = Number(item.gst);
           } else if (pId && gstMap[pId] !== undefined) {
             dynamicGst = gstMap[pId];
-          } else if (item.productId && typeof item.productId === "object" && item.productId.gst !== undefined) {
+          } else if (
+            item.productId &&
+            typeof item.productId === "object" &&
+            item.productId.gst !== undefined
+          ) {
             dynamicGst = Number(item.productId.gst);
           }
           return { ...item, gst: dynamicGst };
@@ -152,13 +154,16 @@ const AdminBills = () => {
           ...order,
           items: updatedItems,
           casesNumber: Number(order.casesNumber) || 0,
-          invoiceNo: order.invoiceNumber || invoiceMap[String(order._id)] || `${INVOICE_PREFIX}/00-00/1001`,
+          invoiceNo:
+            order.invoiceNumber ||
+            invoiceMap[String(order._id)] ||
+            `${INVOICE_PREFIX}/00-00/1001`,
         };
       });
 
       setOrders(mappedOrders);
-      setSelectedIds([]); // clear selection on refresh
-      setCasesDrafts({}); // clear unsaved cases inputs on refresh
+      setSelectedIds([]);
+      setCasesDrafts({});
     } catch (error) {
       console.error("Error fetching bills:", error);
       toast.error("Failed to fetch bills");
@@ -172,7 +177,7 @@ const AdminBills = () => {
   }, []);
 
   // ====================================================
-  // SAVE CASES NUMBER (parcels)
+  // SAVE CASES NUMBER
   // ====================================================
   const handleSaveCases = async (order) => {
     const draft = casesDrafts[order._id];
@@ -186,7 +191,6 @@ const AdminBills = () => {
 
     try {
       setSavingCasesId(order._id);
-
       const token = localStorage.getItem("token");
 
       const { data } = await axios.put(
@@ -199,16 +203,14 @@ const AdminBills = () => {
         setOrders((prev) =>
           prev.map((o) => (o._id === order._id ? { ...o, casesNumber: value } : o))
         );
-
         setCasesDrafts((prev) => {
           const next = { ...prev };
           delete next[order._id];
           return next;
         });
-
         toast.success(
           value > 0
-            ? `${value} parcel${value === 1 ? "" : "s"} saved - customer can see it now`
+            ? `${value} parcel${value === 1 ? "" : "s"} saved – customer can see it now`
             : "Cases number cleared"
         );
       } else {
@@ -216,7 +218,9 @@ const AdminBills = () => {
       }
     } catch (error) {
       console.error("Save cases error:", error);
-      toast.error(error.response?.data?.message || "Server Error: Unable to save cases number");
+      toast.error(
+        error.response?.data?.message || "Server Error: Unable to save cases number"
+      );
     } finally {
       setSavingCasesId(null);
     }
@@ -226,14 +230,14 @@ const AdminBills = () => {
   // SINGLE DELETE
   // ====================================================
   const handleDeleteOrder = async (orderId) => {
-    const confirmDelete = window.confirm("Are you sure you want to permanently delete this order/bill?");
+    const confirmDelete = window.confirm(
+      "Are you sure you want to permanently delete this order/bill?"
+    );
     if (!confirmDelete) return;
 
     try {
       setDeletingId(orderId);
-      const { data } = await axios.delete(
-        `https://backend-3-axez.onrender.com/api/orders/delete/${orderId}`
-      );
+      const { data } = await axios.delete(`${API_BASE}/api/orders/delete/${orderId}`);
       if (data.success || data.message) {
         toast.success("Order/Bill deleted successfully");
         setOrders((prev) => prev.filter((item) => item._id !== orderId));
@@ -283,9 +287,7 @@ const AdminBills = () => {
 
       for (const id of selectedIds) {
         try {
-          const { data } = await axios.delete(
-            `https://backend-3-axez.onrender.com/api/orders/delete/${id}`
-          );
+          const { data } = await axios.delete(`${API_BASE}/api/orders/delete/${id}`);
           if (data.success || data.message) successCount++;
         } catch (err) {
           console.error(`Failed to delete ${id}:`, err);
@@ -321,7 +323,11 @@ const AdminBills = () => {
     if (fee === 0 && Array.isArray(itemsList)) {
       itemsList.forEach((item) => {
         fee += Number(
-          item.deliveryCharge ?? item.deliveryFee ?? item.shippingCharge ?? item.delivery?.charge ?? 0
+          item.deliveryCharge ??
+            item.deliveryFee ??
+            item.shippingCharge ??
+            item.delivery?.charge ??
+            0
         );
       });
     }
@@ -359,9 +365,8 @@ const AdminBills = () => {
     const itemsList = order.items || order.orderItems || [];
     const shippingFee = extractShippingFee(order);
     const invoiceNumber = order.invoiceNo || `${INVOICE_PREFIX}/00-00/1001`;
-
-    // Cases / parcels set by admin (blank line if not set yet)
-    const casesText = Number(order.casesNumber) > 0 ? String(order.casesNumber) : "_______________";
+    const casesText =
+      Number(order.casesNumber) > 0 ? String(order.casesNumber) : "_______________";
 
     let itemsTableRows = "";
     let calculatedItemsTotal = 0;
@@ -646,13 +651,16 @@ const AdminBills = () => {
             />
           </div>
 
-          {/* Select All + Bulk Delete */}
           <div className="flex items-center gap-2">
             <button
               onClick={toggleSelectAll}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition"
             >
-              {allSelected ? <CheckSquare size={16} className="text-indigo-600" /> : <Square size={16} />}
+              {allSelected ? (
+                <CheckSquare size={16} className="text-indigo-600" />
+              ) : (
+                <Square size={16} />
+              )}
               {allSelected ? "Deselect All" : "Select All"}
             </button>
 
@@ -671,7 +679,9 @@ const AdminBills = () => {
 
         {/* Orders / Bills List */}
         {loading ? (
-          <div className="text-center py-12 text-gray-500 font-medium">Loading Orders & Bills...</div>
+          <div className="text-center py-12 text-gray-500 font-medium">
+            Loading Orders & Bills...
+          </div>
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-12 text-gray-500 bg-white rounded-2xl border">
             No bills or orders found.
@@ -681,17 +691,22 @@ const AdminBills = () => {
             {filteredOrders.map((order) => {
               const amount = Number(order.totalAmount || order.totalPrice || 0);
               const name = order.customerName || order.user?.name || "Customer";
-              const date = order.createdAt ? new Date(order.createdAt).toLocaleDateString("en-IN") : "N/A";
+              const date = order.createdAt
+                ? new Date(order.createdAt).toLocaleDateString("en-IN")
+                : "N/A";
               const itemsList = order.items || order.orderItems || [];
               const itemsCount = itemsList.length;
               const isSelected = selectedIds.includes(order._id);
               const invoiceNo = order.invoiceNo || "—";
 
-              // Cases / parcels input state
               const savedCases = Number(order.casesNumber) || 0;
               const draftCases = casesDrafts[order._id];
               const casesInputValue =
-                draftCases !== undefined ? draftCases : savedCases > 0 ? String(savedCases) : "";
+                draftCases !== undefined
+                  ? draftCases
+                  : savedCases > 0
+                  ? String(savedCases)
+                  : "";
               const casesChanged =
                 draftCases !== undefined && Number(draftCases || 0) !== savedCases;
               const savingCases = savingCasesId === order._id;
@@ -700,30 +715,35 @@ const AdminBills = () => {
                 <div
                   key={order._id}
                   className={`bg-white rounded-2xl p-5 border shadow-sm hover:shadow-md transition flex flex-col justify-between ${
-                    isSelected ? "border-indigo-500 ring-2 ring-indigo-200" : "border-gray-100"
+                    isSelected
+                      ? "border-indigo-500 ring-2 ring-indigo-200"
+                      : "border-gray-100"
                   }`}
                 >
                   <div>
                     {/* Checkbox + Invoice No + Amount */}
                     <div className="flex justify-between items-start mb-3 border-b pb-2">
                       <div className="flex items-start gap-2">
-                        {/* CHECKBOX */}
                         <button
                           onClick={() => toggleSelect(order._id)}
                           className="mt-0.5 flex-shrink-0 text-indigo-600 hover:text-indigo-800 transition"
                           title={isSelected ? "Deselect" : "Select"}
                         >
-                          {isSelected ? <CheckSquare size={20} /> : <Square size={20} className="text-gray-400" />}
+                          {isSelected ? (
+                            <CheckSquare size={20} />
+                          ) : (
+                            <Square size={20} className="text-gray-400" />
+                          )}
                         </button>
-
                         <div>
-                          <p className="text-[10px] text-gray-400 uppercase font-semibold">Invoice No</p>
+                          <p className="text-[10px] text-gray-400 uppercase font-semibold">
+                            Invoice No
+                          </p>
                           <p className="font-mono text-xs font-bold text-indigo-600">
                             {invoiceNo}
                           </p>
                         </div>
                       </div>
-
                       <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2.5 py-1 rounded-full">
                         ₹{amount.toLocaleString()}
                       </span>
@@ -731,7 +751,9 @@ const AdminBills = () => {
 
                     {/* Unique Order ID */}
                     <div className="mb-2">
-                      <p className="text-[10px] text-gray-400 uppercase font-semibold">Unique Order ID</p>
+                      <p className="text-[10px] text-gray-400 uppercase font-semibold">
+                        Unique Order ID
+                      </p>
                       <p className="font-mono text-[11px] text-gray-700 break-all">
                         {order._id}
                       </p>
@@ -745,7 +767,8 @@ const AdminBills = () => {
                         <span className="font-semibold text-gray-800">Date:</span> {date}
                       </p>
                       <p>
-                        <span className="font-semibold text-gray-800">Total Items:</span> {itemsCount}
+                        <span className="font-semibold text-gray-800">Total Items:</span>{" "}
+                        {itemsCount}
                       </p>
                       <p>
                         <span className="font-semibold text-gray-800">Status:</span>{" "}
@@ -753,13 +776,12 @@ const AdminBills = () => {
                       </p>
                     </div>
 
-                    {/* CASES / PARCELS (customer sees this in My Orders) */}
+                    {/* CASES / PARCELS */}
                     <div className="mb-4 p-3 rounded-xl bg-amber-50/70 border border-amber-100">
                       <p className="text-[10px] text-amber-800 uppercase font-semibold mb-2 flex items-center gap-1.5">
                         <Boxes size={13} />
                         Cases / Parcels
                       </p>
-
                       <div className="flex items-center gap-2">
                         <input
                           type="number"
@@ -779,7 +801,6 @@ const AdminBills = () => {
                           placeholder="e.g. 3"
                           className="w-full bg-white border border-amber-200 focus:border-amber-400 rounded-lg px-3 py-1.5 text-sm outline-none"
                         />
-
                         <button
                           type="button"
                           onClick={() => handleSaveCases(order)}
@@ -789,11 +810,12 @@ const AdminBills = () => {
                           {savingCases ? "Saving..." : "Save"}
                         </button>
                       </div>
-
                       <p className="text-[11px] mt-1.5 text-amber-900/80">
                         {savedCases > 0
-                          ? `Customer sees: ${savedCases} parcel${savedCases === 1 ? "" : "s"}`
-                          : "Not set yet - customer sees nothing"}
+                          ? `Customer sees: ${savedCases} parcel${
+                              savedCases === 1 ? "" : "s"
+                            }`
+                          : "Not set yet – customer sees nothing"}
                       </p>
                     </div>
                   </div>
