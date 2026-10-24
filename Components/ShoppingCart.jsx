@@ -18,6 +18,7 @@ import {
   Sparkles,
   Filter,
   SlidersHorizontal,
+  AlertTriangle,
 } from "lucide-react";
 import { CartContext } from "./Context";
 
@@ -44,16 +45,13 @@ const ShoppingCart = () => {
   const [showOrderPopup, setShowOrderPopup] = useState(false);
   const [confirmedOrderData, setConfirmedOrderData] = useState(null);
   const [cashfree, setCashfree] = useState(null);
-
-  const [activeFilter, setActiveFilter] = useState("all"); // 'all' | 'new' | 'offers'
+  const [activeFilter, setActiveFilter] = useState("all");
   const [sortBy, setSortBy] = useState("default");
 
   useEffect(() => {
     const initCashfree = async () => {
       try {
-        const cashfreeInstance = await load({
-          mode: "production",
-        });
+        const cashfreeInstance = await load({ mode: "production" });
         setCashfree(cashfreeInstance);
       } catch (error) {
         console.error("Failed to initialize Cashfree SDK:", error);
@@ -61,6 +59,57 @@ const ShoppingCart = () => {
     };
     initCashfree();
   }, []);
+
+  const getItemId = (item) => item._id || item.id;
+
+  const getStock = (item) => {
+    const s = Number(item.stock);
+    if (!Number.isFinite(s) || s < 0) return null; // unknown stock
+    return s;
+  };
+
+  const getOptionQty = (item) => {
+    return item.selectedOption?.quantity || item.selectedQty || 1;
+  };
+
+  const getImage = (item) => {
+    return (
+      item.image ||
+      item.images?.[0] ||
+      "https://via.placeholder.com/200?text=No+Image"
+    );
+  };
+
+  // ---- STOCK-SAFE QTY CONTROLS ----
+  const handleDecrease = (item) => {
+    const itemId = getItemId(item);
+    const optionQty = getOptionQty(item);
+    decreaseQty(itemId, optionQty);
+  };
+
+  const handleIncrease = (item) => {
+    const itemId = getItemId(item);
+    const optionQty = getOptionQty(item);
+    const qty = Number(item.quantity || 1);
+    const stock = getStock(item);
+
+    if (stock === 0) {
+      toast.error("Out of stock");
+      return;
+    }
+
+    if (stock !== null && qty >= stock) {
+      toast.error(`Only ${stock} units available in stock`);
+      return;
+    }
+
+    // Near stock warning (optional soft tip)
+    if (stock !== null && qty + 1 >= stock) {
+      toast.success(`Max stock reached (${stock} units)`, { duration: 1800 });
+    }
+
+    increaseQty(itemId, optionQty);
+  };
 
   const totalItems = useMemo(() => {
     return cart.reduce((total, item) => total + Number(item.quantity || 1), 0);
@@ -74,7 +123,6 @@ const ShoppingCart = () => {
     }, 0);
   }, [cart]);
 
-  // GST only when product has gst > 0 (no forced 18%)
   const gst = useMemo(() => {
     return cart.reduce((totalGst, item) => {
       const price = Number(item.price || 0);
@@ -93,27 +141,6 @@ const ShoppingCart = () => {
     [subTotal, gst]
   );
 
-  const getItemId = (item) => item._id || item.id;
-
-  const getSelectedLabel = (item) => {
-    if (item.selectedOption?.label) return item.selectedOption.label;
-    if (item.selectedQty) return `${item.selectedQty} Piece`;
-    return "1 unit";
-  };
-
-  const getOptionQty = (item) => {
-    return item.selectedOption?.quantity || item.selectedQty || 1;
-  };
-
-  const getImage = (item) => {
-    return (
-      item.image ||
-      item.images?.[0] ||
-      "https://via.placeholder.com/200?text=No+Image"
-    );
-  };
-
-  // ========== FIXED: New product detection ==========
   const isNewProduct = (item) => {
     if (item.isNewProduct || item.isNew || item.isNewArrival) return true;
     if (item.createdAt) {
@@ -125,14 +152,10 @@ const ShoppingCart = () => {
     return false;
   };
 
-  // ========== FIXED: Offer / sale detection ==========
   const getDiscountPercent = (item) => {
     return (
       Number(
-        item.discountPercent ||
-          item.discountPercentage ||
-          item.offer ||
-          0
+        item.discountPercent || item.discountPercentage || item.offer || 0
       ) || 0
     );
   };
@@ -140,32 +163,26 @@ const ShoppingCart = () => {
   const getOfferLabel = (item) => {
     if (item.offerTag) return item.offerTag;
     if (item.discountNote) return String(item.discountNote);
-
     const discountPct = getDiscountPercent(item);
     if (discountPct > 0) return `${discountPct}% OFF`;
-
     const original = Number(item.originalPrice || 0);
     const price = Number(item.price || 0);
     if (original > price && price > 0) {
       const discount = Math.round(((original - price) / original) * 100);
       if (discount > 0) return `${discount}% OFF`;
     }
-
     return null;
   };
 
   const hasOffer = (item) => Boolean(getOfferLabel(item));
 
-  // Filtered + Sorted cart
   const filteredCartItems = useMemo(() => {
     let list = [...cart];
-
     if (activeFilter === "new") {
       list = list.filter((item) => isNewProduct(item));
     } else if (activeFilter === "offers") {
       list = list.filter((item) => hasOffer(item));
     }
-
     if (sortBy === "price-low") {
       list.sort((a, b) => Number(a.price || 0) - Number(b.price || 0));
     } else if (sortBy === "price-high") {
@@ -177,7 +194,6 @@ const ShoppingCart = () => {
         return nameA.localeCompare(nameB);
       });
     }
-
     return list;
   }, [cart, activeFilter, sortBy]);
 
@@ -185,7 +201,6 @@ const ShoppingCart = () => {
     () => cart.filter((item) => isNewProduct(item)).length,
     [cart]
   );
-
   const offerCount = useMemo(
     () => cart.filter((item) => hasOffer(item)).length,
     [cart]
@@ -205,6 +220,25 @@ const ShoppingCart = () => {
         toast.error("Your cart is empty");
         return;
       }
+
+      // Block checkout if any item exceeds stock
+      for (const item of cart) {
+        const stock = getStock(item);
+        const qty = Number(item.quantity || 1);
+        if (stock === 0) {
+          toast.error(
+            `${item.name || item.title || "Item"} is out of stock`
+          );
+          return;
+        }
+        if (stock !== null && qty > stock) {
+          toast.error(
+            `${item.name || item.title || "Item"}: only ${stock} units in stock`
+          );
+          return;
+        }
+      }
+
       if (!cashfree) {
         toast.error(
           "Payment gateway initializing. Please try again in a moment."
@@ -241,6 +275,7 @@ const ShoppingCart = () => {
             gstAmount: Math.round(itemGst),
             lineTotal,
             selectedOption: item.selectedOption || null,
+            hsnCode: item.hsnCode || "",
           };
         }),
         totalItems,
@@ -253,6 +288,7 @@ const ShoppingCart = () => {
         "https://backend-3-axez.onrender.com/api/orders/create",
         orderData
       );
+
       const dbOrderId = dbOrderData?.order?._id || `ORD-${Date.now()}`;
 
       const { data: paymentSessionRes } = await axios.post(
@@ -272,7 +308,6 @@ const ShoppingCart = () => {
           totalAmount: grandTotal,
           totalItems,
         });
-
         cashfree.checkout({
           paymentSessionId: paymentSessionRes.payment_session_id,
           redirectTarget: "_self",
@@ -368,7 +403,6 @@ const ShoppingCart = () => {
                   >
                     <Filter size={14} /> Filter:
                   </span>
-
                   <button
                     type="button"
                     onClick={() => setActiveFilter("all")}
@@ -381,7 +415,6 @@ const ShoppingCart = () => {
                   >
                     All ({cart.length})
                   </button>
-
                   <button
                     type="button"
                     onClick={() => setActiveFilter("new")}
@@ -394,7 +427,6 @@ const ShoppingCart = () => {
                   >
                     <Sparkles size={12} /> New Items ({newCount})
                   </button>
-
                   <button
                     type="button"
                     onClick={() => setActiveFilter("offers")}
@@ -408,7 +440,6 @@ const ShoppingCart = () => {
                     <Tag size={12} /> Offers / Sale ({offerCount})
                   </button>
                 </div>
-
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal size={14} style={{ color: MUTED }} />
                   <select
@@ -456,14 +487,18 @@ const ShoppingCart = () => {
                     const itemId = getItemId(item);
                     const image = getImage(item);
                     const name = item.name || item.title || "Product";
-                    const optionLabel = getSelectedLabel(item);
-                    const optionQty = getOptionQty(item);
                     const unitPrice = Number(item.price || 0);
                     const originalPrice = item.originalPrice
                       ? Number(item.originalPrice)
                       : null;
                     const qty = Number(item.quantity || 1);
                     const lineTotal = unitPrice * qty;
+                    const stock = getStock(item);
+                    const isOutOfStock = stock === 0;
+                    const isAtMax = stock !== null && qty >= stock;
+                    const isNearMax =
+                      stock !== null && stock > 0 && qty >= Math.max(1, stock - 2);
+
                     const itemGstRate =
                       item.gst !== undefined &&
                       item.gst !== "" &&
@@ -475,11 +510,13 @@ const ShoppingCart = () => {
 
                     return (
                       <div
-                        key={`${itemId}-${optionQty}-${unitPrice}-${index}`}
+                        key={`${itemId}-${getOptionQty(item)}-${unitPrice}-${index}`}
                         className="rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row gap-4 transition relative overflow-hidden"
                         style={{
                           background: SURFACE,
-                          border: `1px solid ${BORDER}`,
+                          border: `1px solid ${
+                            isOutOfStock ? "#FECACA" : BORDER
+                          }`,
                         }}
                       >
                         <div
@@ -511,6 +548,11 @@ const ShoppingCart = () => {
                                 {offerText}
                               </span>
                             )}
+                            {isOutOfStock && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-red-100 text-red-700 border border-red-200">
+                                Out of stock
+                              </span>
+                            )}
                           </div>
 
                           <h2
@@ -530,16 +572,29 @@ const ShoppingCart = () => {
                           )}
 
                           <div className="mt-2 flex flex-wrap items-center gap-2">
-                            <span
-                              className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full"
-                              style={{
-                                background: STEEL_TINT,
-                                color: STEEL,
-                              }}
-                            >
-                              <Package size={12} />
-                              {optionLabel}
-                            </span>
+                            {/* STOCK badge only — not cart qty (avoids double units) */}
+                            {stock !== null && (
+                              <span
+                                className="inline-flex items-center gap-1 text-[11px] font-medium px-2.5 py-0.5 rounded-full"
+                                style={{
+                                  background: isOutOfStock
+                                    ? "#FEE2E2"
+                                    : isNearMax
+                                    ? "#FEF3C7"
+                                    : STEEL_TINT,
+                                  color: isOutOfStock
+                                    ? "#B91C1C"
+                                    : isNearMax
+                                    ? "#B45309"
+                                    : STEEL,
+                                }}
+                              >
+                                <Package size={12} />
+                                {isOutOfStock
+                                  ? "0 in stock"
+                                  : `${stock} in stock`}
+                              </span>
+                            )}
                             {itemGstRate > 0 && (
                               <span
                                 className="inline-flex items-center text-[11px] font-medium px-2 py-0.5 rounded-full"
@@ -571,39 +626,70 @@ const ShoppingCart = () => {
                             )}
                           </p>
 
+                          {/* Qty controls */}
                           <div className="flex flex-wrap items-center justify-between gap-3 mt-3">
-                            <div
-                              className="flex items-center rounded-xl overflow-hidden"
-                              style={{ border: `1px solid ${BORDER}` }}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => decreaseQty(itemId, optionQty)}
-                                className="w-8 h-8 flex items-center justify-center transition"
-                                style={{
-                                  background: SURFACE_MUTED,
-                                  color: INK,
-                                }}
+                            <div className="flex flex-col gap-1">
+                              <div
+                                className="flex items-center rounded-xl overflow-hidden"
+                                style={{ border: `1px solid ${BORDER}` }}
                               >
-                                <Minus size={14} />
-                              </button>
-                              <span
-                                className="w-10 text-center font-bold text-sm"
-                                style={{ color: INK }}
-                              >
-                                {qty}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => increaseQty(itemId, optionQty)}
-                                className="w-8 h-8 flex items-center justify-center transition"
-                                style={{
-                                  background: SURFACE_MUTED,
-                                  color: INK,
-                                }}
-                              >
-                                <Plus size={14} />
-                              </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDecrease(item)}
+                                  disabled={qty <= 1}
+                                  className="w-8 h-8 flex items-center justify-center transition disabled:opacity-40"
+                                  style={{
+                                    background: SURFACE_MUTED,
+                                    color: INK,
+                                  }}
+                                >
+                                  <Minus size={14} />
+                                </button>
+                                <span
+                                  className="w-12 text-center font-bold text-sm"
+                                  style={{ color: INK }}
+                                >
+                                  {qty}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleIncrease(item)}
+                                  disabled={isOutOfStock || isAtMax}
+                                  className="w-8 h-8 flex items-center justify-center transition disabled:opacity-40"
+                                  style={{
+                                    background: SURFACE_MUTED,
+                                    color: INK,
+                                  }}
+                                  title={
+                                    isOutOfStock
+                                      ? "Out of stock"
+                                      : isAtMax
+                                      ? `Max ${stock} units`
+                                      : "Add one"
+                                  }
+                                >
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+
+                              {/* Stock messages */}
+                              {isOutOfStock && (
+                                <p className="text-[11px] font-semibold text-red-600 flex items-center gap-1">
+                                  <AlertTriangle size={11} />
+                                  Out of stock — remove or wait for restock
+                                </p>
+                              )}
+                              {!isOutOfStock && isAtMax && (
+                                <p className="text-[11px] font-semibold text-amber-700 flex items-center gap-1">
+                                  <AlertTriangle size={11} />
+                                  Max stock reached ({stock} units)
+                                </p>
+                              )}
+                              {!isOutOfStock && isNearMax && !isAtMax && (
+                                <p className="text-[11px] font-medium text-amber-600">
+                                  Only {stock - qty} left in stock
+                                </p>
+                              )}
                             </div>
 
                             <div className="text-right">
@@ -629,7 +715,9 @@ const ShoppingCart = () => {
                         >
                           <button
                             type="button"
-                            onClick={() => removeFromCart(itemId, optionQty)}
+                            onClick={() =>
+                              removeFromCart(itemId, getOptionQty(item))
+                            }
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg transition text-xs font-medium"
                             style={{ color: "#B4302F" }}
                           >
@@ -653,13 +741,9 @@ const ShoppingCart = () => {
                   border: `1px solid ${BORDER}`,
                 }}
               >
-                <h2
-                  className="text-lg font-bold mb-4"
-                  style={{ color: INK }}
-                >
+                <h2 className="text-lg font-bold mb-4" style={{ color: INK }}>
                   Order summary
                 </h2>
-
                 <div className="space-y-3 text-sm">
                   <div
                     className="flex justify-between"
@@ -691,9 +775,7 @@ const ShoppingCart = () => {
                     </div>
                   )}
                 </div>
-
                 <hr className="my-4" style={{ borderColor: BORDER }} />
-
                 <div className="flex justify-between items-center mb-5">
                   <span className="text-base font-bold" style={{ color: INK }}>
                     Grand total
@@ -705,7 +787,6 @@ const ShoppingCart = () => {
                     ₹{grandTotal.toLocaleString()}
                   </span>
                 </div>
-
                 <button
                   type="button"
                   onClick={checkoutHandler}
@@ -715,7 +796,6 @@ const ShoppingCart = () => {
                 >
                   {loading ? "Processing..." : "Pay via Cashfree"}
                 </button>
-
                 <button
                   type="button"
                   onClick={clearCart}
@@ -749,14 +829,12 @@ const ShoppingCart = () => {
             >
               <X size={18} />
             </button>
-
             <div
               className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4"
               style={{ background: "#E4F3E9" }}
             >
               <CheckCircle2 size={48} style={{ color: "#1D7A43" }} />
             </div>
-
             <h2
               className="text-2xl font-extrabold mb-1"
               style={{ color: INK }}
@@ -766,7 +844,6 @@ const ShoppingCart = () => {
             <p className="text-xs mb-6" style={{ color: MUTED }}>
               Thank you for shopping with us. Your payment has been processed.
             </p>
-
             <div
               className="rounded-2xl p-4 text-left space-y-3 mb-6"
               style={{
@@ -803,7 +880,6 @@ const ShoppingCart = () => {
                 <span>Arriving soon at your doorstep!</span>
               </div>
             </div>
-
             <button
               type="button"
               onClick={() => {
