@@ -19,6 +19,7 @@ import {
   Users,
   Search,
   UserCheck,
+  Hash,
 } from "lucide-react";
 
 const INITIAL_PRODUCT_STATE = {
@@ -32,6 +33,7 @@ const INITIAL_PRODUCT_STATE = {
   size: "",
   weight: "",
   gst: "",
+  hsnCode: "",
   minQtyForFreeDelivery: "",
   standardDeliveryCharge: "",
   deliveryNote: "Free delivery on orders with 5 or more items!",
@@ -299,6 +301,7 @@ const AddProduct = () => {
       formData.append("size", product.size || "");
       formData.append("weight", product.weight || "");
       formData.append("gst", product.gst || 0);
+      formData.append("hsnCode", (product.hsnCode || "").trim());
 
       formData.append("minQtyForFreeDelivery", product.minQtyForFreeDelivery || 0);
       formData.append("standardDeliveryCharge", product.standardDeliveryCharge || 0);
@@ -777,9 +780,9 @@ const AddProduct = () => {
             {/* SIZE, WEIGHT & GST */}
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-3 flex items-center gap-2">
-                Size, Weight & Tax <span className="text-xs font-normal text-gray-500">(Optional)</span>
+                Size, Weight, HSN & Tax <span className="text-xs font-normal text-gray-500">(Optional)</span>
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div className="relative">
                   <input
                     type="text"
@@ -802,6 +805,25 @@ const AddProduct = () => {
                     className="w-full border border-gray-200 rounded-xl px-4 py-3 pl-10 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
                   />
                   <Weight size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
+                </div>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    name="hsnCode"
+                    maxLength={8}
+                    value={product.hsnCode}
+                    onChange={(e) =>
+                      setProduct((prev) => ({
+                        ...prev,
+                        hsnCode: e.target.value.replace(/\D/g, "").slice(0, 8),
+                      }))
+                    }
+                    placeholder="HSN Code (e.g. 8203)"
+                    className="w-full border border-gray-200 rounded-xl px-4 py-3 pl-10 text-sm outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition"
+                  />
+                  <Hash size={16} className="absolute left-3.5 top-3.5 text-gray-400" />
                 </div>
 
                 <div className="relative">
