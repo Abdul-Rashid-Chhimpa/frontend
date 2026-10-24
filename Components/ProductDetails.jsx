@@ -18,9 +18,22 @@ import {
   Zap,
   Check,
   Tag,
+  Hash,
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
 import axios from "axios";
+
+const API_BASE = "https://backend-3-axez.onrender.com";
+
+// Logged-in user's id (so the server can show the right special discount)
+const getViewerId = () => {
+  try {
+    const u = JSON.parse(localStorage.getItem("user")) || {};
+    return u._id || u.id || "";
+  } catch {
+    return "";
+  }
+};
 
 const ProductDetails = () => {
   const { id } = useParams();
@@ -48,10 +61,30 @@ const ProductDetails = () => {
     setSelectedImage(0);
     setQuantity(1);
 
+    const viewerId = getViewerId();
+
     if (location.state?.product) {
       setProduct(location.state.product);
       setLoading(false);
-      return;
+
+      // Refresh in the background so HSN code and the discount
+      // always match the currently logged-in user.
+      axios
+        .get(`${API_BASE}/api/products/${id}`, {
+          params: { userId: viewerId },
+        })
+        .then(({ data }) => {
+          if (isMounted && data.success && data.product) {
+            setProduct(data.product);
+          }
+        })
+        .catch(() => {
+          // keep the product we already have
+        });
+
+      return () => {
+        isMounted = false;
+      };
     }
 
     const fetchProduct = async () => {
@@ -60,9 +93,9 @@ const ProductDetails = () => {
         setError(false);
 
         try {
-          const { data } = await axios.get(
-            `https://backend-3-axez.onrender.com/api/products/${id}`
-          );
+          const { data } = await axios.get(`${API_BASE}/api/products/${id}`, {
+            params: { userId: viewerId },
+          });
           if (isMounted && data.success && data.product) {
             setProduct(data.product);
             setLoading(false);
@@ -72,9 +105,9 @@ const ProductDetails = () => {
           // fallback
         }
 
-        const res = await axios.get(
-          "https://backend-3-axez.onrender.com/api/products"
-        );
+        const res = await axios.get(`${API_BASE}/api/products`, {
+          params: { userId: viewerId },
+        });
         if (!isMounted) return;
 
         const found = res.data.products?.find((p) => p._id === id);
@@ -495,6 +528,19 @@ const ProductDetails = () => {
                     <span className="font-semibold text-gray-800">Material:</span>{" "}
                     {product.material || "N/A"}
                   </p>
+
+                  {/* HSN CODE */}
+                  {product.hsnCode && (
+                    <p className="flex items-center gap-1.5">
+                      <Hash size={15} className="text-gray-500" />
+                      <span className="font-semibold text-gray-800">
+                        HSN Code:
+                      </span>{" "}
+                      <span className="font-medium text-gray-700">
+                        {product.hsnCode}
+                      </span>
+                    </p>
+                  )}
 
                   {(product.size || product.weight) && (
                     <div className="flex flex-wrap gap-4 pt-1 text-xs sm:text-sm text-gray-700">
