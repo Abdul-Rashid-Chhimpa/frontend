@@ -54,61 +54,22 @@ const COMPANY_STATE = "rajasthan";
 const DEFAULT_HSN = "8203";
 
 // ------------------------------------------------------
-// PAYMENT QR
+// PAYMENT QR  (real UPI QR - PEDWAL LIFE CREATION, IDFC FIRST Bank)
 // ------------------------------------------------------
-// This is a FAKE placeholder QR. To use your real QR:
-//   1) Put your QR image in /public (example: /payment-qr.png)
-//   2) Replace the line below with:
-//        const PAYMENT_QR_SRC = "/payment-qr.png";
-//      (or any https:// image URL)
+// The QR is embedded as an SVG so the printed invoice always shows it
+// sharply, with no extra image file to host.
+// UPI payload: upi://pay?pa=pedwallifecreation4u@idfcbank&pn=PEDWAL LIFE CREATION&cu=INR
+// To change the QR later, replace PAYMENT_QR_SRC with an image URL
+// (example: "/payment-qr.png") and update UPI_ID below.
 // ------------------------------------------------------
 
-const buildFakeQrDataUri = () => {
-  const size = 25;
-  const cell = 8;
-  const total = size * cell;
+const UPI_ID = "pedwallifecreation4u@idfcbank";
 
-  // simple seeded random so the fake pattern is always the same
-  let seed = 20240607;
-  const rand = () => {
-    seed = (seed * 1664525 + 1013904223) % 4294967296;
-    return seed / 4294967296;
-  };
+const PAYMENT_QR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 45 45" shape-rendering="crispEdges"><rect width="45" height="45" fill="#fff"/><path fill="#000" d="M4 4h7v1h-7zM12 4h2v1h-2zM15 4h2v1h-2zM19 4h1v1h-1zM21 4h1v1h-1zM23 4h3v1h-3zM27 4h6v1h-6zM34 4h7v1h-7zM4 5h1v1h-1zM10 5h1v1h-1zM12 5h1v1h-1zM14 5h2v1h-2zM18 5h1v1h-1zM22 5h2v1h-2zM25 5h1v1h-1zM27 5h3v1h-3zM34 5h1v1h-1zM40 5h1v1h-1zM4 6h1v1h-1zM6 6h3v1h-3zM10 6h1v1h-1zM12 6h2v1h-2zM15 6h2v1h-2zM20 6h1v1h-1zM22 6h2v1h-2zM25 6h5v1h-5zM31 6h1v1h-1zM34 6h1v1h-1zM36 6h3v1h-3zM40 6h1v1h-1zM4 7h1v1h-1zM6 7h3v1h-3zM10 7h1v1h-1zM14 7h2v1h-2zM17 7h2v1h-2zM21 7h1v1h-1zM24 7h2v1h-2zM27 7h1v1h-1zM29 7h1v1h-1zM32 7h1v1h-1zM34 7h1v1h-1zM36 7h3v1h-3zM40 7h1v1h-1zM4 8h1v1h-1zM6 8h3v1h-3zM10 8h1v1h-1zM12 8h4v1h-4zM17 8h1v1h-1zM19 8h2v1h-2zM22 8h1v1h-1zM25 8h1v1h-1zM32 8h1v1h-1zM34 8h1v1h-1zM36 8h3v1h-3zM40 8h1v1h-1zM4 9h1v1h-1zM10 9h1v1h-1zM13 9h1v1h-1zM15 9h2v1h-2zM18 9h1v1h-1zM24 9h4v1h-4zM30 9h1v1h-1zM34 9h1v1h-1zM40 9h1v1h-1zM4 10h7v1h-7zM12 10h1v1h-1zM14 10h1v1h-1zM16 10h1v1h-1zM18 10h1v1h-1zM20 10h1v1h-1zM22 10h1v1h-1zM24 10h1v1h-1zM26 10h1v1h-1zM28 10h1v1h-1zM30 10h1v1h-1zM32 10h1v1h-1zM34 10h7v1h-7zM13 11h1v1h-1zM15 11h1v1h-1zM17 11h3v1h-3zM21 11h3v1h-3zM25 11h1v1h-1zM27 11h3v1h-3zM32 11h1v1h-1zM4 12h1v1h-1zM7 12h7v1h-7zM15 12h1v1h-1zM23 12h1v1h-1zM25 12h2v1h-2zM31 12h1v1h-1zM33 12h1v1h-1zM36 12h1v1h-1zM38 12h3v1h-3zM18 13h1v1h-1zM20 13h3v1h-3zM27 13h1v1h-1zM30 13h1v1h-1zM33 13h5v1h-5zM4 14h1v1h-1zM6 14h1v1h-1zM8 14h4v1h-4zM13 14h3v1h-3zM17 14h1v1h-1zM19 14h11v1h-11zM32 14h2v1h-2zM35 14h1v1h-1zM37 14h2v1h-2zM40 14h1v1h-1zM6 15h1v1h-1zM8 15h2v1h-2zM11 15h4v1h-4zM16 15h1v1h-1zM18 15h1v1h-1zM20 15h2v1h-2zM23 15h2v1h-2zM28 15h1v1h-1zM30 15h1v1h-1zM34 15h2v1h-2zM38 15h3v1h-3zM4 16h1v1h-1zM6 16h1v1h-1zM9 16h2v1h-2zM13 16h2v1h-2zM16 16h5v1h-5zM28 16h1v1h-1zM32 16h3v1h-3zM39 16h2v1h-2zM5 17h1v1h-1zM9 17h1v1h-1zM13 17h1v1h-1zM15 17h3v1h-3zM19 17h2v1h-2zM22 17h1v1h-1zM25 17h1v1h-1zM27 17h1v1h-1zM30 17h4v1h-4zM36 17h1v1h-1zM38 17h1v1h-1zM6 18h1v1h-1zM9 18h3v1h-3zM13 18h2v1h-2zM16 18h1v1h-1zM19 18h2v1h-2zM22 18h2v1h-2zM25 18h1v1h-1zM31 18h3v1h-3zM38 18h3v1h-3zM4 19h2v1h-2zM7 19h1v1h-1zM9 19h1v1h-1zM13 19h1v1h-1zM16 19h1v1h-1zM19 19h1v1h-1zM25 19h2v1h-2zM29 19h1v1h-1zM32 19h2v1h-2zM36 19h1v1h-1zM38 19h1v1h-1zM40 19h1v1h-1zM6 20h2v1h-2zM9 20h2v1h-2zM12 20h1v1h-1zM14 20h1v1h-1zM21 20h2v1h-2zM27 20h2v1h-2zM30 20h2v1h-2zM33 20h2v1h-2zM38 20h3v1h-3zM5 21h2v1h-2zM12 21h1v1h-1zM14 21h2v1h-2zM17 21h2v1h-2zM21 21h1v1h-1zM26 21h1v1h-1zM32 21h1v1h-1zM37 21h1v1h-1zM4 22h1v1h-1zM9 22h3v1h-3zM13 22h2v1h-2zM16 22h3v1h-3zM20 22h2v1h-2zM23 22h1v1h-1zM25 22h2v1h-2zM28 22h3v1h-3zM32 22h1v1h-1zM36 22h1v1h-1zM38 22h1v1h-1zM40 22h1v1h-1zM4 23h2v1h-2zM9 23h1v1h-1zM12 23h1v1h-1zM14 23h1v1h-1zM16 23h2v1h-2zM19 23h2v1h-2zM22 23h3v1h-3zM26 23h2v1h-2zM29 23h1v1h-1zM32 23h2v1h-2zM39 23h2v1h-2zM5 24h3v1h-3zM9 24h2v1h-2zM12 24h1v1h-1zM15 24h4v1h-4zM20 24h2v1h-2zM23 24h2v1h-2zM28 24h1v1h-1zM30 24h2v1h-2zM33 24h5v1h-5zM39 24h2v1h-2zM5 25h2v1h-2zM16 25h1v1h-1zM18 25h2v1h-2zM21 25h4v1h-4zM27 25h1v1h-1zM29 25h3v1h-3zM33 25h1v1h-1zM35 25h2v1h-2zM39 25h1v1h-1zM5 26h4v1h-4zM10 26h2v1h-2zM13 26h1v1h-1zM19 26h2v1h-2zM24 26h5v1h-5zM30 26h3v1h-3zM34 26h1v1h-1zM36 26h3v1h-3zM40 26h1v1h-1zM9 27h1v1h-1zM11 27h2v1h-2zM14 27h2v1h-2zM18 27h1v1h-1zM20 27h1v1h-1zM22 27h3v1h-3zM26 27h1v1h-1zM29 27h2v1h-2zM33 27h2v1h-2zM38 27h2v1h-2zM4 28h3v1h-3zM10 28h1v1h-1zM14 28h3v1h-3zM19 28h1v1h-1zM21 28h1v1h-1zM24 28h5v1h-5zM33 28h1v1h-1zM35 28h3v1h-3zM40 28h1v1h-1zM4 29h1v1h-1zM6 29h2v1h-2zM9 29h1v1h-1zM11 29h1v1h-1zM14 29h1v1h-1zM17 29h2v1h-2zM22 29h2v1h-2zM30 29h2v1h-2zM33 29h1v1h-1zM36 29h1v1h-1zM39 29h1v1h-1zM4 30h2v1h-2zM7 30h1v1h-1zM10 30h4v1h-4zM17 30h3v1h-3zM21 30h1v1h-1zM25 30h1v1h-1zM27 30h5v1h-5zM34 30h1v1h-1zM36 30h5v1h-5zM4 31h1v1h-1zM6 31h4v1h-4zM12 31h3v1h-3zM16 31h2v1h-2zM20 31h1v1h-1zM22 31h2v1h-2zM26 31h1v1h-1zM30 31h1v1h-1zM34 31h1v1h-1zM36 31h1v1h-1zM4 32h1v1h-1zM6 32h2v1h-2zM9 32h2v1h-2zM13 32h2v1h-2zM17 32h3v1h-3zM23 32h2v1h-2zM26 32h1v1h-1zM28 32h2v1h-2zM31 32h8v1h-8zM12 33h2v1h-2zM15 33h2v1h-2zM19 33h1v1h-1zM21 33h6v1h-6zM29 33h1v1h-1zM31 33h2v1h-2zM36 33h2v1h-2zM39 33h1v1h-1zM4 34h7v1h-7zM12 34h1v1h-1zM16 34h1v1h-1zM18 34h6v1h-6zM27 34h1v1h-1zM29 34h2v1h-2zM32 34h1v1h-1zM34 34h1v1h-1zM36 34h1v1h-1zM39 34h2v1h-2zM4 35h1v1h-1zM10 35h1v1h-1zM12 35h2v1h-2zM15 35h2v1h-2zM19 35h1v1h-1zM25 35h1v1h-1zM28 35h3v1h-3zM32 35h1v1h-1zM36 35h1v1h-1zM39 35h1v1h-1zM4 36h1v1h-1zM6 36h3v1h-3zM10 36h1v1h-1zM12 36h2v1h-2zM15 36h1v1h-1zM19 36h2v1h-2zM22 36h1v1h-1zM24 36h2v1h-2zM27 36h3v1h-3zM31 36h7v1h-7zM4 37h1v1h-1zM6 37h3v1h-3zM10 37h1v1h-1zM12 37h5v1h-5zM24 37h3v1h-3zM29 37h7v1h-7zM37 37h2v1h-2zM4 38h1v1h-1zM6 38h3v1h-3zM10 38h1v1h-1zM13 38h1v1h-1zM15 38h1v1h-1zM17 38h2v1h-2zM22 38h1v1h-1zM25 38h1v1h-1zM27 38h2v1h-2zM31 38h1v1h-1zM33 38h1v1h-1zM35 38h3v1h-3zM39 38h2v1h-2zM4 39h1v1h-1zM10 39h1v1h-1zM13 39h1v1h-1zM18 39h2v1h-2zM21 39h1v1h-1zM31 39h10v1h-10zM4 40h7v1h-7zM12 40h5v1h-5zM20 40h1v1h-1zM23 40h2v1h-2zM28 40h1v1h-1zM31 40h1v1h-1zM40 40h1v1h-1z"/></svg>`;
 
-  const inFinder = (x, y) =>
-    (x < 8 && y < 8) ||
-    (x >= size - 8 && y < 8) ||
-    (x < 8 && y >= size - 8);
-
-  let rects = "";
-
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      if (inFinder(x, y)) continue;
-      if (rand() > 0.5) {
-        rects += `<rect x="${x * cell}" y="${y * cell}" width="${cell}" height="${cell}"/>`;
-      }
-    }
-  }
-
-  const finder = (fx, fy) => `
-    <rect x="${fx * cell}" y="${fy * cell}" width="${7 * cell}" height="${7 * cell}" fill="#000"/>
-    <rect x="${(fx + 1) * cell}" y="${(fy + 1) * cell}" width="${5 * cell}" height="${5 * cell}" fill="#fff"/>
-    <rect x="${(fx + 2) * cell}" y="${(fy + 2) * cell}" width="${3 * cell}" height="${3 * cell}" fill="#000"/>
-  `;
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" width="${total}" height="${total}">
-    <rect width="${total}" height="${total}" fill="#fff"/>
-    <g fill="#000">${rects}</g>
-    ${finder(0, 0)}
-    ${finder(size - 7, 0)}
-    ${finder(0, size - 7)}
-  </svg>`;
-
-  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-};
-
-const PAYMENT_QR_SRC = buildFakeQrDataUri();
+const PAYMENT_QR_SRC = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+  PAYMENT_QR_SVG
+)}`;
 
 // ======================================================
 // TEAR LINE
@@ -1017,6 +978,44 @@ const MyOrders = () => {
     // CUSTOMER DETAILS
     // ------------------------------------------------
 
+    // ------------------------------------------------
+    // CASES NUMBER (filled manually by the user)
+    // ------------------------------------------------
+    // Asked every time the invoice is opened/printed. The last value typed
+    // for this order is remembered. Leave it empty (or press Cancel) to
+    // print a blank line that can be filled by hand on the paper bill.
+
+    const casesKey = `invoice_cases_${order._id}`;
+
+    let savedCases = "";
+
+    try {
+      savedCases = localStorage.getItem(casesKey) || "";
+    } catch (err) {
+      savedCases = "";
+    }
+
+    const casesInput = window.prompt(
+      "Enter Cases Number for this invoice.\n(Leave empty to fill it by hand on the printed bill)",
+      order.casesNumber || savedCases
+    );
+
+    const casesNumber = String(casesInput ?? "").trim();
+
+    try {
+      if (casesNumber) {
+        localStorage.setItem(casesKey, casesNumber);
+      }
+    } catch (err) {
+      // ignore storage errors
+    }
+
+    const escapeHtml = (value) =>
+      String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
     const customerState = getCustomerState(order, user);
 
     const customerStateCode = user?.stateCode || "";
@@ -1359,8 +1358,8 @@ const MyOrders = () => {
           }
 
           .qr-box img {
-            width: 95px;
-            height: 95px;
+            width: 110px;
+            height: 110px;
             border: 1px solid #000;
             padding: 2px;
           }
@@ -1369,6 +1368,13 @@ const MyOrders = () => {
             font-size: 9px;
             font-weight: bold;
             margin-top: 2px;
+          }
+
+          .qr-box .upi-id {
+            font-size: 8px;
+            font-weight: normal;
+            max-width: 115px;
+            word-break: break-all;
           }
 
           .footer-right {
@@ -1450,6 +1456,11 @@ const MyOrders = () => {
               <div class="info-row">
                 <span class="info-label">HSN Code</span>
                 <span>: ${hsnDisplay}</span>
+              </div>
+
+              <div class="info-row">
+                <span class="info-label">Cases No.</span>
+                <span>: ${casesNumber ? escapeHtml(casesNumber) : "____________"}</span>
               </div>
 
             </div>
@@ -1695,6 +1706,10 @@ const MyOrders = () => {
                   <img src="${PAYMENT_QR_SRC}" alt="Payment QR" />
 
                   <div>SCAN TO PAY</div>
+
+                  <div class="upi-id">UPI ID: ${UPI_ID}</div>
+
+                  <div>IDFC FIRST Bank</div>
 
                 </div>
 
