@@ -36,11 +36,10 @@ const getViewerId = () => {
 };
 
 // ======================================================
-// STOCK BATTERY (liquid fill + color by level) – LIVE
+// STOCK BATTERY – LIVE QUANTITY WISE (like mobile battery)
 // ======================================================
-const StockBattery = ({ stock }) => {
+const StockBattery = ({ stock, capacity = 100 }) => {
   const qty = Math.max(0, Number(stock) || 0);
-  const capacity = 100; // visual scale (you can change to max possible stock if needed)
   const fillPercent = qty <= 0 ? 0 : Math.min(100, (qty / capacity) * 100);
 
   let liquidColor = "#22C55E";
@@ -73,7 +72,7 @@ const StockBattery = ({ stock }) => {
           title={`${qty} units remaining`}
         >
           <div
-            className="absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out"
+            className="absolute left-0 top-0 bottom-0 transition-all duration-500 ease-out"
             style={{
               width: `${fillPercent}%`,
               background: `linear-gradient(180deg, ${liquidColor}cc 0%, ${liquidColor} 55%, ${liquidColor}dd 100%)`,
@@ -100,7 +99,7 @@ const StockBattery = ({ stock }) => {
       <div className="flex flex-col leading-tight">
         <span className={`text-sm font-semibold ${labelColor}`}>{label}</span>
         <span className="text-xs text-gray-500">
-          {qty > 0 ? `${qty} units available` : "Currently unavailable"}
+          {qty > 0 ? `${qty} units left` : "Currently unavailable"}
         </span>
       </div>
       <style>{`
@@ -132,8 +131,7 @@ const ProductDetails = () => {
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
 
-  // ================= LIVE REMAINING STOCK =================
-  // Backend stock minus what is already in the cart for this product
+  // ================= LIVE STOCK CALCULATION =================
   const alreadyInCart = useMemo(() => {
     if (!product) return 0;
     const productId = String(product._id || product.id || "");
@@ -143,8 +141,15 @@ const ProductDetails = () => {
   }, [cart, product]);
 
   const backendStock = Math.max(0, Number(product?.stock) || 0);
-  const remainingStock = Math.max(0, backendStock - alreadyInCart);
-  const maxStock = remainingStock; // used everywhere for limits & battery
+
+  // Max you can still add
+  const maxStock = Math.max(0, backendStock - alreadyInCart);
+
+  // LIVE remaining after current quantity selection (like mobile battery)
+  const liveRemaining = Math.max(0, maxStock - quantity);
+
+  // Capacity for percentage (use original stock so % looks natural)
+  const batteryCapacity = Math.max(backendStock, 100);
 
   // ================= FETCH PRODUCT =================
   useEffect(() => {
@@ -188,9 +193,7 @@ const ProductDetails = () => {
             setLoading(false);
             return;
           }
-        } catch (e) {
-          // fallback
-        }
+        } catch (e) {}
 
         const res = await axios.get(`${API_BASE}/api/products`, {
           params: { userId: viewerId },
@@ -383,7 +386,7 @@ const ProductDetails = () => {
     }
   }, [quantity]);
 
-  // Cap quantity if remaining stock drops (e.g. after adding to cart)
+  // Cap quantity if stock changes
   useEffect(() => {
     if (maxStock > 0 && quantity > maxStock) {
       setQuantity(maxStock);
@@ -408,12 +411,11 @@ const ProductDetails = () => {
     setQuantity(qty);
   };
 
-  // ================= ADD TO CART (stock-safe + live battery) =================
+  // ================= ADD TO CART =================
   const handleAddToCart = () => {
     if (!product) return;
 
     const addQty = Math.max(1, Number(quantity) || 1);
-    const productId = String(product._id || product.id || "");
 
     if (maxStock <= 0) {
       toast.error("Out of stock — this item is currently unavailable");
@@ -426,7 +428,6 @@ const ProductDetails = () => {
       return;
     }
 
-    // Double-check against current cart (safety)
     if (alreadyInCart + addQty > backendStock) {
       const left = Math.max(0, backendStock - alreadyInCart);
       if (left <= 0) {
@@ -443,7 +444,7 @@ const ProductDetails = () => {
 
     addToCart({
       ...product,
-      stock: backendStock, // keep original backend stock
+      stock: backendStock,
       quantity: addQty,
       price: unitPrice,
       originalPrice: originalUnitPrice,
@@ -460,7 +461,6 @@ const ProductDetails = () => {
     });
 
     toast.success(`${addQty} unit${addQty === 1 ? "" : "s"} added to cart`);
-    // Battery will automatically update because alreadyInCart changes
   };
 
   const quickQtys = useMemo(() => {
@@ -695,17 +695,27 @@ const ProductDetails = () => {
                     </div>
                   )}
 
-                  {/* LIVE STOCK BATTERY */}
+                  {/* LIVE QUANTITY-WISE BATTERY */}
                   <div className="pt-2">
                     <p className="font-semibold text-gray-800 mb-2 text-sm">
                       Availability
                     </p>
-                    <StockBattery stock={remainingStock} />
-                    {alreadyInCart > 0 && (
-                      <p className="text-xs text-amber-600 mt-1.5">
-                        You already have {alreadyInCart} in cart
-                      </p>
-                    )}
+                    <StockBattery
+                      stock={liveRemaining}
+                      capacity={batteryCapacity}
+                    />
+                    <div className="mt-1.5 space-y-0.5 text-xs">
+                      {alreadyInCart > 0 && (
+                        <p className="text-amber-600">
+                          Already in cart: {alreadyInCart} units
+                        </p>
+                      )}
+                      {quantity > 0 && maxStock > 0 && (
+                        <p className="text-indigo-600 font-medium">
+                          After adding {quantity}: {liveRemaining} units will remain
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
