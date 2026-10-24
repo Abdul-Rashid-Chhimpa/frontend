@@ -22,7 +22,7 @@ import {
 // ======================================================
 
 const API_BASE = "https://backend-3-axez.onrender.com";
-const LOGO_SRC = "/logowithqoute.png";
+
 // ======================================================
 // DESIGN TOKENS
 // ======================================================
@@ -54,6 +54,9 @@ const COMPANY_STATE = "rajasthan";
 // Shown on the invoice only when a product has no HSN code saved.
 // Set to "" (empty) if you prefer a "-" instead of a default code.
 const DEFAULT_HSN = ""; // empty = show "-" when product has no HSN in DB
+
+// Company logo – put file in public/ as pedwal-logo.png
+const LOGO_SRC = "/logowithqoute.png";
 
 // ------------------------------------------------------
 // PAYMENT QR  (real UPI QR - PEDWAL LIFE CREATION, IDFC FIRST Bank)
@@ -1238,10 +1241,24 @@ const MyOrders = () => {
           }
 
           .company-header {
-            text-align: center;
+            display: flex;
+            align-items: center;
+            gap: 12px;
             border-bottom: 2px solid #000;
-            padding-bottom: 5px;
+            padding-bottom: 8px;
             margin-bottom: 5px;
+          }
+
+          .company-logo {
+            width: 70px;
+            height: 70px;
+            object-fit: contain;
+            flex-shrink: 0;
+          }
+
+          .company-info {
+            flex: 1;
+            text-align: center;
           }
 
           .company-name {
@@ -1401,16 +1418,22 @@ const MyOrders = () => {
 
           <div class="company-header">
 
-            <div class="company-name">${companyDetails.name}</div>
+            <img
+              class="company-logo"
+              src="${LOGO_SRC}"
+              alt="Pedwal Logo"
+              onerror="this.style.display='none'"
+            />
 
-            <div class="company-sub">${companyDetails.address}</div>
-
-            <div class="company-sub">
-              E-mail Address:- ${companyDetails.email}
-            </div>
-
-            <div class="company-sub">
-              Contact no. ${companyDetails.phone}
+            <div class="company-info">
+              <div class="company-name">${companyDetails.name}</div>
+              <div class="company-sub">${companyDetails.address}</div>
+              <div class="company-sub">
+                E-mail Address:- ${companyDetails.email}
+              </div>
+              <div class="company-sub">
+                Contact no. ${companyDetails.phone}
+              </div>
             </div>
 
           </div>
