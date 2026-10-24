@@ -49,6 +49,10 @@ const INVOICE_PREFIX = "PLC";
 // Company home state (used for CGST+SGST vs IGST decision)
 const COMPANY_STATE = "rajasthan";
 
+// Shown on the invoice only when a product has no HSN code saved.
+// Set to "" (empty) if you prefer a "-" instead of a default code.
+const DEFAULT_HSN = "8203";
+
 // ------------------------------------------------------
 // PAYMENT QR
 // ------------------------------------------------------
@@ -1036,6 +1040,16 @@ const MyOrders = () => {
 
     const itemsList = order.items || [];
 
+    // Unique HSN codes of all products on this invoice (for the details box)
+    const hsnDisplay =
+      Array.from(
+        new Set(
+          itemsList.map(
+            (it) => it.hsnCode || it.productId?.hsnCode || DEFAULT_HSN || "-"
+          )
+        )
+      ).join(", ") || "-";
+
     let itemsTableRows = "";
 
     let totalTaxable = 0;
@@ -1096,7 +1110,7 @@ const MyOrders = () => {
           }</td>
 
           <td style="text-align:center;">${
-            item.hsnCode || item.productId?.hsnCode || "8203"
+            item.hsnCode || item.productId?.hsnCode || DEFAULT_HSN || "-"
           }</td>
 
           <td style="text-align:center;">${qty}</td>
@@ -1431,6 +1445,11 @@ const MyOrders = () => {
               <div class="info-row">
                 <span class="info-label">Invoice Date</span>
                 <span>: ${orderDate}</span>
+              </div>
+
+              <div class="info-row">
+                <span class="info-label">HSN Code</span>
+                <span>: ${hsnDisplay}</span>
               </div>
 
             </div>
