@@ -53,7 +53,7 @@ const COMPANY_STATE = "rajasthan";
 
 // Shown on the invoice only when a product has no HSN code saved.
 // Set to "" (empty) if you prefer a "-" instead of a default code.
-const DEFAULT_HSN = "8203";
+const DEFAULT_HSN = ""; // empty = show "-" when product has no HSN in DB
 
 // ------------------------------------------------------
 // PAYMENT QR  (real UPI QR - PEDWAL LIFE CREATION, IDFC FIRST Bank)
@@ -675,7 +675,9 @@ const MyOrders = () => {
           gstMap[String(prod._id)] =
             prod.gst !== undefined ? Number(prod.gst) : 0;
 
-          hsnMap[String(prod._id)] = prod.hsnCode || "";
+          if (prod.hsnCode && String(prod.hsnCode).trim()) {
+            hsnMap[String(prod._id)] = String(prod.hsnCode).trim();
+          }
         });
       } catch (prodErr) {
         console.error("Error fetching products for GST:", prodErr);
@@ -735,10 +737,17 @@ const MyOrders = () => {
             finalGst = Number(item.productId.gst);
           }
 
+          // Only real HSN from item or product DB — never invent a code
+          const realHsn =
+            (item.hsnCode && String(item.hsnCode).trim()) ||
+            (item.productId?.hsnCode && String(item.productId.hsnCode).trim()) ||
+            (hsnMap[targetId] && String(hsnMap[targetId]).trim()) ||
+            "";
+
           return {
             ...item,
             gst: finalGst,
-            hsnCode: item.hsnCode || hsnMap[targetId] || "",
+            hsnCode: realHsn,
           };
         });
 
@@ -1028,14 +1037,12 @@ const MyOrders = () => {
     const itemsList = order.items || [];
 
     // Unique HSN codes of all products on this invoice (for the details box)
-    const hsnDisplay =
-      Array.from(
-        new Set(
-          itemsList.map(
-            (it) => it.hsnCode || it.productId?.hsnCode || DEFAULT_HSN || "-"
-          )
-        )
-      ).join(", ") || "-";
+    // Per-product HSN from DB only; missing → "-"
+    const hsnCodes = itemsList.map(
+      (it) => (it.hsnCode || it.productId?.hsnCode || "").trim() || "-"
+    );
+    const realHsns = [...new Set(hsnCodes.filter((h) => h && h !== "-"))];
+    const hsnDisplay = realHsns.length > 0 ? realHsns.join(", ") : "-";
 
     let itemsTableRows = "";
 
@@ -1097,7 +1104,7 @@ const MyOrders = () => {
           }</td>
 
           <td style="text-align:center;">${
-            item.hsnCode || item.productId?.hsnCode || DEFAULT_HSN || "-"
+            (item.hsnCode || item.productId?.hsnCode || "").trim() || "-"
           }</td>
 
           <td style="text-align:center;">${qty}</td>
@@ -2106,6 +2113,10 @@ const MyOrders = () => {
                             }}
                           >
                             Qty: {item.quantity} · ₹{item.price}/unit
+                            {" · "}
+                            HSN{" "}
+                            {(item.hsnCode || item.productId?.hsnCode || "").trim() ||
+                              "-"}
                           </p>
                         </div>
 
