@@ -15,17 +15,19 @@ import {
   AlertTriangle,
   Trash2,
   Calendar,
+  Boxes,
+  Lock,
+  Tag,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com/api";
 
-// Step config with unique colors
 const STEPPER_STEPS = [
   {
     key: "Pending",
     label: "Pending",
     icon: Clock,
-    color: "#F59E0B",       // amber
+    color: "#F59E0B",
     bgSoft: "#FFFBEB",
     ring: "ring-amber-200",
   },
@@ -33,7 +35,7 @@ const STEPPER_STEPS = [
     key: "Confirmed",
     label: "Confirmed",
     icon: CheckCircle2,
-    color: "#4F46E5",       // indigo
+    color: "#4F46E5",
     bgSoft: "#EEF2FF",
     ring: "ring-indigo-200",
   },
@@ -41,7 +43,7 @@ const STEPPER_STEPS = [
     key: "Shipped",
     label: "Shipped",
     icon: Truck,
-    color: "#2563EB",       // blue
+    color: "#2563EB",
     bgSoft: "#EFF6FF",
     ring: "ring-blue-200",
   },
@@ -49,14 +51,29 @@ const STEPPER_STEPS = [
     key: "Delivered",
     label: "Delivered",
     icon: CheckCircle,
-    color: "#059669",       // emerald
+    color: "#059669",
     bgSoft: "#ECFDF5",
     ring: "ring-emerald-200",
   },
 ];
 
-const normalizeStatus = (status) =>
-  status === "Order Confirmed" ? "Confirmed" : status || "Pending";
+const normalizeStatus = (status) => {
+  if (!status) return "Pending";
+  const value = String(status).trim();
+  if (value === "Order Confirmed" || value === "Processing" || value === "Confirmed") {
+    return "Confirmed";
+  }
+  if (value === "Order Shipped" || value === "Shipped" || value === "Out for Delivery") {
+    return "Shipped";
+  }
+  if (value === "Order Delivered" || value === "Delivered" || value === "Completed") {
+    return "Delivered";
+  }
+  if (value === "Cancelled" || value === "Canceled") {
+    return "Cancelled";
+  }
+  return "Pending";
+};
 
 const getStepIndex = (status) => {
   const idx = STEPPER_STEPS.findIndex((s) => s.key === normalizeStatus(status));
@@ -67,7 +84,7 @@ const formatDateTime = (value) => {
   if (!value) return null;
   try {
     const d = new Date(value);
-    if (isNaN(d.getTime())) return String(value); // already formatted string
+    if (isNaN(d.getTime())) return String(value);
     return d.toLocaleString("en-IN", {
       day: "2-digit",
       month: "short",
@@ -80,7 +97,6 @@ const formatDateTime = (value) => {
   }
 };
 
-// Find timestamp for a step from history / fallbacks
 const getStepTime = (stepKey, order, currentStatus) => {
   const history = order.statusHistory || [];
   const found = [...history]
@@ -88,14 +104,16 @@ const getStepTime = (stepKey, order, currentStatus) => {
     .find((h) => normalizeStatus(h.status) === stepKey);
   if (found?.at) return formatDateTime(found.at);
 
-  // Current status → use statusUpdatedAt
   if (normalizeStatus(currentStatus) === stepKey && order.statusUpdatedAt) {
     return formatDateTime(order.statusUpdatedAt);
   }
 
-  // Pending often equals order created time
   if (stepKey === "Pending" && (order.createdAt || order.orderDate)) {
     return formatDateTime(order.createdAt || order.orderDate);
+  }
+
+  if (stepKey === "Confirmed" && order.confirmedAt) {
+    return formatDateTime(order.confirmedAt);
   }
 
   return null;
@@ -123,14 +141,11 @@ const OrderStepper = ({ status, order }) => {
   }
 
   const progressPercent =
-    currentIndex <= 0
-      ? 0
-      : (currentIndex / (STEPPER_STEPS.length - 1)) * 100;
+    currentIndex <= 0 ? 0 : (currentIndex / (STEPPER_STEPS.length - 1)) * 100;
 
   return (
     <div className="w-full px-1 sm:px-3 py-5 sm:py-6">
       <div className="relative">
-        {/* Track line */}
         <div
           className="absolute top-5 left-[10%] right-[10%] h-1 rounded-full bg-gray-200 overflow-hidden"
           aria-hidden
@@ -145,7 +160,6 @@ const OrderStepper = ({ status, order }) => {
           />
         </div>
 
-        {/* Steps */}
         <div className="relative z-10 flex justify-between">
           {STEPPER_STEPS.map((step, index) => {
             const Icon = step.icon;
@@ -161,7 +175,6 @@ const OrderStepper = ({ status, order }) => {
                   animation: `stepPop 0.45s ease ${index * 0.08}s both`,
                 }}
               >
-                {/* Circle */}
                 <div
                   className={`
                     relative w-9 h-9 sm:w-11 sm:h-11 rounded-full flex items-center justify-center
@@ -178,10 +191,7 @@ const OrderStepper = ({ status, order }) => {
                   }}
                 >
                   {isCompleted ? (
-                    <CheckCircle
-                      size={18}
-                      className="sm:w-5 sm:h-5 transition-transform duration-300"
-                    />
+                    <CheckCircle size={18} className="sm:w-5 sm:h-5" />
                   ) : (
                     <Icon
                       size={16}
@@ -190,8 +200,6 @@ const OrderStepper = ({ status, order }) => {
                       }`}
                     />
                   )}
-
-                  {/* Active pulse ring */}
                   {isActive && (
                     <span
                       className="absolute inset-0 rounded-full animate-ping opacity-30"
@@ -200,7 +208,6 @@ const OrderStepper = ({ status, order }) => {
                   )}
                 </div>
 
-                {/* Label */}
                 <p
                   className={`mt-2.5 text-[10px] sm:text-xs font-bold text-center leading-tight transition-colors duration-300 ${
                     isActive || isCompleted ? "" : "text-gray-400"
@@ -212,7 +219,6 @@ const OrderStepper = ({ status, order }) => {
                   {step.label}
                 </p>
 
-                {/* Date & time */}
                 <div
                   className={`mt-1 min-h-[28px] sm:min-h-[32px] flex items-start justify-center transition-all duration-500 ${
                     timeLabel
@@ -247,6 +253,10 @@ const OrderStepper = ({ status, order }) => {
           from { opacity: 0; transform: scale(0.96); }
           to { opacity: 1; transform: scale(1); }
         }
+        @keyframes casesPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+          50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0); }
+        }
       `}</style>
     </div>
   );
@@ -265,14 +275,46 @@ const AdminOrders = () => {
     try {
       setLoading(true);
       setErrorMsg("");
-      const { data } = await axios.get(`${API_BASE}/orders/all`);
-      if (data && data.orders) {
-        setOrders(data.orders);
-      } else if (Array.isArray(data)) {
-        setOrders(data);
-      } else {
-        setOrders([]);
+
+      // HSN map from products (fallback if item pe hsn nahi hai)
+      let hsnMap = {};
+      try {
+        const prodRes = await axios.get(`${API_BASE}/products`);
+        const list = prodRes.data.products || prodRes.data || [];
+        list.forEach((p) => {
+          if (p._id) hsnMap[String(p._id)] = p.hsnCode || "";
+        });
+      } catch (e) {
+        console.error("HSN map fetch failed:", e);
       }
+
+      const { data } = await axios.get(`${API_BASE}/orders/all`);
+
+      let raw = [];
+      if (data && data.orders) raw = data.orders;
+      else if (Array.isArray(data)) raw = data;
+
+      const mapped = raw.map((order) => {
+        const items = (order.items || []).map((item) => {
+          const pid = String(
+            item.productId?._id || item.productId || item.id || item._id || ""
+          );
+          const hsn =
+            item.hsnCode ||
+            item.productId?.hsnCode ||
+            hsnMap[pid] ||
+            "";
+          return { ...item, hsnCode: hsn };
+        });
+
+        return {
+          ...order,
+          items,
+          casesNumber: Number(order.casesNumber) || 0,
+        };
+      });
+
+      setOrders(mapped);
     } catch (error) {
       console.error("Fetch Orders Error:", error);
       setErrorMsg(
@@ -299,13 +341,11 @@ const AdminOrders = () => {
         minute: "2-digit",
       });
 
-      // Build history entry
       const historyEntry = { status, at: updatedAt };
 
       await axios.put(`${API_BASE}/orders/${id}`, {
         status,
         statusUpdatedAt: updatedAt,
-        // optional: backend can store this if supported
         statusHistoryEntry: historyEntry,
       });
 
@@ -452,6 +492,17 @@ const AdminOrders = () => {
               const statusStyle = getStatusStyle(currentStatus);
               const isUpdating = updatingId === order._id;
               const isDeleting = deletingId === order._id;
+              const casesCount = Number(order.casesNumber) || 0;
+              const hasCases = casesCount > 0;
+
+              // Unique HSN codes on this order
+              const hsnList = Array.from(
+                new Set(
+                  (order.items || [])
+                    .map((it) => it.hsnCode)
+                    .filter((h) => h && String(h).trim())
+                )
+              );
 
               return (
                 <div
@@ -464,12 +515,29 @@ const AdminOrders = () => {
                   >
                     <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <User size={16} className="text-gray-500" />
                           <h2 className="text-lg sm:text-xl font-bold text-gray-900">
                             {order.customerName || "Customer"}
                           </h2>
+
+                          {/* CASES NUMBER – animated */}
+                          {hasCases ? (
+                            <span
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300"
+                              style={{ animation: "casesPulse 2s ease-in-out infinite" }}
+                            >
+                              <Boxes size={13} />
+                              {casesCount} parcel{casesCount === 1 ? "" : "s"}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold text-gray-500 bg-gray-100 border border-gray-200">
+                              <Lock size={12} />
+                              Cases not set
+                            </span>
+                          )}
                         </div>
+
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-600">
                           <span className="flex items-center gap-1.5">
                             <Hash size={13} />
@@ -479,9 +547,7 @@ const AdminOrders = () => {
                           </span>
                           <span className="flex items-center gap-1.5 font-semibold text-gray-800">
                             <IndianRupee size={13} />
-                            {Number(order.totalAmount || 0).toLocaleString(
-                              "en-IN"
-                            )}
+                            {Number(order.totalAmount || 0).toLocaleString("en-IN")}
                           </span>
                           {order.items?.length > 0 && (
                             <span className="flex items-center gap-1.5">
@@ -491,6 +557,16 @@ const AdminOrders = () => {
                             </span>
                           )}
                         </div>
+
+                        {/* HSN CODES (order level summary) */}
+                        {hsnList.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                            <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
+                              <Tag size={11} />
+                              HSN: {hsnList.join(", ")}
+                            </span>
+                          </div>
+                        )}
                       </div>
 
                       <div className="flex flex-col items-start lg:items-end gap-1">
@@ -512,7 +588,7 @@ const AdminOrders = () => {
                     </div>
                   </div>
 
-                  {/* ANIMATED STEPPER + DATE/TIME */}
+                  {/* STEPPER */}
                   <div className="px-2 sm:px-4 border-b border-gray-100 bg-white">
                     <OrderStepper status={currentStatus} order={order} />
                   </div>
@@ -536,6 +612,7 @@ const AdminOrders = () => {
                               }}
                             />
                           </div>
+
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-gray-900 text-sm sm:text-base line-clamp-2">
                               {item.title}
@@ -545,13 +622,22 @@ const AdminOrders = () => {
                               <span>•</span>
                               <span>
                                 ₹
-                                {Number(item.price || 0).toLocaleString(
-                                  "en-IN"
-                                )}{" "}
+                                {Number(item.price || 0).toLocaleString("en-IN")}{" "}
                                 / unit
                               </span>
+                              {/* HSN per item */}
+                              {item.hsnCode ? (
+                                <>
+                                  <span>•</span>
+                                  <span className="inline-flex items-center gap-1 font-semibold text-indigo-600">
+                                    <Tag size={11} />
+                                    HSN {item.hsnCode}
+                                  </span>
+                                </>
+                              ) : null}
                             </div>
                           </div>
+
                           <div className="text-right flex-shrink-0">
                             <p className="text-xs text-gray-400">Total</p>
                             <p className="font-bold text-gray-900 text-sm sm:text-base">
@@ -576,9 +662,7 @@ const AdminOrders = () => {
                       <div className="flex flex-wrap gap-2 sm:gap-3">
                         <button
                           disabled={
-                            currentStatus === "Pending" ||
-                            isUpdating ||
-                            isDeleting
+                            currentStatus === "Pending" || isUpdating || isDeleting
                           }
                           onClick={() => updateStatus(order._id, "Pending")}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
@@ -600,9 +684,7 @@ const AdminOrders = () => {
                         </button>
                         <button
                           disabled={
-                            currentStatus === "Shipped" ||
-                            isUpdating ||
-                            isDeleting
+                            currentStatus === "Shipped" || isUpdating || isDeleting
                           }
                           onClick={() => updateStatus(order._id, "Shipped")}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
@@ -707,8 +789,7 @@ const AdminOrders = () => {
                 </button>
                 <button
                   disabled={
-                    confirmText !== "DELETE" ||
-                    deletingId === orderToDelete._id
+                    confirmText !== "DELETE" || deletingId === orderToDelete._id
                   }
                   onClick={handleDeleteOrder}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-md"
