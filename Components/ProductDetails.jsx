@@ -36,11 +36,11 @@ const getViewerId = () => {
 };
 
 // ======================================================
-// STOCK BATTERY (liquid fill + color by level)
+// STOCK BATTERY (liquid fill + color by level) – LIVE
 // ======================================================
 const StockBattery = ({ stock }) => {
   const qty = Math.max(0, Number(stock) || 0);
-  const capacity = 100;
+  const capacity = 100; // visual scale (you can change to max possible stock if needed)
   const fillPercent = qty <= 0 ? 0 : Math.min(100, (qty / capacity) * 100);
 
   let liquidColor = "#22C55E";
@@ -70,7 +70,7 @@ const StockBattery = ({ stock }) => {
       <div className="flex items-center gap-0.5">
         <div
           className="relative w-[52px] h-[26px] rounded-md border-2 border-gray-400 bg-gray-100 overflow-hidden"
-          title={`${qty} units`}
+          title={`${qty} units remaining`}
         >
           <div
             className="absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out"
@@ -97,14 +97,12 @@ const StockBattery = ({ stock }) => {
         </div>
         <div className="w-[5px] h-[12px] rounded-r-sm bg-gray-400" />
       </div>
-
       <div className="flex flex-col leading-tight">
         <span className={`text-sm font-semibold ${labelColor}`}>{label}</span>
         <span className="text-xs text-gray-500">
           {qty > 0 ? `${qty} units available` : "Currently unavailable"}
         </span>
       </div>
-
       <style>{`
         @keyframes batteryWave {
           0%, 100% { transform: translateY(0); opacity: 0.35; }
@@ -134,16 +132,32 @@ const ProductDetails = () => {
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
 
+  // ================= LIVE REMAINING STOCK =================
+  // Backend stock minus what is already in the cart for this product
+  const alreadyInCart = useMemo(() => {
+    if (!product) return 0;
+    const productId = String(product._id || product.id || "");
+    return (cart || [])
+      .filter((item) => String(item._id || item.id) === productId)
+      .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+  }, [cart, product]);
+
+  const backendStock = Math.max(0, Number(product?.stock) || 0);
+  const remainingStock = Math.max(0, backendStock - alreadyInCart);
+  const maxStock = remainingStock; // used everywhere for limits & battery
+
   // ================= FETCH PRODUCT =================
   useEffect(() => {
     let isMounted = true;
     setSelectedImage(0);
     setQuantity(1);
+
     const viewerId = getViewerId();
 
     if (location.state?.product) {
       setProduct(location.state.product);
       setLoading(false);
+
       axios
         .get(`${API_BASE}/api/products/${id}`, {
           params: { userId: viewerId },
@@ -154,6 +168,7 @@ const ProductDetails = () => {
           }
         })
         .catch(() => {});
+
       return () => {
         isMounted = false;
       };
@@ -163,6 +178,7 @@ const ProductDetails = () => {
       try {
         setLoading(true);
         setError(false);
+
         try {
           const { data } = await axios.get(`${API_BASE}/api/products/${id}`, {
             params: { userId: viewerId },
@@ -175,10 +191,13 @@ const ProductDetails = () => {
         } catch (e) {
           // fallback
         }
+
         const res = await axios.get(`${API_BASE}/api/products`, {
           params: { userId: viewerId },
         });
+
         if (!isMounted) return;
+
         const found = res.data.products?.find((p) => p._id === id);
         if (found) {
           setProduct(found);
@@ -193,6 +212,7 @@ const ProductDetails = () => {
     };
 
     fetchProduct();
+
     return () => {
       isMounted = false;
     };
@@ -251,6 +271,7 @@ const ProductDetails = () => {
         )
       )
     );
+
     return filtered.length > 0 ? filtered : allMethods;
   }, [product]);
 
@@ -263,6 +284,7 @@ const ProductDetails = () => {
   // ================= PRICING TIERS =================
   const pricingTiers = useMemo(() => {
     if (!product) return [{ minQty: 1, price: 0 }];
+
     if (product.pricing && product.pricing.length > 0) {
       return [...product.pricing]
         .map((tier) => ({
@@ -271,10 +293,9 @@ const ProductDetails = () => {
         }))
         .sort((a, b) => a.minQty - b.minQty);
     }
+
     return [{ minQty: 1, price: Number(product.price) || 0 }];
   }, [product]);
-
-  const maxStock = Math.max(0, Number(product?.stock) || 0);
 
   const baseUnitPrice = useMemo(() => {
     let applicablePrice = pricingTiers[0]?.price || 0;
@@ -331,6 +352,7 @@ const ProductDetails = () => {
 
   const gstPercent = Number(product?.gst) || 0;
   const hasGst = gstPercent > 0;
+
   const gstAmount = useMemo(() => {
     if (!hasGst) return 0;
     return (totalPrice * gstPercent) / 100;
@@ -361,67 +383,59 @@ const ProductDetails = () => {
     }
   }, [quantity]);
 
-  // Cap quantity if stock drops after fetch
+  // Cap quantity if remaining stock drops (e.g. after adding to cart)
   useEffect(() => {
-    if (!product) return;
-    const stock = Math.max(0, Number(product.stock) || 0);
-    if (stock > 0 && quantity > stock) {
-      setQuantity(stock);
+    if (maxStock > 0 && quantity > maxStock) {
+      setQuantity(maxStock);
     }
-  }, [product?.stock]);
+  }, [maxStock]);
 
   const handleQuantityChange = (value) => {
     let qty = Number(value);
     if (isNaN(qty) || qty < 1) qty = 1;
 
-    const stock = Math.max(0, Number(product?.stock) || 0);
-
-    if (stock <= 0) {
+    if (maxStock <= 0) {
       setQuantity(1);
       toast.error("Out of stock");
       return;
     }
 
-    if (qty > stock) {
-      qty = stock;
-      toast.error(`Max ${stock} units available`);
+    if (qty > maxStock) {
+      qty = maxStock;
+      toast.error(`Max ${maxStock} units available`);
     }
 
     setQuantity(qty);
   };
 
-  // ================= ADD TO CART (stock-safe) =================
+  // ================= ADD TO CART (stock-safe + live battery) =================
   const handleAddToCart = () => {
     if (!product) return;
 
-    const stock = Math.max(0, Number(product.stock) || 0);
     const addQty = Math.max(1, Number(quantity) || 1);
     const productId = String(product._id || product.id || "");
 
-    const alreadyInCart = (cart || [])
-      .filter((item) => String(item._id || item.id) === productId)
-      .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
-
-    if (stock <= 0) {
+    if (maxStock <= 0) {
       toast.error("Out of stock — this item is currently unavailable");
       return;
     }
 
-    if (addQty > stock) {
-      toast.error(`Only ${stock} units available in stock`);
-      setQuantity(stock);
+    if (addQty > maxStock) {
+      toast.error(`Only ${maxStock} units available in stock`);
+      setQuantity(maxStock);
       return;
     }
 
-    if (alreadyInCart + addQty > stock) {
-      const left = Math.max(0, stock - alreadyInCart);
+    // Double-check against current cart (safety)
+    if (alreadyInCart + addQty > backendStock) {
+      const left = Math.max(0, backendStock - alreadyInCart);
       if (left <= 0) {
         toast.error(
-          `Out of stock in cart — you already have ${alreadyInCart} units (max ${stock})`
+          `Out of stock in cart — you already have ${alreadyInCart} units (max ${backendStock})`
         );
       } else {
         toast.error(
-          `Only ${left} more unit${left === 1 ? "" : "s"} can be added (stock: ${stock})`
+          `Only ${left} more unit${left === 1 ? "" : "s"} can be added (stock: ${backendStock})`
         );
       }
       return;
@@ -429,7 +443,7 @@ const ProductDetails = () => {
 
     addToCart({
       ...product,
-      stock,
+      stock: backendStock, // keep original backend stock
       quantity: addQty,
       price: unitPrice,
       originalPrice: originalUnitPrice,
@@ -446,6 +460,7 @@ const ProductDetails = () => {
     });
 
     toast.success(`${addQty} unit${addQty === 1 ? "" : "s"} added to cart`);
+    // Battery will automatically update because alreadyInCart changes
   };
 
   const quickQtys = useMemo(() => {
@@ -680,11 +695,17 @@ const ProductDetails = () => {
                     </div>
                   )}
 
+                  {/* LIVE STOCK BATTERY */}
                   <div className="pt-2">
                     <p className="font-semibold text-gray-800 mb-2 text-sm">
                       Availability
                     </p>
-                    <StockBattery stock={product.stock} />
+                    <StockBattery stock={remainingStock} />
+                    {alreadyInCart > 0 && (
+                      <p className="text-xs text-amber-600 mt-1.5">
+                        You already have {alreadyInCart} in cart
+                      </p>
+                    )}
                   </div>
                 </div>
 
