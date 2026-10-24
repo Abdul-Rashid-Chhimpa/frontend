@@ -1,5 +1,6 @@
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useContext, useEffect, useState, useRef, useMemo } from "react";
+import toast from "react-hot-toast";
 import {
   Package,
   ArrowLeft,
@@ -39,13 +40,10 @@ const getViewerId = () => {
 // ======================================================
 const StockBattery = ({ stock }) => {
   const qty = Math.max(0, Number(stock) || 0);
-
-  // 100 units = full battery (more than 100 still shows full)
   const capacity = 100;
   const fillPercent = qty <= 0 ? 0 : Math.min(100, (qty / capacity) * 100);
 
-  // Color by stock level
-  let liquidColor = "#22C55E"; // green
+  let liquidColor = "#22C55E";
   let glowColor = "rgba(34, 197, 94, 0.45)";
   let labelColor = "text-emerald-600";
   let label = "In stock";
@@ -56,12 +54,12 @@ const StockBattery = ({ stock }) => {
     labelColor = "text-red-600";
     label = "Out of Stock";
   } else if (fillPercent <= 20) {
-    liquidColor = "#EF4444"; // red
+    liquidColor = "#EF4444";
     glowColor = "rgba(239, 68, 68, 0.4)";
     labelColor = "text-red-600";
     label = "Low stock";
   } else if (fillPercent <= 50) {
-    liquidColor = "#F59E0B"; // amber
+    liquidColor = "#F59E0B";
     glowColor = "rgba(245, 158, 11, 0.4)";
     labelColor = "text-amber-600";
     label = "Limited stock";
@@ -69,13 +67,11 @@ const StockBattery = ({ stock }) => {
 
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      {/* Battery shell */}
       <div className="flex items-center gap-0.5">
         <div
           className="relative w-[52px] h-[26px] rounded-md border-2 border-gray-400 bg-gray-100 overflow-hidden"
           title={`${qty} units`}
         >
-          {/* Liquid fill */}
           <div
             className="absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out"
             style={{
@@ -84,7 +80,6 @@ const StockBattery = ({ stock }) => {
               boxShadow: qty > 0 ? `inset 0 0 8px ${glowColor}` : "none",
             }}
           >
-            {/* Shine / liquid wave */}
             {qty > 0 && (
               <div
                 className="absolute inset-0 opacity-30"
@@ -96,18 +91,13 @@ const StockBattery = ({ stock }) => {
               />
             )}
           </div>
-
-          {/* Percent text inside battery */}
           <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-gray-800 drop-shadow-sm pointer-events-none">
             {qty <= 0 ? "0%" : `${Math.round(fillPercent)}%`}
           </span>
         </div>
-
-        {/* Battery tip */}
         <div className="w-[5px] h-[12px] rounded-r-sm bg-gray-400" />
       </div>
 
-      {/* Label */}
       <div className="flex flex-col leading-tight">
         <span className={`text-sm font-semibold ${labelColor}`}>{label}</span>
         <span className="text-xs text-gray-500">
@@ -129,7 +119,7 @@ const ProductDetails = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
-  const { addToCart } = useContext(CartContext);
+  const { addToCart, cart } = useContext(CartContext);
 
   const [product, setProduct] = useState(location.state?.product || null);
   const [loading, setLoading] = useState(!location.state?.product);
@@ -137,7 +127,6 @@ const ProductDetails = () => {
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
-
   const [selectedPayment, setSelectedPayment] = useState("");
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] =
     useState("standard");
@@ -150,13 +139,11 @@ const ProductDetails = () => {
     let isMounted = true;
     setSelectedImage(0);
     setQuantity(1);
-
     const viewerId = getViewerId();
 
     if (location.state?.product) {
       setProduct(location.state.product);
       setLoading(false);
-
       axios
         .get(`${API_BASE}/api/products/${id}`, {
           params: { userId: viewerId },
@@ -167,7 +154,6 @@ const ProductDetails = () => {
           }
         })
         .catch(() => {});
-
       return () => {
         isMounted = false;
       };
@@ -177,7 +163,6 @@ const ProductDetails = () => {
       try {
         setLoading(true);
         setError(false);
-
         try {
           const { data } = await axios.get(`${API_BASE}/api/products/${id}`, {
             params: { userId: viewerId },
@@ -190,12 +175,10 @@ const ProductDetails = () => {
         } catch (e) {
           // fallback
         }
-
         const res = await axios.get(`${API_BASE}/api/products`, {
           params: { userId: viewerId },
         });
         if (!isMounted) return;
-
         const found = res.data.products?.find((p) => p._id === id);
         if (found) {
           setProduct(found);
@@ -268,7 +251,6 @@ const ProductDetails = () => {
         )
       )
     );
-
     return filtered.length > 0 ? filtered : allMethods;
   }, [product]);
 
@@ -289,15 +271,10 @@ const ProductDetails = () => {
         }))
         .sort((a, b) => a.minQty - b.minQty);
     }
-    return [
-      {
-        minQty: 1,
-        price: Number(product.price) || 0,
-      },
-    ];
+    return [{ minQty: 1, price: Number(product.price) || 0 }];
   }, [product]);
 
-  const maxStock = product?.stock ?? 1;
+  const maxStock = Math.max(0, Number(product?.stock) || 0);
 
   const baseUnitPrice = useMemo(() => {
     let applicablePrice = pricingTiers[0]?.price || 0;
@@ -348,9 +325,7 @@ const ProductDetails = () => {
   }, [product]);
 
   const deliveryCharge = useMemo(() => {
-    if (selectedDeliveryMethod === "standard") {
-      return backendDeliveryCharge;
-    }
+    if (selectedDeliveryMethod === "standard") return backendDeliveryCharge;
     return backendDeliveryCharge + 100;
   }, [selectedDeliveryMethod, backendDeliveryCharge]);
 
@@ -386,18 +361,76 @@ const ProductDetails = () => {
     }
   }, [quantity]);
 
+  // Cap quantity if stock drops after fetch
+  useEffect(() => {
+    if (!product) return;
+    const stock = Math.max(0, Number(product.stock) || 0);
+    if (stock > 0 && quantity > stock) {
+      setQuantity(stock);
+    }
+  }, [product?.stock]);
+
   const handleQuantityChange = (value) => {
     let qty = Number(value);
     if (isNaN(qty) || qty < 1) qty = 1;
-    if (qty > maxStock) qty = maxStock;
+
+    const stock = Math.max(0, Number(product?.stock) || 0);
+
+    if (stock <= 0) {
+      setQuantity(1);
+      toast.error("Out of stock");
+      return;
+    }
+
+    if (qty > stock) {
+      qty = stock;
+      toast.error(`Max ${stock} units available`);
+    }
+
     setQuantity(qty);
   };
 
+  // ================= ADD TO CART (stock-safe) =================
   const handleAddToCart = () => {
     if (!product) return;
+
+    const stock = Math.max(0, Number(product.stock) || 0);
+    const addQty = Math.max(1, Number(quantity) || 1);
+    const productId = String(product._id || product.id || "");
+
+    const alreadyInCart = (cart || [])
+      .filter((item) => String(item._id || item.id) === productId)
+      .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+
+    if (stock <= 0) {
+      toast.error("Out of stock — this item is currently unavailable");
+      return;
+    }
+
+    if (addQty > stock) {
+      toast.error(`Only ${stock} units available in stock`);
+      setQuantity(stock);
+      return;
+    }
+
+    if (alreadyInCart + addQty > stock) {
+      const left = Math.max(0, stock - alreadyInCart);
+      if (left <= 0) {
+        toast.error(
+          `Out of stock in cart — you already have ${alreadyInCart} units (max ${stock})`
+        );
+      } else {
+        toast.error(
+          `Only ${left} more unit${left === 1 ? "" : "s"} can be added (stock: ${stock})`
+        );
+      }
+      return;
+    }
+
     addToCart({
       ...product,
-      quantity,
+      stock,
+      quantity: addQty,
       price: unitPrice,
       originalPrice: originalUnitPrice,
       discountPercent,
@@ -406,14 +439,17 @@ const ProductDetails = () => {
       deliveryCharge,
       grandTotal,
       selectedOption: {
-        quantity,
+        quantity: addQty,
         price: unitPrice,
-        label: `${quantity} units`,
+        label: `${addQty} units`,
       },
     });
+
+    toast.success(`${addQty} unit${addQty === 1 ? "" : "s"} added to cart`);
   };
 
   const quickQtys = useMemo(() => {
+    if (maxStock <= 0) return [];
     return [1, 5, 10, 25, 50, 100, 250, 500, maxStock].filter(
       (q, i, arr) => q <= maxStock && arr.indexOf(q) === i
     );
@@ -452,6 +488,8 @@ const ProductDetails = () => {
       </div>
     );
   }
+
+  const isOutOfStock = maxStock <= 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
@@ -613,7 +651,6 @@ const ProductDetails = () => {
                     {product.material || "N/A"}
                   </p>
 
-                  {/* HSN – only if present in DB */}
                   {product.hsnCode ? (
                     <p className="flex items-center gap-1.5">
                       <Hash size={15} className="text-gray-500" />
@@ -643,7 +680,6 @@ const ProductDetails = () => {
                     </div>
                   )}
 
-                  {/* STOCK BATTERY */}
                   <div className="pt-2">
                     <p className="font-semibold text-gray-800 mb-2 text-sm">
                       Availability
@@ -843,40 +879,54 @@ const ProductDetails = () => {
                     <input
                       type="number"
                       min="1"
-                      max={maxStock}
+                      max={Math.max(1, maxStock)}
                       value={quantity}
+                      disabled={isOutOfStock}
                       onChange={(e) => handleQuantityChange(e.target.value)}
-                      className="w-full border-2 border-gray-200 focus:border-indigo-500 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-semibold text-center outline-none transition"
+                      className="w-full border-2 border-gray-200 focus:border-indigo-500 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-semibold text-center outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed"
                       placeholder="Enter quantity"
                     />
                   </div>
 
-                  <div className="mb-3 sm:mb-4">
-                    <input
-                      type="range"
-                      min="1"
-                      max={maxStock}
-                      value={quantity}
-                      onChange={(e) => handleQuantityChange(e.target.value)}
-                      className="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                    />
-                  </div>
+                  {!isOutOfStock && (
+                    <>
+                      <div className="mb-3 sm:mb-4">
+                        <input
+                          type="range"
+                          min="1"
+                          max={Math.max(1, maxStock)}
+                          value={quantity}
+                          onChange={(e) =>
+                            handleQuantityChange(e.target.value)
+                          }
+                          className="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
+                      </div>
 
-                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                    {quickQtys.map((q) => (
-                      <button
-                        key={q}
-                        onClick={() => setQuantity(q)}
-                        className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition ${
-                          quantity === q
-                            ? "bg-indigo-600 text-white shadow"
-                            : "bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700"
-                        }`}
-                      >
-                        {q === maxStock ? `Max (${q})` : q}
-                      </button>
-                    ))}
-                  </div>
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                        {quickQtys.map((q) => (
+                          <button
+                            key={q}
+                            type="button"
+                            onClick={() => setQuantity(q)}
+                            className={`px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-lg text-xs sm:text-sm font-medium transition ${
+                              quantity === q
+                                ? "bg-indigo-600 text-white shadow"
+                                : "bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700"
+                            }`}
+                          >
+                            {q === maxStock ? `Max (${q})` : q}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {isOutOfStock && (
+                    <p className="text-sm font-semibold text-red-600 mt-1">
+                      Out of stock — cannot add this product right now
+                    </p>
+                  )}
                 </div>
 
                 {/* TOTAL BREAKDOWN */}
@@ -955,12 +1005,12 @@ const ProductDetails = () => {
               {/* ACTIONS */}
               <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mt-auto pt-3 sm:pt-4">
                 <button
-                  disabled={product.stock === 0}
+                  disabled={isOutOfStock || quantity < 1}
                   onClick={handleAddToCart}
                   className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition shadow-lg"
                 >
                   <ShoppingCart size={18} />
-                  Add to Cart
+                  {isOutOfStock ? "Out of Stock" : "Add to Cart"}
                 </button>
                 <button
                   onClick={() => navigate("/cart")}
