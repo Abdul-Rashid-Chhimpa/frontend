@@ -25,7 +25,6 @@ import axios from "axios";
 
 const API_BASE = "https://backend-3-axez.onrender.com";
 
-// Logged-in user's id (so the server can show the right special discount)
 const getViewerId = () => {
   try {
     const u = JSON.parse(localStorage.getItem("user")) || {};
@@ -33,6 +32,97 @@ const getViewerId = () => {
   } catch {
     return "";
   }
+};
+
+// ======================================================
+// STOCK BATTERY (liquid fill + color by level)
+// ======================================================
+const StockBattery = ({ stock }) => {
+  const qty = Math.max(0, Number(stock) || 0);
+
+  // 100 units = full battery (more than 100 still shows full)
+  const capacity = 100;
+  const fillPercent = qty <= 0 ? 0 : Math.min(100, (qty / capacity) * 100);
+
+  // Color by stock level
+  let liquidColor = "#22C55E"; // green
+  let glowColor = "rgba(34, 197, 94, 0.45)";
+  let labelColor = "text-emerald-600";
+  let label = "In stock";
+
+  if (qty <= 0) {
+    liquidColor = "#9CA3AF";
+    glowColor = "transparent";
+    labelColor = "text-red-600";
+    label = "Out of Stock";
+  } else if (fillPercent <= 20) {
+    liquidColor = "#EF4444"; // red
+    glowColor = "rgba(239, 68, 68, 0.4)";
+    labelColor = "text-red-600";
+    label = "Low stock";
+  } else if (fillPercent <= 50) {
+    liquidColor = "#F59E0B"; // amber
+    glowColor = "rgba(245, 158, 11, 0.4)";
+    labelColor = "text-amber-600";
+    label = "Limited stock";
+  }
+
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {/* Battery shell */}
+      <div className="flex items-center gap-0.5">
+        <div
+          className="relative w-[52px] h-[26px] rounded-md border-2 border-gray-400 bg-gray-100 overflow-hidden"
+          title={`${qty} units`}
+        >
+          {/* Liquid fill */}
+          <div
+            className="absolute left-0 top-0 bottom-0 transition-all duration-700 ease-out"
+            style={{
+              width: `${fillPercent}%`,
+              background: `linear-gradient(180deg, ${liquidColor}cc 0%, ${liquidColor} 55%, ${liquidColor}dd 100%)`,
+              boxShadow: qty > 0 ? `inset 0 0 8px ${glowColor}` : "none",
+            }}
+          >
+            {/* Shine / liquid wave */}
+            {qty > 0 && (
+              <div
+                className="absolute inset-0 opacity-30"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(255,255,255,0.55) 0%, transparent 45%, transparent 100%)",
+                  animation: "batteryWave 2.4s ease-in-out infinite",
+                }}
+              />
+            )}
+          </div>
+
+          {/* Percent text inside battery */}
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-gray-800 drop-shadow-sm pointer-events-none">
+            {qty <= 0 ? "0%" : `${Math.round(fillPercent)}%`}
+          </span>
+        </div>
+
+        {/* Battery tip */}
+        <div className="w-[5px] h-[12px] rounded-r-sm bg-gray-400" />
+      </div>
+
+      {/* Label */}
+      <div className="flex flex-col leading-tight">
+        <span className={`text-sm font-semibold ${labelColor}`}>{label}</span>
+        <span className="text-xs text-gray-500">
+          {qty > 0 ? `${qty} units available` : "Currently unavailable"}
+        </span>
+      </div>
+
+      <style>{`
+        @keyframes batteryWave {
+          0%, 100% { transform: translateY(0); opacity: 0.35; }
+          50% { transform: translateY(2px); opacity: 0.55; }
+        }
+      `}</style>
+    </div>
+  );
 };
 
 const ProductDetails = () => {
@@ -48,9 +138,9 @@ const ProductDetails = () => {
   const [quantity, setQuantity] = useState(1);
   const [isPaused, setIsPaused] = useState(false);
 
-  // Payment & Delivery
   const [selectedPayment, setSelectedPayment] = useState("");
-  const [selectedDeliveryMethod, setSelectedDeliveryMethod] = useState("standard");
+  const [selectedDeliveryMethod, setSelectedDeliveryMethod] =
+    useState("standard");
 
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
@@ -67,8 +157,6 @@ const ProductDetails = () => {
       setProduct(location.state.product);
       setLoading(false);
 
-      // Refresh in the background so HSN code and the discount
-      // always match the currently logged-in user.
       axios
         .get(`${API_BASE}/api/products/${id}`, {
           params: { userId: viewerId },
@@ -78,9 +166,7 @@ const ProductDetails = () => {
             setProduct(data.product);
           }
         })
-        .catch(() => {
-          // keep the product we already have
-        });
+        .catch(() => {});
 
       return () => {
         isMounted = false;
@@ -213,7 +299,6 @@ const ProductDetails = () => {
 
   const maxStock = product?.stock ?? 1;
 
-  // Base price from quantity tiers = ORIGINAL price (before offer)
   const baseUnitPrice = useMemo(() => {
     let applicablePrice = pricingTiers[0]?.price || 0;
     for (let i = 0; i < pricingTiers.length; i++) {
@@ -226,7 +311,7 @@ const ProductDetails = () => {
     return applicablePrice;
   }, [quantity, pricingTiers]);
 
-  // ================= DISCOUNT / OFFER =================
+  // ================= DISCOUNT =================
   const discountPercent = useMemo(() => {
     return Number(product?.discountPercent || product?.offer || 0) || 0;
   }, [product]);
@@ -247,7 +332,7 @@ const ProductDetails = () => {
   const totalPrice = unitPrice * quantity;
   const totalSavings = hasDiscount ? totalOriginalPrice - totalPrice : 0;
 
-  // ================= DELIVERY CHARGE =================
+  // ================= DELIVERY =================
   const backendDeliveryCharge = useMemo(() => {
     if (!product) return 0;
     if (
@@ -269,7 +354,6 @@ const ProductDetails = () => {
     return backendDeliveryCharge + 100;
   }, [selectedDeliveryMethod, backendDeliveryCharge]);
 
-  // GST
   const gstPercent = Number(product?.gst) || 0;
   const hasGst = gstPercent > 0;
   const gstAmount = useMemo(() => {
@@ -459,7 +543,7 @@ const ProductDetails = () => {
                   {product.name}
                 </h1>
 
-                {/* ========== PRICE BLOCK ========== */}
+                {/* PRICE BLOCK */}
                 <div className="mb-5 sm:mb-6 p-4 rounded-2xl border border-indigo-100 bg-gradient-to-r from-indigo-50/80 to-purple-50/50">
                   {hasDiscount ? (
                     <>
@@ -529,8 +613,8 @@ const ProductDetails = () => {
                     {product.material || "N/A"}
                   </p>
 
-                  {/* HSN CODE */}
-                  {product.hsnCode && (
+                  {/* HSN – only if present in DB */}
+                  {product.hsnCode ? (
                     <p className="flex items-center gap-1.5">
                       <Hash size={15} className="text-gray-500" />
                       <span className="font-semibold text-gray-800">
@@ -540,7 +624,7 @@ const ProductDetails = () => {
                         {product.hsnCode}
                       </span>
                     </p>
-                  )}
+                  ) : null}
 
                   {(product.size || product.weight) && (
                     <div className="flex flex-wrap gap-4 pt-1 text-xs sm:text-sm text-gray-700">
@@ -559,22 +643,13 @@ const ProductDetails = () => {
                     </div>
                   )}
 
-                  <p className="pt-1">
-                    <span className="font-semibold text-gray-800">
-                      Availability:
-                    </span>{" "}
-                    <span
-                      className={
-                        product.stock > 0
-                          ? "text-emerald-600 font-semibold"
-                          : "text-red-600 font-semibold"
-                      }
-                    >
-                      {product.stock > 0
-                        ? `${product.stock} units in stock`
-                        : "Out of Stock"}
-                    </span>
-                  </p>
+                  {/* STOCK BATTERY */}
+                  <div className="pt-2">
+                    <p className="font-semibold text-gray-800 mb-2 text-sm">
+                      Availability
+                    </p>
+                    <StockBattery stock={product.stock} />
+                  </div>
                 </div>
 
                 {/* DELIVERY OPTIONS */}
@@ -804,7 +879,7 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* ========== TOTAL BREAKDOWN ========== */}
+                {/* TOTAL BREAKDOWN */}
                 <div className="mb-6 sm:mb-8 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-2xl border border-indigo-100 space-y-2">
                   {hasDiscount && (
                     <div className="flex justify-between items-center text-xs sm:text-sm text-gray-500">
