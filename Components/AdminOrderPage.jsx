@@ -60,13 +60,25 @@ const STEPPER_STEPS = [
 const normalizeStatus = (status) => {
   if (!status) return "Pending";
   const value = String(status).trim();
-  if (value === "Order Confirmed" || value === "Processing" || value === "Confirmed") {
+  if (
+    value === "Order Confirmed" ||
+    value === "Processing" ||
+    value === "Confirmed"
+  ) {
     return "Confirmed";
   }
-  if (value === "Order Shipped" || value === "Shipped" || value === "Out for Delivery") {
+  if (
+    value === "Order Shipped" ||
+    value === "Shipped" ||
+    value === "Out for Delivery"
+  ) {
     return "Shipped";
   }
-  if (value === "Order Delivered" || value === "Delivered" || value === "Completed") {
+  if (
+    value === "Order Delivered" ||
+    value === "Delivered" ||
+    value === "Completed"
+  ) {
     return "Delivered";
   }
   if (value === "Cancelled" || value === "Canceled") {
@@ -276,13 +288,15 @@ const AdminOrders = () => {
       setLoading(true);
       setErrorMsg("");
 
-      // HSN map from products (fallback if item pe hsn nahi hai)
+      // HSN map – only real values from product DB
       let hsnMap = {};
       try {
         const prodRes = await axios.get(`${API_BASE}/products`);
         const list = prodRes.data.products || prodRes.data || [];
         list.forEach((p) => {
-          if (p._id) hsnMap[String(p._id)] = p.hsnCode || "";
+          if (p._id && p.hsnCode && String(p.hsnCode).trim()) {
+            hsnMap[String(p._id)] = String(p.hsnCode).trim();
+          }
         });
       } catch (e) {
         console.error("HSN map fetch failed:", e);
@@ -299,11 +313,14 @@ const AdminOrders = () => {
           const pid = String(
             item.productId?._id || item.productId || item.id || item._id || ""
           );
+
+          // Only DB value – no default HSN
           const hsn =
-            item.hsnCode ||
-            item.productId?.hsnCode ||
+            (item.hsnCode && String(item.hsnCode).trim()) ||
+            (item.productId?.hsnCode && String(item.productId.hsnCode).trim()) ||
             hsnMap[pid] ||
             "";
+
           return { ...item, hsnCode: hsn };
         });
 
@@ -319,7 +336,7 @@ const AdminOrders = () => {
       console.error("Fetch Orders Error:", error);
       setErrorMsg(
         error.response?.data?.message ||
-          "Failed to load orders. Make sure to remove .populate('items.product') from backend controller."
+          "Failed to load orders. Check backend orders API."
       );
     } finally {
       setLoading(false);
@@ -495,12 +512,12 @@ const AdminOrders = () => {
               const casesCount = Number(order.casesNumber) || 0;
               const hasCases = casesCount > 0;
 
-              // Unique HSN codes on this order
+              // Only real HSN codes from DB (no default)
               const hsnList = Array.from(
                 new Set(
                   (order.items || [])
-                    .map((it) => it.hsnCode)
-                    .filter((h) => h && String(h).trim())
+                    .map((it) => (it.hsnCode || "").trim())
+                    .filter(Boolean)
                 )
               );
 
@@ -521,11 +538,13 @@ const AdminOrders = () => {
                             {order.customerName || "Customer"}
                           </h2>
 
-                          {/* CASES NUMBER – animated */}
+                          {/* Cases – animated when set */}
                           {hasCases ? (
                             <span
                               className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-bold text-amber-800 bg-amber-100 border border-amber-300"
-                              style={{ animation: "casesPulse 2s ease-in-out infinite" }}
+                              style={{
+                                animation: "casesPulse 2s ease-in-out infinite",
+                              }}
                             >
                               <Boxes size={13} />
                               {casesCount} parcel{casesCount === 1 ? "" : "s"}
@@ -547,7 +566,9 @@ const AdminOrders = () => {
                           </span>
                           <span className="flex items-center gap-1.5 font-semibold text-gray-800">
                             <IndianRupee size={13} />
-                            {Number(order.totalAmount || 0).toLocaleString("en-IN")}
+                            {Number(order.totalAmount || 0).toLocaleString(
+                              "en-IN"
+                            )}
                           </span>
                           {order.items?.length > 0 && (
                             <span className="flex items-center gap-1.5">
@@ -558,7 +579,7 @@ const AdminOrders = () => {
                           )}
                         </div>
 
-                        {/* HSN CODES (order level summary) */}
+                        {/* Order-level HSN summary – only codes that exist */}
                         {hsnList.length > 0 && (
                           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
                             <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md">
@@ -588,7 +609,7 @@ const AdminOrders = () => {
                     </div>
                   </div>
 
-                  {/* STEPPER */}
+                  {/* Stepper */}
                   <div className="px-2 sm:px-4 border-b border-gray-100 bg-white">
                     <OrderStepper status={currentStatus} order={order} />
                   </div>
@@ -622,19 +643,17 @@ const AdminOrders = () => {
                               <span>•</span>
                               <span>
                                 ₹
-                                {Number(item.price || 0).toLocaleString("en-IN")}{" "}
+                                {Number(item.price || 0).toLocaleString(
+                                  "en-IN"
+                                )}{" "}
                                 / unit
                               </span>
-                              {/* HSN per item */}
-                              {item.hsnCode ? (
-                                <>
-                                  <span>•</span>
-                                  <span className="inline-flex items-center gap-1 font-semibold text-indigo-600">
-                                    <Tag size={11} />
-                                    HSN {item.hsnCode}
-                                  </span>
-                                </>
-                              ) : null}
+                              <span>•</span>
+                              {/* Per-product HSN: DB value or "-" */}
+                              <span className="inline-flex items-center gap-1 font-semibold text-indigo-600">
+                                <Tag size={11} />
+                                HSN {item.hsnCode ? item.hsnCode : "-"}
+                              </span>
                             </div>
                           </div>
 
@@ -662,7 +681,9 @@ const AdminOrders = () => {
                       <div className="flex flex-wrap gap-2 sm:gap-3">
                         <button
                           disabled={
-                            currentStatus === "Pending" || isUpdating || isDeleting
+                            currentStatus === "Pending" ||
+                            isUpdating ||
+                            isDeleting
                           }
                           onClick={() => updateStatus(order._id, "Pending")}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
@@ -684,7 +705,9 @@ const AdminOrders = () => {
                         </button>
                         <button
                           disabled={
-                            currentStatus === "Shipped" || isUpdating || isDeleting
+                            currentStatus === "Shipped" ||
+                            isUpdating ||
+                            isDeleting
                           }
                           onClick={() => updateStatus(order._id, "Shipped")}
                           className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-sm"
@@ -789,7 +812,8 @@ const AdminOrders = () => {
                 </button>
                 <button
                   disabled={
-                    confirmText !== "DELETE" || deletingId === orderToDelete._id
+                    confirmText !== "DELETE" ||
+                    deletingId === orderToDelete._id
                   }
                   onClick={handleDeleteOrder}
                   className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed transition shadow-md"
