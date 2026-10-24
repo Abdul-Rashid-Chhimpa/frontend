@@ -26,6 +26,8 @@ const SURFACE = "#FFFFFF";
 const BG = "#F5F6F4";
 const STEEL = "#2B4A5E";
 
+// Endpoints tried in order until one returns a user list.
+// Remove / reorder these to match your backend.
 const USER_LIST_ENDPOINTS = [
   "/api/users",
   "/api/users/all",
@@ -34,6 +36,7 @@ const USER_LIST_ENDPOINTS = [
 
 const getUserPhone = (u) => String(u?.phone || u?.mobile || u?.mobileNumber || "");
 
+// Backend may send allowedUserIds as ["id1"] or [{_id: "id1", ...}]
 const normalizeAllowedIds = (list) =>
   Array.isArray(list)
     ? list.map((u) => String(u && typeof u === "object" ? u._id : u)).filter(Boolean)
@@ -46,6 +49,7 @@ const GetAllProducts = () => {
   const [expandedDesc, setExpandedDesc] = useState({});
   const [updating, setUpdating] = useState(false);
 
+  // --- USER SEARCH & SELECTION STATES (for targeted discount) ---
   const [allUsers, setAllUsers] = useState([]);
   const [userSearchTerm, setUserSearchTerm] = useState("");
   const [usersLoading, setUsersLoading] = useState(false);
@@ -61,10 +65,13 @@ const GetAllProducts = () => {
     "Credit / Debit Card",
   ];
 
+  // Turns a user id into a readable label (name / email / phone)
   const getUserLabel = (id) => {
     const u = allUsers.find((x) => String(x._id) === String(id));
     const shortId = String(id).slice(-6);
+
     if (!u) return `User ...${shortId}`;
+
     return u.name || u.email || getUserPhone(u) || `User ...${shortId}`;
   };
 
@@ -72,6 +79,7 @@ const GetAllProducts = () => {
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      // Admin route returns full data (discountTargetType + allowedUserIds)
       const { data } = await axios.get(`${API}/admin/all`);
       if (data.success) setProducts(data.products || []);
     } catch (error) {
@@ -90,12 +98,15 @@ const GetAllProducts = () => {
   const fetchUsers = useCallback(async () => {
     setUsersLoading(true);
     setUsersError("");
+
     let lastError = null;
 
     for (const path of USER_LIST_ENDPOINTS) {
       try {
         const res = await axios.get(`${BASE_URL}${path}`);
+
         const body = res.data;
+
         const list = Array.isArray(body)
           ? body
           : body?.users || body?.data || body?.result || [];
@@ -115,11 +126,13 @@ const GetAllProducts = () => {
     setUsersLoading(false);
   }, [BASE_URL]);
 
+  // Load users once on page load so selected users' names can show on the cards
   useEffect(() => {
     fetchUsers();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load users when the edit modal is on "Selected Users Only"
   useEffect(() => {
     if (
       editProduct?.discountTargetType === "selected" &&
@@ -189,19 +202,24 @@ const GetAllProducts = () => {
     setExpandedDesc((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // --- USER SELECTION TOGGLE ---
   const toggleUserSelection = (userId) => {
     const id = String(userId);
+
     setEditProduct((prev) => {
       const current = prev.allowedUserIds || [];
       const exists = current.includes(id);
       const updatedIds = exists
         ? current.filter((x) => x !== id)
         : [...current, id];
+
       return { ...prev, allowedUserIds: updatedIds };
     });
   };
 
+  // Full list is shown by default; typing filters it (1+ characters)
   const searchLower = userSearchTerm.trim().toLowerCase();
+
   const filteredUsers = searchLower
     ? allUsers.filter((u) => {
         const nameMatch = u.name && String(u.name).toLowerCase().includes(searchLower);
@@ -262,11 +280,7 @@ const GetAllProducts = () => {
     setEditProduct((prev) => {
       const updatedImages = [...(prev.images || [])];
 
-      if (
-        updatedImages[index] &&
-        typeof updatedImages[index] === "string" &&
-        updatedImages[index].startsWith("blob:")
-      ) {
+      if (updatedImages[index] && typeof updatedImages[index] === "string" && updatedImages[index].startsWith("blob:")) {
         URL.revokeObjectURL(updatedImages[index]);
       }
 
@@ -307,8 +321,8 @@ const GetAllProducts = () => {
       discountNote: product.discountNote || "",
       discountTargetType: product.discountTargetType === "selected" ? "selected" : "all",
       allowedUserIds: normalizeAllowedIds(product.allowedUserIds),
-      otherUsersDiscountPercent: product.otherUsersDiscountPercent ?? "",
-      otherUsersDiscountNote: product.otherUsersDiscountNote ?? "",
+      otherUsersDiscountPercent: product.otherUsersDiscountPercent || "",
+      otherUsersDiscountNote: product.otherUsersDiscountNote || "",
       deliveryCharge: deliveryCharge ?? "",
       deliveryTime: deliveryTime ?? "",
       paymentMethods: paymentMethods,
@@ -316,7 +330,7 @@ const GetAllProducts = () => {
     });
   };
 
-  // ================= UPDATE PRODUCT =================
+  // ================= UPDATE PRODUCT FUNCTION =================
   const updateProduct = async () => {
     if (!editProduct.pricing || editProduct.pricing.length === 0) {
       alert("At least one pricing option is required.");
@@ -348,14 +362,18 @@ const GetAllProducts = () => {
       formData.append("size", editProduct.size || "");
       formData.append("weight", editProduct.weight || "");
       formData.append("gst", Number(editProduct.gst) || 0);
+      formData.append("hsnCode", String(editProduct.hsnCode || "").trim());
       formData.append("variantGroup", editProduct.variantGroup || "");
       formData.append("description", editProduct.description || "");
       formData.append("pricing", JSON.stringify(formattedPricing));
 
+      // Offer & New Arrival fields — names now match what the API actually
+      // returns (isNewProduct / discountPercent / discountNote).
       formData.append("isNewProduct", Boolean(editProduct.isNewProduct));
       formData.append("discountPercent", Number(editProduct.discountPercent) || 0);
       formData.append("discountNote", editProduct.discountNote || "");
 
+      // --- USER TARGETING FIELDS (same names as Add Product) ---
       formData.append("discountTargetType", editProduct.discountTargetType || "all");
       formData.append(
         "otherUsersDiscountPercent",
@@ -420,7 +438,7 @@ const GetAllProducts = () => {
     }
   };
 
-  // ================= LOADING =================
+  // ================= LOADING SKELETON =================
   if (loading) {
     return (
       <div className="min-h-screen py-6 sm:py-8 px-3 sm:px-6" style={{ background: BG }}>
@@ -432,13 +450,10 @@ const GetAllProducts = () => {
             </div>
             <div className="h-10 w-28 rounded-xl shimmer" style={{ background: BORDER }} />
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="rounded-2xl overflow-hidden border"
-                style={{ background: SURFACE, borderColor: BORDER }}
-              >
+              <div key={i} className="rounded-2xl overflow-hidden border" style={{ background: SURFACE, borderColor: BORDER }}>
                 <div className="h-48 sm:h-52 shimmer" style={{ background: "#F1F2EF" }} />
                 <div className="p-4 sm:p-5">
                   <div className="h-4 w-3/4 rounded-md shimmer" style={{ background: BORDER }} />
@@ -480,22 +495,12 @@ const GetAllProducts = () => {
         </div>
 
         {products.length === 0 ? (
-          <div
-            className="rounded-2xl border p-12 text-center"
-            style={{ background: SURFACE, borderColor: BORDER }}
-          >
-            <div
-              className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5"
-              style={{ background: BG }}
-            >
+          <div className="rounded-2xl border p-12 text-center" style={{ background: SURFACE, borderColor: BORDER }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: BG }}>
               <Boxes size={36} style={{ color: STEEL }} />
             </div>
-            <h2 className="text-2xl font-bold" style={{ color: INK }}>
-              No products found
-            </h2>
-            <p className="mt-2" style={{ color: MUTED }}>
-              Add products to see them here.
-            </p>
+            <h2 className="text-2xl font-bold" style={{ color: INK }}>No products found</h2>
+            <p className="mt-2" style={{ color: MUTED }}>Add products to see them here.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5 sm:gap-6">
@@ -514,7 +519,6 @@ const GetAllProducts = () => {
               const targetedIds = normalizeAllowedIds(product.allowedUserIds);
               const targetedCount = targetedIds.length;
               const otherPercent = Number(product.otherUsersDiscountPercent) || 0;
-              const specialPercent = Number(product.discountPercent) || 0;
 
               return (
                 <div
@@ -524,18 +528,15 @@ const GetAllProducts = () => {
                 >
                   <div className="relative h-48 sm:h-52" style={{ background: "#F1F2EF" }}>
                     <img
-                      src={
-                        product.images?.[0] ||
-                        "https://via.placeholder.com/500x400?text=No+Image"
-                      }
+                      src={product.images?.[0] || "https://via.placeholder.com/500x400?text=No+Image"}
                       alt={product.name}
                       className="w-full h-full object-contain p-4"
                       onError={(e) => {
-                        e.target.src =
-                          "https://via.placeholder.com/500x400?text=No+Image";
+                        e.target.src = "https://via.placeholder.com/500x400?text=No+Image";
                       }}
                     />
 
+                    {/* New Arrival Badge — reads isNewProduct, matching the API */}
                     {product.isNewProduct && (
                       <span className="absolute top-3 left-3 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-sm">
                         NEW
@@ -544,11 +545,7 @@ const GetAllProducts = () => {
 
                     <span
                       className="absolute top-3 right-3 text-xs font-semibold px-2.5 py-1 rounded-full border"
-                      style={{
-                        background: SURFACE,
-                        borderColor: BORDER,
-                        color: INK,
-                      }}
+                      style={{ background: SURFACE, borderColor: BORDER, color: INK }}
                     >
                       Stock: {product.stock ?? 0}
                     </span>
@@ -574,6 +571,7 @@ const GetAllProducts = () => {
                     </h2>
 
                     <div className="flex flex-wrap gap-2 mt-2.5">
+                      {/* discountNote, not offerTag */}
                       {product.discountNote && (
                         <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-lg bg-rose-50 text-rose-600 border border-rose-200">
                           {product.discountNote}
@@ -588,11 +586,7 @@ const GetAllProducts = () => {
                       {product.category && (
                         <span
                           className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border"
-                          style={{
-                            background: BG,
-                            borderColor: BORDER,
-                            color: INK,
-                          }}
+                          style={{ background: BG, borderColor: BORDER, color: INK }}
                         >
                           <Tag size={11} style={{ color: STEEL }} />
                           {product.category}
@@ -601,11 +595,7 @@ const GetAllProducts = () => {
                       {product.brand && (
                         <span
                           className="inline-flex items-center text-xs font-medium px-2.5 py-1 rounded-lg border"
-                          style={{
-                            background: BG,
-                            borderColor: BORDER,
-                            color: INK,
-                          }}
+                          style={{ background: BG, borderColor: BORDER, color: INK }}
                         >
                           {product.brand}
                         </span>
@@ -613,11 +603,7 @@ const GetAllProducts = () => {
                       {product.variantGroup && (
                         <span
                           className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg border"
-                          style={{
-                            background: BG,
-                            borderColor: BORDER,
-                            color: INK,
-                          }}
+                          style={{ background: BG, borderColor: BORDER, color: INK }}
                         >
                           <Layers size={11} style={{ color: STEEL }} />
                           {product.variantGroup}
@@ -625,13 +611,11 @@ const GetAllProducts = () => {
                       )}
                     </div>
 
-                    {/* ===== TARGETED DISCOUNT BOX ===== */}
                     {isTargeted && (
                       <div className="mt-3 p-2.5 rounded-xl border border-amber-200 bg-amber-50/60 text-xs space-y-1.5">
                         <p className="font-semibold text-amber-800 flex items-center gap-1">
                           <UserCheck size={13} />
-                          Special discount: {specialPercent}% for {targetedCount} user
-                          {targetedCount !== 1 ? "s" : ""}
+                          Special discount: {Number(product.discountPercent) || 0}% for {targetedCount} user{targetedCount !== 1 ? "s" : ""}
                         </p>
 
                         <div className="flex flex-wrap gap-1">
@@ -650,29 +634,18 @@ const GetAllProducts = () => {
                           )}
                         </div>
 
-                        <p className="text-amber-900 pt-1 border-t border-amber-200/60">
-                          <span className="font-semibold">
-                            Other users (not selected) see:{" "}
-                          </span>
-                          {otherPercent > 0 ? (
-                            <span className="font-bold text-rose-700">
-                              {otherPercent}% OFF
-                              {product.otherUsersDiscountNote
-                                ? ` (${product.otherUsersDiscountNote})`
-                                : ""}
-                            </span>
-                          ) : (
-                            <span className="italic text-amber-700">No discount</span>
-                          )}
+                        <p className="text-amber-900">
+                          <span className="font-semibold">Other users see: </span>
+                          {otherPercent > 0
+                            ? `${otherPercent}% OFF${product.otherUsersDiscountNote ? ` (${product.otherUsersDiscountNote})` : ""}`
+                            : "No discount"}
                         </p>
                       </div>
                     )}
 
                     <div className="mt-3 text-sm space-y-0.5" style={{ color: MUTED }}>
                       <p>
-                        <span className="font-medium" style={{ color: INK }}>
-                          Material:
-                        </span>{" "}
+                        <span className="font-medium" style={{ color: INK }}>Material:</span>{" "}
                         {product.material || "—"}
                       </p>
                       {(product.size || product.weight) && (
@@ -686,59 +659,31 @@ const GetAllProducts = () => {
                           GST: {product.gst}%
                         </p>
                       )}
-                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      <div className="flex items-center gap-2 mt-1">
                         <p className="font-bold text-base" style={{ color: "#1D7A43" }}>
                           From ₹{lowestPrice.toLocaleString()}
                         </p>
-
-                        {isTargeted ? (
-                          otherPercent > 0 && (
-                            <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
-                              {otherPercent}% OFF
-                              <span className="ml-1 text-[10px] font-medium opacity-80">
-                                (Others)
-                              </span>
-                            </span>
-                          )
-                        ) : (
-                          specialPercent > 0 && (
-                            <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
-                              {specialPercent}% OFF
-                            </span>
-                          )
-                        )}
-
-                        {isTargeted && specialPercent > 0 && (
-                          <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                            {specialPercent}% Special
+                        {/* discountPercent, not discountPercentage */}
+                        {Number(product.discountPercent) > 0 && (
+                          <span className="text-xs font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded">
+                            {product.discountPercent}% OFF
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Delivery & Payment */}
-                    <div
-                      className="mt-3 pt-3 border-t text-xs space-y-2 p-2.5 rounded-xl"
-                      style={{ borderColor: BORDER, background: BG }}
-                    >
+                    {/* Delivery & Payment Details */}
+                    <div className="mt-3 pt-3 border-t text-xs space-y-2 p-2.5 rounded-xl" style={{ borderColor: BORDER, background: BG }}>
                       <div className="flex items-start gap-1.5" style={{ color: INK }}>
-                        <Truck
-                          size={15}
-                          style={{ color: STEEL }}
-                          className="flex-shrink-0 mt-0.5"
-                        />
+                        <Truck size={15} style={{ color: STEEL }} className="flex-shrink-0 mt-0.5" />
                         <div>
                           <span className="font-semibold">Delivery: </span>
                           {deliveryCharge === 0 || deliveryCharge === "0" ? (
-                            <span className="font-bold" style={{ color: "#1D7A43" }}>
-                              Free delivery
-                            </span>
+                            <span className="font-bold" style={{ color: "#1D7A43" }}>Free delivery</span>
                           ) : deliveryCharge ? (
                             <span className="font-medium">₹{deliveryCharge} charge</span>
                           ) : (
-                            <span className="italic" style={{ color: MUTED }}>
-                              Not specified
-                            </span>
+                            <span className="italic" style={{ color: MUTED }}>Not specified</span>
                           )}
                           {deliveryTime && (
                             <span style={{ color: MUTED }}> ({deliveryTime})</span>
@@ -747,24 +692,13 @@ const GetAllProducts = () => {
                       </div>
 
                       <div className="flex items-start gap-1.5" style={{ color: INK }}>
-                        <CreditCard
-                          size={15}
-                          style={{ color: STEEL }}
-                          className="flex-shrink-0 mt-0.5"
-                        />
+                        <CreditCard size={15} style={{ color: STEEL }} className="flex-shrink-0 mt-0.5" />
                         <div>
                           <span className="font-semibold">Payment: </span>
                           {paymentMethods.length > 0 ? (
-                            <span className="font-medium">
-                              {paymentMethods.join(", ")}
-                            </span>
+                            <span className="font-medium">{paymentMethods.join(", ")}</span>
                           ) : (
-                            <span
-                              className="italic font-medium"
-                              style={{ color: "#B4691F" }}
-                            >
-                              No methods specified
-                            </span>
+                            <span className="italic font-medium" style={{ color: "#B4691F" }}>No methods specified</span>
                           )}
                         </div>
                       </div>
@@ -775,41 +709,19 @@ const GetAllProducts = () => {
                         <h3 className="text-xs font-semibold mb-2" style={{ color: MUTED }}>
                           Quantity pricing
                         </h3>
-                        <div
-                          className="rounded-xl overflow-hidden border"
-                          style={{ borderColor: BORDER }}
-                        >
+                        <div className="rounded-xl overflow-hidden border" style={{ borderColor: BORDER }}>
                           <table className="w-full text-sm">
                             <thead style={{ background: BG }}>
                               <tr>
-                                <th
-                                  className="py-2 px-3 text-left font-medium"
-                                  style={{ color: MUTED }}
-                                >
-                                  Qty
-                                </th>
-                                <th
-                                  className="py-2 px-3 text-right font-medium"
-                                  style={{ color: MUTED }}
-                                >
-                                  Price
-                                </th>
+                                <th className="py-2 px-3 text-left font-medium" style={{ color: MUTED }}>Qty</th>
+                                <th className="py-2 px-3 text-right font-medium" style={{ color: MUTED }}>Price</th>
                               </tr>
                             </thead>
                             <tbody>
                               {product.pricing.map((price, index) => (
-                                <tr
-                                  key={index}
-                                  className="border-t"
-                                  style={{ borderColor: BORDER }}
-                                >
-                                  <td className="py-2 px-3" style={{ color: INK }}>
-                                    {price.quantity}+
-                                  </td>
-                                  <td
-                                    className="py-2 px-3 text-right font-semibold"
-                                    style={{ color: "#1D7A43" }}
-                                  >
+                                <tr key={index} className="border-t" style={{ borderColor: BORDER }}>
+                                  <td className="py-2 px-3" style={{ color: INK }}>{price.quantity}+</td>
+                                  <td className="py-2 px-3 text-right font-semibold" style={{ color: "#1D7A43" }}>
                                     ₹{Number(price.price).toLocaleString()}
                                   </td>
                                 </tr>
@@ -840,12 +752,7 @@ const GetAllProducts = () => {
                     <div className="flex gap-2.5 mt-auto pt-5">
                       <button
                         onClick={() =>
-                          openEditModal(
-                            product,
-                            deliveryCharge,
-                            deliveryTime,
-                            paymentMethods
-                          )
+                          openEditModal(product, deliveryCharge, deliveryTime, paymentMethods)
                         }
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition text-white"
                         style={{ background: STEEL }}
@@ -856,11 +763,7 @@ const GetAllProducts = () => {
                       <button
                         onClick={() => deleteProduct(product._id)}
                         className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition border"
-                        style={{
-                          borderColor: "#F0BABA",
-                          color: "#B4302F",
-                          background: "#FBEEEE",
-                        }}
+                        style={{ borderColor: "#F0BABA", color: "#B4302F", background: "#FBEEEE" }}
                       >
                         <Trash2 size={15} />
                         Delete
@@ -877,10 +780,7 @@ const GetAllProducts = () => {
       {/* ================= EDIT MODAL ================= */}
       {editProduct && (
         <div className="fixed inset-0 bg-black/55 backdrop-blur-sm flex items-center justify-center z-50 p-3 sm:p-5">
-          <div
-            className="w-full max-w-3xl rounded-2xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto"
-            style={{ background: SURFACE }}
-          >
+          <div className="w-full max-w-3xl rounded-2xl sm:rounded-3xl shadow-2xl max-h-[92vh] overflow-y-auto" style={{ background: SURFACE }}>
             <div
               className="sticky top-0 border-b px-5 sm:px-6 py-4 flex items-center justify-between z-10 rounded-t-2xl sm:rounded-t-3xl"
               style={{ background: SURFACE, borderColor: BORDER }}
@@ -900,10 +800,7 @@ const GetAllProducts = () => {
             <div className="p-5 sm:p-6 space-y-6">
               {/* Images */}
               <div>
-                <h3
-                  className="font-semibold mb-3 flex items-center gap-2"
-                  style={{ color: INK }}
-                >
+                <h3 className="font-semibold mb-3 flex items-center gap-2" style={{ color: INK }}>
                   <ImagePlus size={18} style={{ color: STEEL }} />
                   Product images
                 </h3>
@@ -960,18 +857,15 @@ const GetAllProducts = () => {
                 </div>
               </div>
 
-              {/* NEW Arrival */}
+              {/* Mark as NEW Arrival Box — bound to isNewProduct */}
               <div className="p-4 rounded-2xl border border-emerald-200 bg-emerald-50/50 flex items-center justify-between">
                 <div>
-                  <label
-                    htmlFor="isNewProduct"
-                    className="font-bold text-emerald-950 flex items-center gap-2 cursor-pointer text-sm sm:text-base"
-                  >
+                  <label htmlFor="isNewProduct" className="font-bold text-emerald-950 flex items-center gap-2 cursor-pointer text-sm sm:text-base">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 inline-block" />
                     Mark as "NEW" Arrival
                   </label>
                   <p className="text-xs text-emerald-700 mt-0.5">
-                    Displays an animated "NEW" badge on product cards
+                    Displays an animated "NEW" badge on product cards to boost visibility
                   </p>
                 </div>
                 <input
@@ -984,12 +878,11 @@ const GetAllProducts = () => {
                 />
               </div>
 
-              {/* Offer & Discount */}
+              {/* Offer & Discount Section — bound to discountPercent / discountNote / user targeting */}
               <div className="p-4 rounded-2xl border border-rose-200 bg-rose-50/40 space-y-3">
                 <h3 className="font-bold text-rose-950 flex items-center gap-2 text-sm sm:text-base">
                   <Tag size={18} className="text-rose-600" />
-                  Offer &amp; Discount{" "}
-                  <span className="text-xs font-normal text-rose-600">(Optional)</span>
+                  Offer &amp; Discount <span className="text-xs font-normal text-rose-600">(Optional)</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -1024,7 +917,7 @@ const GetAllProducts = () => {
                   </div>
                 </div>
 
-                {/* Who can see this discount */}
+                {/* TARGET USER OPTION */}
                 <div className="pt-3 border-t border-rose-200/60">
                   <label className="block text-xs font-semibold text-rose-900 mb-2 flex items-center gap-1.5">
                     <Users size={15} className="text-rose-600" />
@@ -1055,9 +948,10 @@ const GetAllProducts = () => {
                     </label>
                   </div>
 
+                  {/* USER SEARCH & SELECTION SECTION */}
                   {editProduct.discountTargetType === "selected" && (
                     <div className="mt-3 bg-white p-3 sm:p-4 rounded-xl border border-rose-200 space-y-3">
-                      {/* Other users discount */}
+                      {/* DISCOUNT FOR OTHER (NON-SELECTED) USERS */}
                       <div className="p-3 rounded-lg bg-rose-50/60 border border-rose-100">
                         <p className="text-xs font-semibold text-rose-900 mb-2">
                           Discount for all OTHER users (not selected)
@@ -1081,17 +975,13 @@ const GetAllProducts = () => {
                           />
                         </div>
                         <p className="text-[11px] text-rose-700 mt-1.5">
-                          Selected users see the special discount above. Everyone else
-                          sees this one.
+                          Selected users see the special discount above. Everyone else sees this one.
                         </p>
                       </div>
 
-                      {/* Search */}
+                      {/* SEARCH */}
                       <div className="relative">
-                        <Search
-                          size={16}
-                          className="absolute left-3 top-3 text-gray-400"
-                        />
+                        <Search size={16} className="absolute left-3 top-3 text-gray-400" />
                         <input
                           type="text"
                           placeholder="Search user by Name, Email or Phone..."
@@ -1111,12 +1001,14 @@ const GetAllProducts = () => {
                         )}
                       </div>
 
+                      {/* LIST HEADER (fixed height so layout never jumps) */}
                       <div className="flex items-center justify-between h-6 text-[11px] text-gray-500">
                         <span>
                           {usersLoading
                             ? "Loading users..."
                             : `Showing ${filteredUsers.length} of ${allUsers.length} users`}
                         </span>
+
                         <div className="flex items-center gap-3">
                           <button
                             type="button"
@@ -1137,6 +1029,7 @@ const GetAllProducts = () => {
                         </div>
                       </div>
 
+                      {/* USER LIST (fixed height + scroll) */}
                       <div
                         className="h-56 overflow-y-auto border border-gray-100 rounded-lg bg-white"
                         style={{ scrollbarGutter: "stable" }}
@@ -1164,9 +1057,9 @@ const GetAllProducts = () => {
                           </div>
                         ) : (
                           filteredUsers.map((user) => {
-                            const isSelected = (
-                              editProduct.allowedUserIds || []
-                            ).includes(String(user._id));
+                            const isSelected = (editProduct.allowedUserIds || []).includes(
+                              String(user._id)
+                            );
                             const displayName = user.name || "No Name";
                             const subText = [user.email, getUserPhone(user)]
                               .filter(Boolean)
@@ -1185,9 +1078,11 @@ const GetAllProducts = () => {
                                   onChange={() => toggleUserSelection(user._id)}
                                   className="w-4 h-4 shrink-0 accent-rose-600 cursor-pointer"
                                 />
+
                                 <div className="w-8 h-8 shrink-0 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center text-xs font-bold uppercase">
                                   {displayName.charAt(0)}
                                 </div>
+
                                 <div className="min-w-0 flex-1">
                                   <p className="text-xs sm:text-sm text-gray-800 font-medium truncate">
                                     {displayName}
@@ -1202,16 +1097,17 @@ const GetAllProducts = () => {
                         )}
                       </div>
 
+                      {/* SELECTED USERS (always rendered, fixed height) */}
                       <div className="pt-1">
                         <p className="text-[11px] font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
                           <UserCheck size={13} className="text-emerald-600" />
                           Selected Users ({(editProduct.allowedUserIds || []).length})
                         </p>
+
                         <div className="h-16 overflow-y-auto rounded-lg border border-dashed border-gray-200 bg-gray-50/60 p-2">
                           {(editProduct.allowedUserIds || []).length === 0 ? (
                             <p className="text-[11px] text-gray-400">
-                              No users selected yet. Tick the checkbox next to a user
-                              above.
+                              No users selected yet. Tick the checkbox next to a user above.
                             </p>
                           ) : (
                             <div className="flex flex-wrap gap-1.5">
@@ -1224,9 +1120,7 @@ const GetAllProducts = () => {
                                     key={id}
                                     className="inline-flex items-center gap-1 bg-rose-100 text-rose-800 text-[11px] px-2 py-0.5 rounded-full font-medium"
                                   >
-                                    {matchedUser?.name ||
-                                      matchedUser?.email ||
-                                      getUserLabel(id)}
+                                    {matchedUser?.name || matchedUser?.email || getUserLabel(id)}
                                     <button
                                       type="button"
                                       onClick={() => toggleUserSelection(id)}
@@ -1257,6 +1151,7 @@ const GetAllProducts = () => {
                   { name: "size", placeholder: "Size (e.g. XL, 10 inch)" },
                   { name: "weight", placeholder: "Weight (e.g. 500g, 1kg)" },
                   { name: "gst", placeholder: "GST percentage (%)", type: "number" },
+                  { name: "hsnCode", placeholder: "HSN Code (e.g. 8203)" },
                   { name: "variantGroup", placeholder: "Variant group" },
                 ].map((field) => (
                   <input
@@ -1272,12 +1167,9 @@ const GetAllProducts = () => {
                 ))}
               </div>
 
-              {/* Delivery */}
+              {/* Delivery Details */}
               <div>
-                <h3
-                  className="font-semibold mb-3 flex items-center gap-2 text-sm"
-                  style={{ color: INK }}
-                >
+                <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm" style={{ color: INK }}>
                   <Truck size={18} style={{ color: STEEL }} />
                   Delivery details
                 </h3>
@@ -1305,10 +1197,7 @@ const GetAllProducts = () => {
 
               {/* Payment Methods */}
               <div>
-                <h3
-                  className="font-semibold mb-3 flex items-center gap-2 text-sm"
-                  style={{ color: INK }}
-                >
+                <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm" style={{ color: INK }}>
                   <CreditCard size={18} style={{ color: STEEL }} />
                   Accepted payment methods
                 </h3>
@@ -1321,11 +1210,7 @@ const GetAllProducts = () => {
                         className="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition text-sm font-medium"
                         style={
                           isSelected
-                            ? {
-                                borderColor: STEEL,
-                                background: `${STEEL}0D`,
-                                color: INK,
-                              }
+                            ? { borderColor: STEEL, background: `${STEEL}0D`, color: INK }
                             : { borderColor: BORDER, color: MUTED }
                         }
                       >
@@ -1346,10 +1231,7 @@ const GetAllProducts = () => {
               {/* Quantity Pricing */}
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <h3
-                    className="font-semibold text-sm flex items-center gap-2"
-                    style={{ color: INK }}
-                  >
+                  <h3 className="font-semibold text-sm flex items-center gap-2" style={{ color: INK }}>
                     <Tag size={18} style={{ color: STEEL }} />
                     Quantity-based Pricing
                   </h3>
@@ -1357,15 +1239,12 @@ const GetAllProducts = () => {
                     type="button"
                     onClick={addPriceRow}
                     className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg border transition"
-                    style={{
-                      borderColor: STEEL,
-                      color: STEEL,
-                      background: BG,
-                    }}
+                    style={{ borderColor: STEEL, color: STEEL, background: BG }}
                   >
                     + Add Tier
                   </button>
                 </div>
+
                 <div className="space-y-2.5">
                   {editProduct.pricing?.map((p, index) => (
                     <div key={index} className="flex items-center gap-2">
@@ -1373,9 +1252,7 @@ const GetAllProducts = () => {
                         type="number"
                         placeholder="Min Qty (e.g. 1)"
                         value={p.quantity ?? ""}
-                        onChange={(e) =>
-                          handlePriceChange(index, "quantity", e.target.value)
-                        }
+                        onChange={(e) => handlePriceChange(index, "quantity", e.target.value)}
                         className="w-1/2 rounded-xl px-4 py-2.5 text-sm outline-none border transition"
                         style={{ borderColor: BORDER, color: INK }}
                       />
@@ -1383,9 +1260,7 @@ const GetAllProducts = () => {
                         type="number"
                         placeholder="Price per unit (₹)"
                         value={p.price ?? ""}
-                        onChange={(e) =>
-                          handlePriceChange(index, "price", e.target.value)
-                        }
+                        onChange={(e) => handlePriceChange(index, "price", e.target.value)}
                         className="w-1/2 rounded-xl px-4 py-2.5 text-sm outline-none border transition"
                         style={{ borderColor: BORDER, color: INK }}
                       />
@@ -1420,17 +1295,13 @@ const GetAllProducts = () => {
                 />
               </div>
 
-              {/* Actions */}
+              {/* Submit / Cancel Actions */}
               <div className="flex gap-3 pt-4 border-t" style={{ borderColor: BORDER }}>
                 <button
                   type="button"
                   onClick={closeEditModal}
                   className="flex-1 py-3 rounded-xl border text-sm font-semibold transition"
-                  style={{
-                    borderColor: BORDER,
-                    color: INK,
-                    background: BG,
-                  }}
+                  style={{ borderColor: BORDER, color: INK, background: BG }}
                 >
                   Cancel
                 </button>
