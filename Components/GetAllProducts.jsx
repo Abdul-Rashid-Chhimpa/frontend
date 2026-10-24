@@ -659,6 +659,16 @@ const GetAllProducts = () => {
                           GST: {product.gst}%
                         </p>
                       )}
+                      <p className="text-xs font-medium" style={{ color: STEEL }}>
+                        HSN Code:{" "}
+                        {product.hsnCode ? (
+                          product.hsnCode
+                        ) : (
+                          <span className="italic font-normal" style={{ color: MUTED }}>
+                            not set
+                          </span>
+                        )}
+                      </p>
                       <div className="flex items-center gap-2 mt-1">
                         <p className="font-bold text-base" style={{ color: "#1D7A43" }}>
                           From ₹{lowestPrice.toLocaleString()}
