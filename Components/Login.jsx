@@ -66,9 +66,17 @@ const Login = () => {
         return;
       }
 
-      // --- SAVE TOKEN, USER OBJECT AND EXPLICIT USERID FOR DISCOUNTS ---
+      // --- SAVE TOKEN, USER OBJECT, EXPLICIT USERID & TOKEN EXPIRY ---
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
+      
+      // Save Token Expiry for Session Warning Popup
+      if (data.tokenExpiry) {
+        localStorage.setItem("tokenExpiry", data.tokenExpiry);
+      } else {
+        localStorage.setItem("tokenExpiry", Date.now() + 60 * 60 * 1000);
+      }
+
       if (data.user?._id) {
         localStorage.setItem("userId", data.user._id);
       }
