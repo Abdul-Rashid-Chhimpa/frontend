@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom"; // <-- Navigation ke liye import
 import ProductCard from "./Card";
 import Nav from "./Nav";
 import RandomImg from "./RandomImg";
@@ -15,7 +14,6 @@ import {
   Sparkles 
 } from "lucide-react";
 
-// Brand Palette Setup
 const COLOR = {
   INK: "#15181C",
   MUTED: "#6B7280",
@@ -68,54 +66,14 @@ const slideData = [
 
 const Home = () => {
   const [active, setActive] = useState(0);
-  
-  // --- SESSION EXPIRY POPUP STATES ---
-  const [showWarning, setShowWarning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60); // 1 minute warning countdown
-  const navigate = useNavigate();
 
-  // Carousel timer
+  // Carousel timer only
   useEffect(() => {
     const timer = setInterval(() => {
       setActive((prev) => (prev + 1) % slideData.length);
     }, 4500);
     return () => clearInterval(timer);
   }, []);
-
-  // --- SESSION EXPIRE & WARNING CHECKER ---
-  useEffect(() => {
-    const checkSession = setInterval(() => {
-      const expiry = localStorage.getItem("tokenExpiry");
-      if (!expiry) return;
-
-      const currentTime = Date.now();
-      const timeLeftMs = expiry - currentTime;
-      const timeLeftSec = Math.floor(timeLeftMs / 1000);
-
-      // Agar session khatam hone mein sirf 1 minute ya kam bacha hai
-      if (timeLeftSec <= 60 && timeLeftSec > 0) {
-        setShowWarning(true);
-        setTimeLeft(timeLeftSec);
-      } 
-      // Agar time poora khatam ho gaya
-      else if (timeLeftSec <= 0) {
-        handleLogout();
-      }
-    }, 1000);
-
-    return () => clearInterval(checkSession);
-  }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("tokenExpiry");
-    navigate("/login");
-  };
-
-  const handleSkipWarning = () => {
-    // Skip karne par modal band hoga, lekin agle 1 minute baad agar user ne re-login nahi kiya toh dubara popup aayega
-    setShowWarning(false);
-  };
 
   const goPrev = () => {
     setActive((prev) => (prev - 1 + slideData.length) % slideData.length);
@@ -129,37 +87,6 @@ const Home = () => {
     <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden relative">
       <Nav />
       <RandomImg />
-
-      {/* ========== SESSION EXPIRATION POPUP MODAL ========== */}
-      {showWarning && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 px-4">
-          <div className="bg-white p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl text-center border border-gray-100 animate-in fade-in zoom-in duration-200">
-            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 font-bold text-xl">
-              ⚠️
-            </div>
-            <h3 className="text-xl font-extrabold text-gray-900">Session Expiring Soon</h3>
-            <p className="text-sm text-gray-600 mt-2">
-              Your session will expire in <span className="font-bold text-red-500">{timeLeft} seconds</span>. Please login again to continue your work securely.
-            </p>
-            
-            <div className="flex items-center gap-3 mt-6">
-              <button 
-                onClick={handleSkipWarning}
-                className="flex-1 py-2.5 px-4 rounded-xl border border-gray-300 font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all"
-              >
-                Skip
-              </button>
-              <button 
-                onClick={handleLogout}
-                className="flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-white shadow-lg transition-all"
-                style={{ background: `linear-gradient(135deg, ${COLOR.AMBER}, ${COLOR.AMBER_DARK})` }}
-              >
-                Login Again
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ========== INFINITE RUNNING MARQUEE BANNER ========== */}
       <div
@@ -325,7 +252,6 @@ const Home = () => {
       
       <Footer />
 
-      {/* Marquee Animation Keyframes */}
       <style>{`
         @keyframes ticker {
           0% { transform: translateX(0); }
