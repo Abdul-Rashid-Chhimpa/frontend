@@ -1,46 +1,61 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const SessionWarningModal = () => {
   const [showWarning, setShowWarning] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60); // 1 minute warning countdown
+  const [timeLeft, setTimeLeft] = useState(60);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
+    // Agar user already login ya register page par hai, toh session check mat karo
+    if (location.pathname === "/login" || location.pathname === "/register") {
+      setShowWarning(false);
+      return;
+    }
+
     const checkSession = setInterval(() => {
+      const token = localStorage.getItem("token");
       const expiryStr = localStorage.getItem("tokenExpiry");
-      if (!expiryStr) return;
+
+      // Agar token ya expiry hai hi nahi, toh modal mat dikhao (bina matlab redirect mat karo)
+      if (!token || !expiryStr) {
+        setShowWarning(false);
+        return;
+      }
 
       const expiry = Number(expiryStr);
       const currentTime = Date.now();
       const timeLeftMs = expiry - currentTime;
       const timeLeftSec = Math.floor(timeLeftMs / 1000);
 
+      // Agar time invalid hai toh ignore karo
+      if (isNaN(timeLeftSec)) return;
+
       // Jab 1 hour hone mein sirf 60 seconds (1 minute) bachenge
       if (timeLeftSec <= 60 && timeLeftSec > 0) {
         setShowWarning(true);
         setTimeLeft(timeLeftSec);
       } 
-      // Jab time poora khatam ho jayega
+      // Jab time poora khatam ho jaye
       else if (timeLeftSec <= 0) {
         handleForceLogout();
       }
     }, 1000);
 
     return () => clearInterval(checkSession);
-  }, []);
+  }, [location.pathname]);
 
   const handleForceLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("tokenExpiry");
     localStorage.removeItem("userId");
+    setShowWarning(false);
     navigate("/login", { replace: true });
-    window.location.reload();
   };
 
   const handleSkip = () => {
-    // Skip karne par modal band ho jayega, lekin agle check par fir se trigger hoga agar time bacha hai
     setShowWarning(false);
   };
 
@@ -54,19 +69,19 @@ const SessionWarningModal = () => {
         </div>
         <h3 className="text-xl font-bold text-white mb-2">Session Expiring Soon</h3>
         <p className="text-slate-400 text-xs sm:text-sm mb-6 leading-relaxed">
-          Your session will expire in <span className="text-red-400 font-bold">{timeLeft} seconds</span> due to inactivity. Would you like to stay or log in again?
+          Your session will expire in <span className="text-red-400 font-bold">{timeLeft} seconds</span>. Please choose an option below:
         </p>
 
         <div className="flex items-center gap-3">
           <button
             onClick={handleSkip}
-            className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium py-2.5 rounded-xl transition-all border border-slate-700"
+            className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm font-medium py-2.5 rounded-xl transition-all border border-slate-700 cursor-pointer"
           >
             Skip
           </button>
           <button
             onClick={handleForceLogout}
-            className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition-all"
+            className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2.5 rounded-xl shadow-lg shadow-indigo-600/30 transition-all cursor-pointer"
           >
             Login Again
           </button>
