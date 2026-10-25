@@ -23,6 +23,8 @@ const Login = () => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     const user = JSON.parse(localStorage.getItem("user") || "null");
+    
+    // Agar already logged in hai, tabhi redirect karein (Infinite loop fix)
     if (token && user) {
       if (user.role === "admin") {
         navigate("/adminsidebar", { replace: true });
@@ -62,24 +64,24 @@ const Login = () => {
       );
 
       if (!data.success) {
-        toast.error(data.message);
+        toast.error(data.message || "Login failed");
         return;
       }
 
-      // --- SAVE TOKEN, USER OBJECT, EXPLICIT USERID & TOKEN EXPIRY ---
+      // --- ROBUST STORAGE SETUP (TOKEN, USER, USERID, EXPIRY) ---
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      
-      // Save Token Expiry for Session Warning Popup
-      if (data.tokenExpiry) {
-        localStorage.setItem("tokenExpiry", data.tokenExpiry);
-      } else {
-        localStorage.setItem("tokenExpiry", Date.now() + 60 * 60 * 1000);
-      }
 
       if (data.user?._id) {
         localStorage.setItem("userId", data.user._id);
       }
+
+      // Exact 1-hour expiry calculation (Fallback safe approach)
+      const expiryTime = data.tokenExpiry 
+        ? Number(data.tokenExpiry) 
+        : Date.now() + 60 * 60 * 1000; // Current time + 1 hour in ms
+
+      localStorage.setItem("tokenExpiry", expiryTime.toString());
 
       if (rememberMe) {
         localStorage.setItem("rememberedEmail", email.trim());
@@ -87,7 +89,9 @@ const Login = () => {
         localStorage.removeItem("rememberedEmail");
       }
 
-      toast.success(`Welcome back, ${data.user.name}`);
+      toast.success(`Welcome back, ${data.user.name || "User"}!`);
+
+      // Role based redirection
       if (data.user.role === "admin") {
         navigate("/adminsidebar", { replace: true });
       } else {
