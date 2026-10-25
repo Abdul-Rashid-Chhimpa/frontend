@@ -81,16 +81,25 @@ const Home = () => {
     return () => clearInterval(timer);
   }, []);
 
-  // --- SESSION CHECKER (1 MINUTE BEFORE 1 HOUR) ---
+  // --- SAFE & ROBUST SESSION CHECKER ---
   useEffect(() => {
-    const checkSession = setInterval(() => {
-      const expiryStr = localStorage.getItem("tokenExpiry");
-      if (!expiryStr) return;
+    const token = localStorage.getItem("token");
+    const expiryStr = localStorage.getItem("tokenExpiry");
 
-      const expiry = Number(expiryStr);
+    // Agar token ya expiry nahi hai, toh session check skip karein (Infinite redirect fix)
+    if (!token || !expiryStr) return;
+
+    const checkSession = setInterval(() => {
+      const currentExpiry = localStorage.getItem("tokenExpiry");
+      if (!currentExpiry) return;
+
+      const expiry = Number(currentExpiry);
       const currentTime = Date.now();
       const timeLeftMs = expiry - currentTime;
       const timeLeftSec = Math.floor(timeLeftMs / 1000);
+
+      // Invalid number check
+      if (isNaN(timeLeftSec)) return;
 
       // Jab 1 hour hone mein sirf 60 seconds (1 minute) bachenge
       if (timeLeftSec <= 60 && timeLeftSec > 0) {
