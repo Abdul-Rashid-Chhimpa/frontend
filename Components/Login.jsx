@@ -24,7 +24,7 @@ const Login = () => {
     const token = localStorage.getItem("token");
     const user = JSON.parse(localStorage.getItem("user") || "null");
     
-    // Agar already logged in hai, tabhi redirect karein (Infinite loop fix)
+    // Agar already logged in hai, tabhi redirect karein
     if (token && user) {
       if (user.role === "admin") {
         navigate("/adminsidebar", { replace: true });
@@ -68,7 +68,7 @@ const Login = () => {
         return;
       }
 
-      // --- ROBUST STORAGE SETUP (TOKEN, USER, USERID, EXPIRY) ---
+      // --- SAVE TOKEN, USER, USERID & EXACT 1-HOUR EXPIRY ---
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
@@ -76,7 +76,7 @@ const Login = () => {
         localStorage.setItem("userId", data.user._id);
       }
 
-      // Exact 1-hour expiry calculation (Fallback safe approach)
+      // Exact 1-hour expiry timestamp calculation
       const expiryTime = data.tokenExpiry 
         ? Number(data.tokenExpiry) 
         : Date.now() + 60 * 60 * 1000; // Current time + 1 hour in ms
