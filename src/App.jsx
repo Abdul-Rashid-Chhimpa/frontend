@@ -1,5 +1,6 @@
 import "./index.css";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import axios from "axios";
 
 import Home from "../Components/Home";
 import ProductDetails from "../Components/ProductDetails";
@@ -30,6 +31,27 @@ import AdminBills from "../Components/AdminBills";
 
 import ProtectedRoute from "../Components/ProtectedRoute";
 import NotFound from "../Components/NotFound";
+
+// ======================================================
+// GLOBAL AXIOS INTERCEPTOR (Auto Logout on 401 Expiry)
+// ======================================================
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Backend se token expire hone ya 401 unauthorized aane par local storage wipe karein
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      localStorage.removeItem("userId");
+
+      // Agar user login page par nahi hai, toh turant redirect karein
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 function App() {
   return (
