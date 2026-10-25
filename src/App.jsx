@@ -14,14 +14,14 @@ import ShoppingCart from "../Components/ShoppingCart";
 import AdminSidebar from "../Components/AdminSidebar";
 import MyOrders from "../Components/MyOrders";
 import ResetPassword from "../Components/ResetPassword";
-import OrderStatus from "../Components/OrderStatus"; // Order status component
+import OrderStatus from "../Components/OrderStatus";
 import Profile from "../Components/Profile";
+import SessionWarningModal from "../Components/SessionWarningModal"; // ✅ Imported here
 
 import CartProvider from "../Components/Context";
 import { Toaster } from "react-hot-toast";
 
 import AdminOrders from "../Components/AdminOrderPage";
-
 import Varieties from "../Components/Varieties";
 import Adminuser from "../Components/Adminuser";
 import AdminSettings from "../Components/AdminSettings";
@@ -39,12 +39,11 @@ axios.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Backend se token expire hone ya 401 unauthorized aane par local storage wipe karein
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       localStorage.removeItem("userId");
+      localStorage.removeItem("tokenExpiry");
 
-      // Agar user login page par nahi hai, toh turant redirect karein
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
       }
@@ -58,6 +57,9 @@ function App() {
     <CartProvider>
       <BrowserRouter>
         <Toaster position="top-right" />
+        
+        {/* Global Session Expiry Monitor Modal */}
+        <SessionWarningModal />
 
         <Routes>
           {/* ================= PUBLIC ROUTES ================= */}
@@ -100,7 +102,6 @@ function App() {
           />
 
           {/* ================= ADMIN-ONLY ROUTES ================= */}
-          
           <Route
             path="/add-product"
             element={
