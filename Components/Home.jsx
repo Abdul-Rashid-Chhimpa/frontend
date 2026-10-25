@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom"; // <-- Navigation ke liye import
 import ProductCard from "./Card";
 import Nav from "./Nav";
 import RandomImg from "./RandomImg";
@@ -67,7 +68,13 @@ const slideData = [
 
 const Home = () => {
   const [active, setActive] = useState(0);
+  
+  // --- SESSION EXPIRY POPUP STATES ---
+  const [showWarning, setShowWarning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(60); // 1 minute warning countdown
+  const navigate = useNavigate();
 
+  // Carousel timer
   useEffect(() => {
     const timer = setInterval(() => {
       setActive((prev) => (prev + 1) % slideData.length);
@@ -75,18 +82,84 @@ const Home = () => {
     return () => clearInterval(timer);
   }, []);
 
+  // --- SESSION EXPIRE & WARNING CHECKER ---
+  useEffect(() => {
+    const checkSession = setInterval(() => {
+      const expiry = localStorage.getItem("tokenExpiry");
+      if (!expiry) return;
+
+      const currentTime = Date.now();
+      const timeLeftMs = expiry - currentTime;
+      const timeLeftSec = Math.floor(timeLeftMs / 1000);
+
+      // Agar session khatam hone mein sirf 1 minute ya kam bacha hai
+      if (timeLeftSec <= 60 && timeLeftSec > 0) {
+        setShowWarning(true);
+        setTimeLeft(timeLeftSec);
+      } 
+      // Agar time poora khatam ho gaya
+      else if (timeLeftSec <= 0) {
+        handleLogout();
+      }
+    }, 1000);
+
+    return () => clearInterval(checkSession);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("tokenExpiry");
+    navigate("/login");
+  };
+
+  const handleSkipWarning = () => {
+    // Skip karne par modal band hoga, lekin agle 1 minute baad agar user ne re-login nahi kiya toh dubara popup aayega
+    setShowWarning(false);
+  };
+
   const goPrev = () => {
     setActive((prev) => (prev - 1 + slideData.length) % slideData.length);
   };
 
   const goNext = () => {
-    setActive((prev) => (prev + 1) % slideData.length);
+    setActive((prev) => (prev + 1 + slideData.length) % slideData.length);
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden relative">
       <Nav />
       <RandomImg />
+
+      {/* ========== SESSION EXPIRATION POPUP MODAL ========== */}
+      {showWarning && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50 px-4">
+          <div className="bg-white p-6 sm:p-8 rounded-2xl max-w-md w-full shadow-2xl text-center border border-gray-100 animate-in fade-in zoom-in duration-200">
+            <div className="w-12 h-12 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto mb-4 font-bold text-xl">
+              ⚠️
+            </div>
+            <h3 className="text-xl font-extrabold text-gray-900">Session Expiring Soon</h3>
+            <p className="text-sm text-gray-600 mt-2">
+              Your session will expire in <span className="font-bold text-red-500">{timeLeft} seconds</span>. Please login again to continue your work securely.
+            </p>
+            
+            <div className="flex items-center gap-3 mt-6">
+              <button 
+                onClick={handleSkipWarning}
+                className="flex-1 py-2.5 px-4 rounded-xl border border-gray-300 font-bold text-sm text-gray-700 hover:bg-gray-50 transition-all"
+              >
+                Skip
+              </button>
+              <button 
+                onClick={handleLogout}
+                className="flex-1 py-2.5 px-4 rounded-xl font-bold text-sm text-white shadow-lg transition-all"
+                style={{ background: `linear-gradient(135deg, ${COLOR.AMBER}, ${COLOR.AMBER_DARK})` }}
+              >
+                Login Again
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========== INFINITE RUNNING MARQUEE BANNER ========== */}
       <div
@@ -116,12 +189,10 @@ const Home = () => {
 
       {/* ========== HERO SHOWCASE CAROUSEL SECTION ========== */}
       <section className="relative w-full py-10 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {/* Soft Ambient Background Lighting */}
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[500px] lg:w-[700px] h-[300px] sm:h-[500px] rounded-full blur-[140px] pointer-events-none opacity-20" style={{ background: COLOR.AMBER }} />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center relative z-10">
           
-          {/* Left Column: Featured Text Info */}
           <div className="lg:col-span-5 flex flex-col justify-center text-center lg:text-left order-2 lg:order-1">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold w-fit mx-auto lg:mx-0 shadow-sm" style={{ background: COLOR.SURFACE, borderColor: COLOR.BORDER, color: COLOR.STEEL }}>
               <ShieldCheck size={14} style={{ color: COLOR.AMBER_DARK }} />
@@ -146,7 +217,6 @@ const Home = () => {
               </button>
             </div>
 
-            {/* Thumbnail Navigation Indicators */}
             <div className="flex items-center justify-center lg:justify-start gap-3 mt-8 pt-6 border-t" style={{ borderColor: COLOR.BORDER }}>
               {slideData.map((item, idx) => (
                 <button
@@ -169,11 +239,8 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Right Column: Hero Graphic Display */}
           <div className="lg:col-span-7 relative flex justify-center items-center order-1 lg:order-2">
             <div className="relative w-full max-w-md sm:max-w-lg aspect-[4/3] rounded-3xl p-4 sm:p-6 shadow-2xl border bg-white flex items-center justify-center overflow-hidden transition-all duration-500" style={{ borderColor: COLOR.BORDER }}>
-              
-              {/* Product Card Image */}
               <img
                 key={slideData[active].id}
                 src={slideData[active].image}
@@ -181,7 +248,6 @@ const Home = () => {
                 className="w-full h-full object-contain rounded-2xl transition-all duration-700 transform hover:scale-105"
               />
 
-              {/* Navigation Arrows on Card */}
               <button
                 onClick={goPrev}
                 aria-label="Previous slide"
@@ -209,7 +275,6 @@ const Home = () => {
       <section className="w-full py-8 border-y" style={{ background: COLOR.BG_LIGHT, borderColor: COLOR.BORDER }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center md:text-left">
-            
             <div className="flex flex-col md:flex-row items-center gap-3">
               <div className="p-3 rounded-xl shadow-sm text-white" style={{ background: COLOR.STEEL }}>
                 <Wrench size={22} />
@@ -249,7 +314,6 @@ const Home = () => {
                 <p className="text-xs text-gray-500">Built for long life</p>
               </div>
             </div>
-
           </div>
         </div>
       </section>
