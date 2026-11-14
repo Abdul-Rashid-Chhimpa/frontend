@@ -4,16 +4,18 @@ import ProductCard from "./Card";
 import Nav from "./Nav";
 import RandomImg from "./RandomImg";
 import Footer from "./Footer";
-import { 
-  ChevronLeft, 
-  ChevronRight, 
-  ShieldCheck, 
-  Zap, 
-  Award, 
-  Wrench, 
+import {
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  Zap,
+  Award,
+  Wrench,
   ArrowRight,
-  Sparkles 
+  Sparkles,
 } from "lucide-react";
+
+const API_BASE = "https://backend-3-axez.onrender.com";
 
 // Brand Palette Setup
 const COLOR = {
@@ -28,7 +30,7 @@ const COLOR = {
   STEEL_DARK: "#17303E",
 };
 
-// Fallback slides (Jab tak database mein banners add na hon)
+// Fallback slides (jab tak database mein banners add na hon)
 const defaultSlideData = [
   {
     _id: "1",
@@ -67,15 +69,30 @@ const defaultSlideData = [
   },
 ];
 
+// Admin se upload hui image (/uploads/..) ko full backend URL banata hai.
+// Default images (01.jpeg) aur http/data links jaise hain waise hi rehte hain.
+const getImageUrl = (img) => {
+  if (!img) return "";
+  if (img.startsWith("http") || img.startsWith("data:")) return img;
+  if (img.startsWith("/uploads/")) return `${API_BASE}${img}`;
+  return img;
+};
+
+const handleImgError = (e) => {
+  e.currentTarget.onerror = null; // infinite loop se bachne ke liye
+  e.currentTarget.src = "https://placehold.co/600x450?text=Image+Not+Found";
+};
+
 const Home = () => {
   const [slideData, setSlideData] = useState(defaultSlideData);
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
 
   // Backend se dynamic banners fetch karein
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const { data } = await axios.get("https://backend-3-axez.onrender.com/api/banners");
+        const { data } = await axios.get(`${API_BASE}/api/banners`);
         if (data.success && data.banners && data.banners.length > 0) {
           setSlideData(data.banners);
           setActive(0);
@@ -87,14 +104,14 @@ const Home = () => {
     fetchBanners();
   }, []);
 
-  // Auto-slide timer
+  // Auto-slide timer (hover par ruk jata hai)
   useEffect(() => {
-    if (slideData.length <= 1) return;
+    if (slideData.length <= 1 || paused) return;
     const timer = setInterval(() => {
       setActive((prev) => (prev + 1) % slideData.length);
     }, 4500);
     return () => clearInterval(timer);
-  }, [slideData.length]);
+  }, [slideData.length, paused]);
 
   const goPrev = () => {
     setActive((prev) => (prev - 1 + slideData.length) % slideData.length);
@@ -103,6 +120,9 @@ const Home = () => {
   const goNext = () => {
     setActive((prev) => (prev + 1) % slideData.length);
   };
+
+  // Safe current slide (index out of range ho to pehli slide)
+  const current = slideData[active] || slideData[0];
 
   return (
     <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
@@ -138,23 +158,28 @@ const Home = () => {
       {/* ========== HERO SHOWCASE CAROUSEL SECTION ========== */}
       <section className="relative w-full py-10 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         {/* Soft Ambient Background Lighting */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[500px] lg:w-[700px] h-[300px] sm:h-[500px] rounded-full blur-[140px] pointer-events-none opacity-20" style={{ background: COLOR.AMBER }} />
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[500px] lg:w-[700px] h-[300px] sm:h-[500px] rounded-full blur-[140px] pointer-events-none opacity-20"
+          style={{ background: COLOR.AMBER }}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center relative z-10">
-          
           {/* Left Column: Featured Text Info */}
           <div className="lg:col-span-5 flex flex-col justify-center text-center lg:text-left order-2 lg:order-1">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold w-fit mx-auto lg:mx-0 shadow-sm" style={{ background: COLOR.SURFACE, borderColor: COLOR.BORDER, color: COLOR.STEEL }}>
+            <div
+              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold w-fit mx-auto lg:mx-0 shadow-sm"
+              style={{ background: COLOR.SURFACE, borderColor: COLOR.BORDER, color: COLOR.STEEL }}
+            >
               <ShieldCheck size={14} style={{ color: COLOR.AMBER_DARK }} />
-              {slideData[active]?.tagline}
+              {current?.tagline}
             </div>
 
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mt-4 leading-tight">
-              {slideData[active]?.title}
+              {current?.title}
             </h1>
 
             <p className="text-sm sm:text-base mt-3 font-medium" style={{ color: COLOR.MUTED }}>
-              {slideData[active]?.specs}
+              {current?.specs}
             </p>
 
             <div className="mt-6 sm:mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-4">
@@ -168,15 +193,17 @@ const Home = () => {
             </div>
 
             {/* Thumbnail Navigation Indicators */}
-            <div className="flex items-center justify-center lg:justify-start gap-3 mt-8 pt-6 border-t overflow-x-auto" style={{ borderColor: COLOR.BORDER }}>
+            <div
+              className="flex items-center justify-center lg:justify-start gap-3 mt-8 pt-6 border-t overflow-x-auto"
+              style={{ borderColor: COLOR.BORDER }}
+            >
               {slideData.map((item, idx) => (
                 <button
                   key={item._id || item.id}
                   onClick={() => setActive(idx)}
+                  aria-label={`Show slide ${idx + 1}`}
                   className={`relative rounded-lg overflow-hidden transition-all duration-300 border-2 shrink-0 ${
-                    active === idx
-                      ? "scale-110 shadow-md"
-                      : "opacity-50 hover:opacity-100"
+                    active === idx ? "scale-110 shadow-md" : "opacity-50 hover:opacity-100"
                   }`}
                   style={{
                     borderColor: active === idx ? COLOR.AMBER : "transparent",
@@ -184,7 +211,12 @@ const Home = () => {
                     height: "48px",
                   }}
                 >
-                  <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                  <img
+                    src={getImageUrl(item.image)}
+                    alt={item.title}
+                    onError={handleImgError}
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -192,14 +224,19 @@ const Home = () => {
 
           {/* Right Column: Hero Graphic Display */}
           <div className="lg:col-span-7 relative flex justify-center items-center order-1 lg:order-2">
-            <div className="relative w-full max-w-md sm:max-w-lg aspect-[4/3] rounded-3xl p-4 sm:p-6 shadow-2xl border bg-white flex items-center justify-center overflow-hidden transition-all duration-500" style={{ borderColor: COLOR.BORDER }}>
-              
-              {/* Product Card Image */}
+            <div
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => setPaused(false)}
+              className="relative w-full max-w-md sm:max-w-lg aspect-[4/3] rounded-3xl p-4 sm:p-6 shadow-2xl border bg-white flex items-center justify-center overflow-hidden transition-all duration-500"
+              style={{ borderColor: COLOR.BORDER }}
+            >
+              {/* Product Card Image (key badalne par fade animation chalti hai) */}
               <img
-                key={slideData[active]?._id || slideData[active]?.id}
-                src={slideData[active]?.image}
-                alt={slideData[active]?.title}
-                className="w-full h-full object-contain rounded-2xl transition-all duration-700 transform hover:scale-105"
+                key={current?._id || current?.id}
+                src={getImageUrl(current?.image)}
+                alt={current?.title}
+                onError={handleImgError}
+                className="w-full h-full object-contain rounded-2xl animate-slide-fade transition-transform duration-700 transform hover:scale-105"
               />
 
               {/* Navigation Arrows on Card */}
@@ -222,7 +259,6 @@ const Home = () => {
               </button>
             </div>
           </div>
-
         </div>
       </section>
 
@@ -230,7 +266,6 @@ const Home = () => {
       <section className="w-full py-8 border-y" style={{ background: COLOR.BG_LIGHT, borderColor: COLOR.BORDER }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center md:text-left">
-            
             <div className="flex flex-col md:flex-row items-center gap-3">
               <div className="p-3 rounded-xl shadow-sm text-white" style={{ background: COLOR.STEEL }}>
                 <Wrench size={22} />
@@ -270,7 +305,6 @@ const Home = () => {
                 <p className="text-xs text-gray-500">Built for long life</p>
               </div>
             </div>
-
           </div>
         </div>
       </section>
@@ -279,10 +313,10 @@ const Home = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <ProductCard />
       </main>
-      
+
       <Footer />
 
-      {/* Marquee Animation Keyframes */}
+      {/* Animation Keyframes */}
       <style>{`
         @keyframes ticker {
           0% { transform: translateX(0); }
@@ -293,6 +327,14 @@ const Home = () => {
         }
         .animate-ticker:hover {
           animation-play-state: paused;
+        }
+
+        @keyframes slideFade {
+          from { opacity: 0; transform: scale(0.96); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .animate-slide-fade {
+          animation: slideFade 0.7s ease;
         }
       `}</style>
     </div>
