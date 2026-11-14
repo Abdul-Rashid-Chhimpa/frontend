@@ -33,7 +33,6 @@ import { CartContext } from "../Components/Context";
 // ======================================================
 const API_BASE = "https://backend-3-axez.onrender.com";
 
-// /uploads/xyz.jpg -> full backend URL
 const getImageUrl = (img) => {
   if (!img || typeof img !== "string") return "/no-image.png";
   if (img.startsWith("http") || img.startsWith("data:")) return img;
@@ -132,10 +131,10 @@ const Card = () => {
   const [showOnlyNew, setShowOnlyNew] = useState(false);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("featured");
-  const [visibleProducts, setVisibleProducts] = useState(12); // slightly more because cards are smaller
+  const [visibleProducts, setVisibleProducts] = useState(12);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
-  // --- 1. FETCH PRODUCTS ---
+  // --- FETCH PRODUCTS ---
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -327,8 +326,15 @@ const Card = () => {
     { label: "In stock", value: inStockCount },
   ];
 
+  // Go to product details
+  const goToProduct = (product) => {
+    navigate(`/product/${product._id}`, {
+      state: { product },
+    });
+  };
+
   // ======================================================
-  // SKELETON (smaller cards)
+  // SKELETON
   // ======================================================
   const renderSkeletonCard = (key) => (
     <div
@@ -408,7 +414,6 @@ const Card = () => {
         </button>
       </div>
 
-      {/* Special Filters */}
       <div className="mb-6 border-b border-white/10 pb-5">
         <h3 className="text-sm font-semibold text-white/80 mb-3">Special Filters</h3>
         <div className="space-y-2.5">
@@ -458,7 +463,6 @@ const Card = () => {
         </div>
       </div>
 
-      {/* Categories */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-white/80">Shop by category</h3>
@@ -529,7 +533,6 @@ const Card = () => {
         </div>
       </div>
 
-      {/* Price */}
       <div className="mb-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-white/80">Maximum price</h3>
@@ -618,7 +621,7 @@ const Card = () => {
 
         {/* LAYOUT */}
         <div className="flex-1 grid lg:grid-cols-4 gap-5 lg:gap-6">
-          {/* ================= LEFT SIDEBAR (desktop) ================= */}
+          {/* LEFT SIDEBAR */}
           <aside
             className={`hidden lg:flex lg:col-span-1 flex-col gap-4 overflow-y-auto scrollbar-hide ${PANEL_HEIGHT}`}
           >
@@ -710,7 +713,7 @@ const Card = () => {
             </div>
           )}
 
-          {/* ================= RIGHT: PRODUCTS PANEL ================= */}
+          {/* RIGHT: PRODUCTS PANEL */}
           <div className={`lg:col-span-3 flex flex-col ${PANEL_HEIGHT}`}>
             {/* Toolbar */}
             <div className="shrink-0 flex flex-col sm:flex-row gap-2.5 mb-3">
@@ -828,7 +831,6 @@ const Card = () => {
                   </button>
                 </div>
               ) : (
-                /* ========== UPDATED GRID: 2 → 3 → 4 columns + smaller cards ========== */
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
                   {filteredProducts.slice(0, visibleProducts).map((product) => {
                     const basePrice = getLowestPrice(product);
@@ -844,13 +846,14 @@ const Card = () => {
                     return (
                       <div
                         key={product._id}
-                        className="group rounded-xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg flex flex-col"
+                        onClick={() => goToProduct(product)}
+                        className="group rounded-xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg flex flex-col cursor-pointer"
                         style={{
                           background: SURFACE,
                           border: `1px solid ${BORDER}`,
                         }}
                       >
-                        {/* Image - reduced height */}
+                        {/* Image */}
                         <div
                           className="relative h-28 sm:h-32 md:h-36 overflow-hidden"
                           style={{ background: "#F1F2EF" }}
@@ -861,7 +864,8 @@ const Card = () => {
                             className="w-full h-full object-contain p-2.5 sm:p-3 group-hover:scale-105 transition duration-500"
                             onError={(e) => {
                               e.currentTarget.onerror = null;
-                              e.currentTarget.src = "https://placehold.co/400x400?text=No+Image";
+                              e.currentTarget.src =
+                                "https://placehold.co/400x400?text=No+Image";
                             }}
                           />
 
@@ -899,7 +903,7 @@ const Card = () => {
                           </span>
                         </div>
 
-                        {/* Body - tighter padding & smaller text */}
+                        {/* Body */}
                         <div className="p-2.5 sm:p-3 flex-1 flex flex-col justify-between">
                           <div>
                             <h2
@@ -966,25 +970,26 @@ const Card = () => {
 
                             <div className="grid grid-cols-2 gap-1.5 mt-2.5">
                               <button
-                                onClick={() =>
-                                  navigate(`/product/${product._id}`, {
-                                    state: { product },
-                                  })
-                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  goToProduct(product);
+                                }}
                                 className="text-white rounded-lg py-2 text-[11px] sm:text-xs font-semibold hover:opacity-90 active:scale-95 transition"
                                 style={{ background: STEEL }}
                               >
                                 Buy now
                               </button>
+
                               <button
                                 disabled={product.stock === 0}
-                                onClick={() =>
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   addToCart({
                                     ...product,
                                     quantity: 1,
                                     price: finalPrice,
-                                  })
-                                }
+                                  });
+                                }}
                                 className="rounded-lg py-2 text-[11px] sm:text-xs font-bold transition disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
                                 style={
                                   product.stock === 0
@@ -1003,14 +1008,15 @@ const Card = () => {
                                   p._id !== product._id
                               ).length > 0 && (
                                 <button
-                                  onClick={() =>
+                                  onClick={(e) => {
+                                    e.stopPropagation();
                                     navigate(`/varieties/${product.variantGroup}`, {
                                       state: {
                                         groupName: product.variantGroup,
                                         productName: product.name,
                                       },
-                                    })
-                                  }
+                                    });
+                                  }}
                                   className="w-full mt-1.5 py-1.5 rounded-lg border font-semibold text-[10px] sm:text-[11px] hover:bg-gray-50 active:scale-95 transition"
                                   style={{ borderColor: BORDER, color: STEEL }}
                                 >
