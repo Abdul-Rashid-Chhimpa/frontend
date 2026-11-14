@@ -17,7 +17,7 @@ import {
 
 const API_BASE = "https://backend-3-axez.onrender.com";
 
-// Brand Palette Setup
+// Brand Palette
 const COLOR = {
   INK: "#15181C",
   MUTED: "#6B7280",
@@ -30,7 +30,7 @@ const COLOR = {
   STEEL_DARK: "#17303E",
 };
 
-// Fallback slides (jab tak database mein banners add na hon)
+// Fallback slides
 const defaultSlideData = [
   {
     _id: "1",
@@ -69,8 +69,6 @@ const defaultSlideData = [
   },
 ];
 
-// Admin se upload hui image (/uploads/..) ko full backend URL banata hai.
-// Default images (01.jpeg) aur http/data links jaise hain waise hi rehte hain.
 const getImageUrl = (img) => {
   if (!img) return "";
   if (img.startsWith("http") || img.startsWith("data:")) return img;
@@ -79,7 +77,7 @@ const getImageUrl = (img) => {
 };
 
 const handleImgError = (e) => {
-  e.currentTarget.onerror = null; // infinite loop se bachne ke liye
+  e.currentTarget.onerror = null;
   e.currentTarget.src = "https://placehold.co/600x450?text=Image+Not+Found";
 };
 
@@ -88,15 +86,13 @@ const Home = () => {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
 
-  // Backend se dynamic banners fetch karein
   useEffect(() => {
     const fetchBanners = async () => {
       try {
         const { data } = await axios.get(`${API_BASE}/api/banners`, {
-          timeout: 60000, // Render free plan jaagne me 30-50 sec leta hai
+          timeout: 60000,
         });
 
-        // Dono format support: [ ... ] ya { success, banners: [ ... ] }
         const list = Array.isArray(data) ? data : data?.banners;
 
         if (Array.isArray(list) && list.length > 0) {
@@ -110,7 +106,6 @@ const Home = () => {
     fetchBanners();
   }, []);
 
-  // Auto-slide timer (hover par ruk jata hai)
   useEffect(() => {
     if (slideData.length <= 1 || paused) return;
     const timer = setInterval(() => {
@@ -127,7 +122,6 @@ const Home = () => {
     setActive((prev) => (prev + 1) % slideData.length);
   };
 
-  // Safe current slide (index out of range ho to pehli slide)
   const current = slideData[active] || slideData[0];
 
   return (
@@ -135,7 +129,7 @@ const Home = () => {
       <Nav />
       <RandomImg />
 
-      {/* ========== INFINITE RUNNING MARQUEE BANNER ========== */}
+      {/* ========== RUNNING MARQUEE ========== */}
       <div
         className="w-full overflow-hidden py-3.5 sm:py-4 border-y shadow-inner relative z-10"
         style={{ background: COLOR.STEEL_DARK, borderColor: "rgba(255,255,255,0.1)" }}
@@ -161,62 +155,73 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ========== HERO SHOWCASE CAROUSEL SECTION ========== */}
-      <section className="relative w-full py-10 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {/* Soft Ambient Background Lighting */}
+      {/* ========== HERO SHOWCASE (Modern + Mobile friendly) ========== */}
+      <section className="relative w-full py-8 sm:py-14 md:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+        {/* Soft ambient glow */}
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] sm:w-[500px] lg:w-[700px] h-[300px] sm:h-[500px] rounded-full blur-[140px] pointer-events-none opacity-20"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] sm:w-[480px] lg:w-[640px] h-[280px] sm:h-[480px] rounded-full blur-[120px] pointer-events-none opacity-25"
           style={{ background: COLOR.AMBER }}
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center relative z-10">
-          {/* Left Column: Featured Text Info */}
-          <div className="lg:col-span-5 flex flex-col justify-center text-center lg:text-left order-2 lg:order-1">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center relative z-10">
+          {/* ===== LEFT: Text content ===== */}
+          <div className="lg:col-span-5 flex flex-col justify-center order-2 lg:order-1">
+            {/* Tagline badge */}
             <div
               className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold w-fit mx-auto lg:mx-0 shadow-sm"
-              style={{ background: COLOR.SURFACE, borderColor: COLOR.BORDER, color: COLOR.STEEL }}
+              style={{
+                background: COLOR.SURFACE,
+                borderColor: COLOR.BORDER,
+                color: COLOR.STEEL,
+              }}
             >
               <ShieldCheck size={14} style={{ color: COLOR.AMBER_DARK }} />
-              {current?.tagline}
+              {current?.tagline || "Premium Tools"}
             </div>
 
-            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mt-4 leading-tight">
-              {current?.title}
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mt-4 leading-[1.15] text-center lg:text-left">
+              {current?.title || "Featured Tool"}
             </h1>
 
-            <p className="text-sm sm:text-base mt-3 font-medium" style={{ color: COLOR.MUTED }}>
-              {current?.specs}
+            <p
+              className="text-sm sm:text-base mt-3 font-medium text-center lg:text-left max-w-md mx-auto lg:mx-0"
+              style={{ color: COLOR.MUTED }}
+            >
+              {current?.specs || "High quality industrial tools"}
             </p>
 
-            <div className="mt-6 sm:mt-8 flex flex-wrap items-center justify-center lg:justify-start gap-4">
+            {/* CTA */}
+            <div className="mt-6 sm:mt-8 flex justify-center lg:justify-start">
               <button
-                className="px-6 py-3 rounded-xl font-bold text-sm text-white shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
-                style={{ background: `linear-gradient(135deg, ${COLOR.AMBER}, ${COLOR.AMBER_DARK})` }}
+                className="px-6 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                style={{
+                  background: `linear-gradient(135deg, ${COLOR.AMBER}, ${COLOR.AMBER_DARK})`,
+                }}
               >
                 <span>Explore Specification</span>
                 <ArrowRight size={16} />
               </button>
             </div>
 
-            {/* Thumbnail Navigation Indicators (bina scrollbar ke) */}
+            {/* Thumbnail strip */}
             <div
-              className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-8 pt-6 border-t"
+              className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 mt-8 pt-6 border-t"
               style={{ borderColor: COLOR.BORDER }}
             >
               {slideData.map((item, idx) => (
                 <button
-                  key={item._id || item.id}
+                  key={item._id || item.id || idx}
                   onClick={() => setActive(idx)}
                   aria-label={`Show slide ${idx + 1}`}
                   className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
                     active === idx
-                      ? "shadow-lg -translate-y-0.5"
-                      : "opacity-50 hover:opacity-100 hover:-translate-y-0.5"
+                      ? "shadow-md -translate-y-0.5 scale-105"
+                      : "opacity-60 hover:opacity-100 hover:-translate-y-0.5"
                   }`}
                   style={{
                     borderColor: active === idx ? COLOR.AMBER : COLOR.BORDER,
-                    width: "56px",
-                    height: "56px",
+                    width: "52px",
+                    height: "52px",
                   }}
                 >
                   <img
@@ -230,101 +235,99 @@ const Home = () => {
             </div>
           </div>
 
-          {/* Right Column: Hero Graphic Display */}
+          {/* ===== RIGHT: Product image card ===== */}
           <div className="lg:col-span-7 relative flex justify-center items-center order-1 lg:order-2">
             <div
               onMouseEnter={() => setPaused(true)}
               onMouseLeave={() => setPaused(false)}
-              className="relative w-full max-w-md sm:max-w-lg aspect-[4/3] rounded-3xl p-4 sm:p-6 shadow-2xl border bg-white flex items-center justify-center overflow-hidden transition-all duration-500"
+              className="relative w-full max-w-[340px] sm:max-w-md md:max-w-lg aspect-[4/3.2] rounded-3xl p-3 sm:p-5 shadow-2xl border bg-white flex items-center justify-center overflow-hidden"
               style={{ borderColor: COLOR.BORDER }}
             >
-              {/* Product Card Image (key badalne par fade animation chalti hai) */}
+              {/* Soft inner glow */}
+              <div
+                className="absolute inset-0 opacity-40 pointer-events-none"
+                style={{
+                  background:
+                    "radial-gradient(circle at 30% 20%, rgba(240,164,32,0.12), transparent 55%)",
+                }}
+              />
+
               <img
-                key={current?._id || current?.id}
+                key={current?._id || current?.id || active}
                 src={getImageUrl(current?.image)}
                 alt={current?.title}
                 onError={handleImgError}
-                className="w-full h-full object-contain rounded-2xl animate-slide-fade transition-transform duration-700 transform hover:scale-105"
+                className="relative z-10 w-full h-full object-contain rounded-2xl animate-slide-fade transition-transform duration-700 hover:scale-[1.03]"
               />
 
-              {/* Navigation Arrows on Card */}
+              {/* Navigation arrows */}
               <button
                 onClick={goPrev}
                 aria-label="Previous slide"
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 backdrop-blur-md cursor-pointer"
-                style={{ background: "rgba(255,255,255,0.85)", border: `1px solid ${COLOR.BORDER}`, color: COLOR.INK }}
+                className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 backdrop-blur-md z-20"
+                style={{
+                  background: "rgba(255,255,255,0.9)",
+                  border: `1px solid ${COLOR.BORDER}`,
+                  color: COLOR.INK,
+                }}
               >
-                <ChevronLeft size={20} />
+                <ChevronLeft size={18} />
               </button>
 
               <button
                 onClick={goNext}
                 aria-label="Next slide"
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 backdrop-blur-md cursor-pointer"
-                style={{ background: "rgba(255,255,255,0.85)", border: `1px solid ${COLOR.BORDER}`, color: COLOR.INK }}
+                className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 backdrop-blur-md z-20"
+                style={{
+                  background: "rgba(255,255,255,0.9)",
+                  border: `1px solid ${COLOR.BORDER}`,
+                  color: COLOR.INK,
+                }}
               >
-                <ChevronRight size={20} />
+                <ChevronRight size={18} />
               </button>
             </div>
           </div>
         </div>
       </section>
 
-      {/* ========== INDUSTRIAL HIGHLIGHT FEATURES ========== */}
-      <section className="w-full py-8 border-y" style={{ background: COLOR.BG_LIGHT, borderColor: COLOR.BORDER }}>
+      {/* ========== FEATURE HIGHLIGHTS ========== */}
+      <section
+        className="w-full py-8 border-y"
+        style={{ background: COLOR.BG_LIGHT, borderColor: COLOR.BORDER }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-center md:text-left">
-            <div className="flex flex-col md:flex-row items-center gap-3">
-              <div className="p-3 rounded-xl shadow-sm text-white" style={{ background: COLOR.STEEL }}>
-                <Wrench size={22} />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 text-center md:text-left">
+            {[
+              { icon: Wrench, title: "Drop Forged Steel", note: "Maximum strength structure" },
+              { icon: Zap, title: "Induction Hardened", note: "Precision cutting edges" },
+              { icon: Award, title: "Ergonomic Grip", note: "Slip-resistant comfort" },
+              { icon: ShieldCheck, title: "Quality Guaranteed", note: "Built for long life" },
+            ].map(({ icon: Icon, title, note }) => (
+              <div key={title} className="flex flex-col md:flex-row items-center gap-3">
+                <div
+                  className="p-3 rounded-xl shadow-sm text-white shrink-0"
+                  style={{ background: COLOR.STEEL }}
+                >
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold">{title}</h4>
+                  <p className="text-xs text-gray-500">{note}</p>
+                </div>
               </div>
-              <div>
-                <h4 className="text-sm font-bold">Drop Forged Steel</h4>
-                <p className="text-xs text-gray-500">Maximum strength structure</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row items-center gap-3">
-              <div className="p-3 rounded-xl shadow-sm text-white" style={{ background: COLOR.STEEL }}>
-                <Zap size={22} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold">Induction Hardened</h4>
-                <p className="text-xs text-gray-500">Precision cutting edges</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row items-center gap-3">
-              <div className="p-3 rounded-xl shadow-sm text-white" style={{ background: COLOR.STEEL }}>
-                <Award size={22} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold">Ergonomic Grip</h4>
-                <p className="text-xs text-gray-500">Slip-resistant comfort</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row items-center gap-3">
-              <div className="p-3 rounded-xl shadow-sm text-white" style={{ background: COLOR.STEEL }}>
-                <ShieldCheck size={22} />
-              </div>
-              <div>
-                <h4 className="text-sm font-bold">Quality Guaranteed</h4>
-                <p className="text-xs text-gray-500">Built for long life</p>
-              </div>
-            </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* ========== PRODUCTS & FOOTER SECTION ========== */}
+      {/* ========== PRODUCTS ========== */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <ProductCard />
       </main>
 
       <Footer />
 
-      {/* Animation Keyframes */}
       <style>{`
         @keyframes ticker {
           0% { transform: translateX(0); }
@@ -342,7 +345,7 @@ const Home = () => {
           to { opacity: 1; transform: scale(1); }
         }
         .animate-slide-fade {
-          animation: slideFade 0.7s ease;
+          animation: slideFade 0.55s ease;
         }
       `}</style>
     </div>
