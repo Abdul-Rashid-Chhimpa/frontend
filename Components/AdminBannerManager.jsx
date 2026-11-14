@@ -29,8 +29,8 @@ const AdminBannerManager = () => {
   const [progress, setProgress] = useState(null); // { current, total }
   const [dragOver, setDragOver] = useState(false);
 
-  // Busy states
-  const [busy, setBusy] = useState(false); // delete / move / replace
+  // Busy state (delete / move / replace)
+  const [busy, setBusy] = useState(false);
 
   // Edit modal
   const [editing, setEditing] = useState(null);
@@ -133,6 +133,14 @@ const AdminBannerManager = () => {
       specs: "",
     }));
     setQueue((prev) => [...prev, ...picked]);
+  };
+
+  const openPicker = () => {
+    if (full) {
+      toast.error("Saare 5 slots bhar gaye hain. Pehle koi banner delete karein.");
+      return;
+    }
+    fileInputRef.current?.click();
   };
 
   const handlePick = (e) => {
@@ -318,15 +326,16 @@ const AdminBannerManager = () => {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-100 font-sans">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8">
+    <div className="w-full p-3 sm:p-6 text-slate-100 font-sans">
+      {/* Apna dark background: parent light ho tab bhi text saaf dikhega */}
+      <div className="max-w-6xl mx-auto rounded-3xl border border-slate-800 bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 p-4 sm:p-8 space-y-6 sm:space-y-8 shadow-2xl">
         {/* ===== Header ===== */}
         <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-400">
               Admin · Homepage
             </p>
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">
+            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1 text-white">
               Hero Banner Studio
             </h2>
             <p className="text-sm text-slate-400 mt-1">
@@ -334,7 +343,7 @@ const AdminBannerManager = () => {
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 backdrop-blur px-4 py-3 w-full md:w-auto">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/70 px-4 py-3 w-full md:w-auto">
             <div className="flex items-center justify-between gap-6 text-xs font-semibold">
               <span className="text-slate-300">Slots used</span>
               <span className={full ? "text-red-400" : "text-amber-400"}>
@@ -359,12 +368,12 @@ const AdminBannerManager = () => {
         </header>
 
         {/* ===== Upload zone ===== */}
-        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur p-4 sm:p-6 shadow-2xl">
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-4 sm:p-6">
           <div
             role="button"
             tabIndex={0}
-            onClick={() => !full && fileInputRef.current?.click()}
-            onKeyDown={(e) => e.key === "Enter" && !full && fileInputRef.current?.click()}
+            onClick={openPicker}
+            onKeyDown={(e) => e.key === "Enter" && openPicker()}
             onDragOver={(e) => {
               e.preventDefault();
               if (!full) setDragOver(true);
@@ -373,11 +382,11 @@ const AdminBannerManager = () => {
             onDrop={(e) => {
               e.preventDefault();
               setDragOver(false);
-              if (!full) addFiles(e.dataTransfer.files);
+              addFiles(e.dataTransfer.files);
             }}
             className={`rounded-2xl border-2 border-dashed px-4 py-8 sm:py-10 text-center transition-all ${
               full
-                ? "border-slate-800 opacity-50 cursor-not-allowed"
+                ? "border-slate-800 opacity-60 cursor-not-allowed"
                 : dragOver
                 ? "border-amber-400 bg-amber-400/10 scale-[1.01] cursor-copy"
                 : "border-slate-700 hover:border-amber-400/70 hover:bg-slate-800/40 cursor-pointer"
@@ -386,7 +395,7 @@ const AdminBannerManager = () => {
             <div className="mx-auto w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-2xl shadow-lg shadow-amber-500/20">
               🖼️
             </div>
-            <p className="mt-4 text-base sm:text-lg font-bold">
+            <p className="mt-4 text-base sm:text-lg font-bold text-white">
               {full ? "Saare 5 slots bhar gaye" : "Drop images here ya click karke chuniye"}
             </p>
             <p className="text-xs sm:text-sm text-slate-400 mt-1">
@@ -413,19 +422,29 @@ const AdminBannerManager = () => {
           {/* Queue */}
           {queue.length > 0 && (
             <div className="mt-6">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <h3 className="text-sm font-bold text-white">
                   Ready to upload{" "}
                   <span className="text-slate-400 font-medium">({queue.length})</span>
                 </h3>
-                <button
-                  type="button"
-                  onClick={clearQueue}
-                  disabled={!!progress}
-                  className="text-xs text-slate-400 hover:text-red-400 transition cursor-pointer disabled:opacity-50"
-                >
-                  Clear all
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={openPicker}
+                    disabled={!!progress || full}
+                    className="px-3 py-1.5 rounded-lg bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 text-amber-300 text-xs font-semibold transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    ＋ Add more images
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearQueue}
+                    disabled={!!progress}
+                    className="px-3 py-1.5 rounded-lg text-xs text-slate-400 hover:text-red-400 transition cursor-pointer disabled:opacity-50"
+                  >
+                    Clear all
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -501,9 +520,9 @@ const AdminBannerManager = () => {
         </section>
 
         {/* ===== Live preview + slots ===== */}
-        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 backdrop-blur p-4 sm:p-6 shadow-2xl">
+        <section className="rounded-3xl border border-slate-800 bg-slate-900/60 p-4 sm:p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold">Live Slides</h3>
+            <h3 className="text-lg font-bold text-white">Live Slides</h3>
             <span className="text-xs text-slate-400">{banners.length} published</span>
           </div>
 
@@ -518,7 +537,7 @@ const AdminBannerManager = () => {
                     {selectedBanner.tagline}
                   </span>
                 )}
-                <h4 className="text-xl sm:text-3xl font-extrabold mt-3 leading-tight">
+                <h4 className="text-xl sm:text-3xl font-extrabold mt-3 leading-tight text-white">
                   {selectedBanner.title}
                 </h4>
                 {selectedBanner.specs && (
@@ -596,7 +615,7 @@ const AdminBannerManager = () => {
                   <div
                     key={b._id}
                     onClick={() => setSelectedId(b._id)}
-                    className={`group relative rounded-2xl p-2 cursor-pointer transition-all border bg-slate-950/60 ${
+                    className={`relative rounded-2xl p-2 cursor-pointer transition-all border bg-slate-950/60 ${
                       active
                         ? "border-amber-400 ring-2 ring-amber-400/30"
                         : "border-slate-800 hover:border-slate-600"
@@ -618,7 +637,7 @@ const AdminBannerManager = () => {
                       #{i + 1}
                     </span>
 
-                    <p className="text-[11px] font-semibold mt-2 px-1 line-clamp-1">{b.title}</p>
+                    <p className="text-[11px] font-semibold mt-2 px-1 line-clamp-1 text-white">{b.title}</p>
 
                     <div className="flex items-center justify-between mt-1.5 px-1">
                       <div className="flex gap-1">
@@ -689,7 +708,7 @@ const AdminBannerManager = () => {
                 <button
                   key={`empty-${i}`}
                   type="button"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={openPicker}
                   className="rounded-2xl border-2 border-dashed border-slate-700 hover:border-amber-400/70 hover:bg-slate-800/40 text-slate-500 hover:text-amber-300 transition flex flex-col items-center justify-center gap-1 aspect-square sm:aspect-auto sm:min-h-[150px] cursor-pointer"
                 >
                   <span className="text-3xl leading-none">＋</span>
@@ -711,10 +730,10 @@ const AdminBannerManager = () => {
           <form
             onSubmit={saveEdit}
             onClick={(e) => e.stopPropagation()}
-            className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-6 shadow-2xl"
+            className="w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-t-3xl sm:rounded-3xl border border-slate-700 bg-slate-900 text-slate-100 p-5 sm:p-6 shadow-2xl"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold">Edit Banner</h3>
+              <h3 className="text-lg font-bold text-white">Edit Banner</h3>
               <button
                 type="button"
                 onClick={closeEdit}
