@@ -10,36 +10,31 @@ const STEPS = [
     id: "welcome",
     title: "Welcome to Pedwal Tools!",
     description: "Let’s quickly show you how to navigate our store. Here is your Home button to return anytime.",
-    target: "a[href='/'], button:has-text('Home'), nav a:first-child", // Top Home link selector
-    placement: "bottom",
+    target: "a[href='/']",
   },
   {
     id: "shop-collection",
     title: "Shop the Collection",
     description: "Click this button to explore our premium range of durable hand tools crafted for every job.",
-    target: "#tour-shop-btn", // Make sure to add id="tour-shop-btn" to your "Shop the collection" button element
-    placement: "top",
+    target: "#tour-shop-btn",
   },
   {
     id: "filters",
     title: "Smart Filters",
     description: "Filter products by category, price, offers and new arrivals easily.",
     target: "#filters-trigger",
-    placement: "right",
   },
   {
     id: "search",
     title: "Search Products",
     description: "Type product name, brand or material here to quickly find what you need.",
     target: "#product-search",
-    placement: "bottom",
   },
   {
     id: "product-card",
     title: "Product Cards",
     description: "Click anywhere on a product card to open full details, Add to Cart or Buy Now.",
     target: ".product-card-item",
-    placement: "top",
   },
 ];
 
@@ -51,59 +46,62 @@ const OnboardingGuide = () => {
 
   const step = STEPS[currentStep];
 
-  // Show only first time
+  // Show only first time with safety delay
   useEffect(() => {
-    const seen = localStorage.getItem("pedwal_guide_seen");
-    if (!seen) {
-      const timer = setTimeout(() => setVisible(true), 900);
-      return () => clearTimeout(timer);
+    try {
+      const seen = localStorage.getItem("pedwal_guide_seen");
+      if (!seen) {
+        const timer = setTimeout(() => setVisible(true), 1200);
+        return () => clearTimeout(timer);
+      }
+    } catch (e) {
+      console.error(e);
     }
   }, []);
 
-  // Calculate spotlight position
+  // Calculate spotlight position safely
   useEffect(() => {
-    if (!visible) return;
+    if (!visible || !step) return;
 
     const updateSpotlight = () => {
-      if (!step.target) {
+      try {
+        if (!step.target) {
+          setSpotlight(null);
+          return;
+        }
+
+        const el = document.querySelector(step.target);
+        if (!el) {
+          setSpotlight(null);
+          return;
+        }
+
+        const rect = el.getBoundingClientRect();
+        const padding = 8;
+
+        setSpotlight({
+          top: rect.top - padding + window.scrollY,
+          left: rect.left - padding + window.scrollX,
+          width: rect.width + padding * 2,
+          height: rect.height + padding * 2,
+        });
+
+        el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+      } catch (err) {
+        console.error("Spotlight error:", err);
         setSpotlight(null);
-        return;
       }
-
-      // Try selecting by ID/class or fallback query selector
-      let el = document.querySelector(step.target);
-      
-      // Fallback selector for Home button if generic query fails
-      if (!el && currentStep === 0) {
-        el = Array.from(document.querySelectorAll("a, button")).find(el => el.textContent?.includes("Home"));
-      }
-
-      if (!el) {
-        setSpotlight(null);
-        return;
-      }
-
-      const rect = el.getBoundingClientRect();
-      const padding = 8;
-
-      setSpotlight({
-        top: rect.top - padding + window.scrollY,
-        left: rect.left - padding + window.scrollX,
-        width: rect.width + padding * 2,
-        height: rect.height + padding * 2,
-      });
-
-      // Scroll element into view smoothly
-      el.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
     };
 
     updateSpotlight();
     window.addEventListener("resize", updateSpotlight);
     return () => window.removeEventListener("resize", updateSpotlight);
-  }, [visible, currentStep, step.target]);
+  }, [visible, currentStep, step]);
 
   const finishGuide = () => {
-    localStorage.setItem("pedwal_guide_seen", "true");
+    try {
+      localStorage.setItem("pedwal_guide_seen", "true");
+    } catch (e) {}
     setVisible(false);
   };
 
@@ -124,9 +122,9 @@ const OnboardingGuide = () => {
   const isFirst = currentStep === 0;
   const isLast = currentStep === STEPS.length - 1;
 
-  // Tooltip position helper
+  // Tooltip position helper with defaults
   const getTooltipStyle = () => {
-    if (!spotlight || step.placement === "center") {
+    if (!spotlight) {
       return {
         top: "50%",
         left: "50%",
@@ -135,37 +133,12 @@ const OnboardingGuide = () => {
     }
 
     const gap = 16;
-
-    if (step.placement === "bottom") {
-      return {
-        top: spotlight.top + spotlight.height + gap,
-        left: Math.min(
-          Math.max(spotlight.left + spotlight.width / 2 - 160, 16),
-          window.innerWidth - 336
-        ),
-      };
-    }
-
-    if (step.placement === "top") {
-      return {
-        top: spotlight.top - gap - 180,
-        left: Math.min(
-          Math.max(spotlight.left + spotlight.width / 2 - 160, 16),
-          window.innerWidth - 336
-        ),
-      };
-    }
-
-    if (step.placement === "right") {
-      return {
-        top: spotlight.top + spotlight.height / 2 - 80,
-        left: spotlight.left + spotlight.width + gap,
-      };
-    }
-
     return {
       top: spotlight.top + spotlight.height + gap,
-      left: spotlight.left,
+      left: Math.min(
+        Math.max(spotlight.left + spotlight.width / 2 - 160, 16),
+        window.innerWidth - 336
+      ),
     };
   };
 
@@ -196,7 +169,6 @@ const OnboardingGuide = () => {
         className="absolute z-20 w-[min(320px,calc(100vw-32px))] bg-white rounded-2xl shadow-2xl overflow-hidden animate-tooltip"
         style={getTooltipStyle()}
       >
-        {/* Top accent */}
         <div
           className="h-1 w-full"
           style={{ background: `linear-gradient(90deg, ${AMBER}, ${AMBER_DARK})` }}
@@ -212,20 +184,20 @@ const OnboardingGuide = () => {
                 <Sparkles size={18} />
               </div>
               <h3 className="font-bold text-gray-900 text-[15px] leading-tight">
-                {step.title}
+                {step?.title}
               </h3>
             </div>
 
             <button
               onClick={finishGuide}
-              className="p-1 rounded-full hover:bg-gray-100 transition shrink-0"
+              className="p-1 rounded-full hover:bg-gray-100 transition shrink-0 cursor-pointer"
             >
               <X size={16} className="text-gray-400" />
             </button>
           </div>
 
           <p className="text-sm text-gray-600 leading-relaxed mb-5">
-            {step.description}
+            {step?.description}
           </p>
 
           {/* Progress */}
@@ -246,7 +218,7 @@ const OnboardingGuide = () => {
             {!isFirst && (
               <button
                 onClick={handlePrev}
-                className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition cursor-pointer"
               >
                 <ChevronLeft size={16} />
                 Back
@@ -255,14 +227,14 @@ const OnboardingGuide = () => {
 
             <button
               onClick={finishGuide}
-              className="ml-auto px-3 py-2 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-50 transition"
+              className="ml-auto px-3 py-2 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-50 transition cursor-pointer"
             >
               Skip
             </button>
 
             <button
               onClick={handleNext}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-1.5 transition active:scale-95 shadow-lg"
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-1.5 transition active:scale-95 shadow-lg cursor-pointer"
               style={{
                 background: `linear-gradient(135deg, ${AMBER}, ${AMBER_DARK})`,
               }}
