@@ -17,6 +17,7 @@ import {
   Sun,
   Moon,
   Sparkles,
+  Image as ImageIcon, // ✅ Added icon for Banner Manager
 } from "lucide-react";
 
 const AdminDashboard = () => {
@@ -32,6 +33,15 @@ const AdminDashboard = () => {
       badge: "Analytics",
       glowColor: "group-hover:shadow-[0_0_30px_-5px_rgba(43,74,94,0.4)]",
       accent: "text-sky-400 border-sky-500/20 bg-sky-500/10",
+    },
+    {
+      title: "Hero Showcase Banners",
+      subtitle: "Manage homepage slider banners",
+      path: "/admin/banners",
+      icon: <ImageIcon size={20} />,
+      badge: "Slider",
+      glowColor: "group-hover:shadow-[0_0_30px_-5px_rgba(240,164,32,0.4)]",
+      accent: "text-amber-400 border-amber-500/20 bg-amber-500/10",
     },
     {
       title: "Add New Product",
@@ -120,6 +130,7 @@ const AdminDashboard = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     localStorage.removeItem("cart");
+    localStorage.removeItem("tokenExpiry");
     navigate("/login", { replace: true });
   };
 
