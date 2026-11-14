@@ -38,6 +38,7 @@ const defaultSlideData = [
     tagline: "Heavy-Duty Series",
     title: "Special Combination Plier",
     specs: "8″ 205mm · Drop Forged · Induction Hardened",
+    // productId: "your-product-id-here"  // ← add this from admin if available
   },
   {
     _id: "2",
@@ -125,17 +126,17 @@ const Home = () => {
 
   const current = slideData[active] || slideData[0];
 
-  // Direct Buy / View Product
+  // Only open particular product details
   const handleBuyNow = () => {
-    // If banner has productId → go to product details
     if (current?.productId) {
       navigate(`/product/${current.productId}`);
+    } else if (current?._id && current._id.length > 10) {
+      // fallback if banner itself is linked to a product
+      navigate(`/product/${current._id}`);
     } else {
-      // Fallback: scroll to products section
-      const productsSection = document.getElementById("products-section");
-      if (productsSection) {
-        productsSection.scrollIntoView({ behavior: "smooth" });
-      }
+      // if no product linked, just go to products section
+      const el = document.getElementById("products-section");
+      if (el) el.scrollIntoView({ behavior: "smooth" });
     }
   };
 
@@ -170,72 +171,73 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ========== NEW UNIQUE HERO SHOWCASE ========== */}
+      {/* ========== HERO SHOWCASE (Inspired by reference) ========== */}
       <section className="relative w-full overflow-hidden">
-        {/* Background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[#FFF8EE] via-[#F8FAFC] to-[#EEF2FF] pointer-events-none" />
+        {/* Soft background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FFF9F0] via-[#F8FAFC] to-[#F0F4F8] pointer-events-none" />
 
-        {/* Soft floating glow */}
+        {/* Ambient lights */}
         <div
-          className="absolute top-20 right-10 w-72 h-72 rounded-full blur-[100px] opacity-30 pointer-events-none"
+          className="absolute top-16 right-8 w-80 h-80 rounded-full blur-[110px] opacity-25 pointer-events-none"
           style={{ background: COLOR.AMBER }}
         />
         <div
-          className="absolute bottom-10 left-10 w-64 h-64 rounded-full blur-[90px] opacity-20 pointer-events-none"
+          className="absolute bottom-20 left-6 w-64 h-64 rounded-full blur-[100px] opacity-15 pointer-events-none"
           style={{ background: COLOR.STEEL }}
         />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
 
             {/* ===== LEFT CONTENT ===== */}
-            <div className="lg:col-span-5 order-2 lg:order-1 text-center lg:text-left">
-              {/* Badge */}
+            <div className="lg:col-span-5 order-2 lg:order-1">
+              {/* Tagline badge */}
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border shadow-sm mb-5">
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-                <span className="text-xs font-semibold" style={{ color: COLOR.STEEL }}>
-                  {current?.tagline || "Premium Collection"}
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: COLOR.AMBER }} />
+                <span className="text-xs font-semibold tracking-wide" style={{ color: COLOR.STEEL }}>
+                  {current?.tagline || "Premium Series"}
                 </span>
               </div>
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-[3.4rem] font-extrabold tracking-tight leading-[1.12] mb-4">
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] mb-4">
                 {current?.title || "Featured Tool"}
               </h1>
 
-              <p className="text-sm sm:text-base max-w-md mx-auto lg:mx-0 mb-7" style={{ color: COLOR.MUTED }}>
+              <p className="text-sm sm:text-base max-w-md mb-6" style={{ color: COLOR.MUTED }}>
                 {current?.specs || "High quality industrial tools built for professionals"}
               </p>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
-                {/* Primary Buy Now */}
-                <button
-                  onClick={handleBuyNow}
-                  className="w-full sm:w-auto group px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98]"
-                  style={{
-                    background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, ${COLOR.AMBER_DARK} 100%)`,
-                  }}
-                >
-                  <ShoppingBag size={18} className="group-hover:scale-110 transition-transform" />
-                  <span>Buy Now</span>
-                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-
-                {/* Secondary */}
-                <button
-                  onClick={() => {
-                    const el = document.getElementById("products-section");
-                    if (el) el.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-semibold text-sm border bg-white hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
-                  style={{ borderColor: COLOR.BORDER, color: COLOR.INK }}
-                >
-                  View All Products
-                </button>
+              {/* Feature pills (like reference) */}
+              <div className="flex flex-wrap gap-2.5 mb-8">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium" style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}>
+                  <Wrench size={13} />
+                  Drop Forged
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium" style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}>
+                  <Zap size={13} />
+                  Hardened Edge
+                </div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium" style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}>
+                  <ShieldCheck size={13} />
+                  Quality Assured
+                </div>
               </div>
 
-              {/* Thumbnail Navigation */}
-              <div className="mt-9 pt-6 border-t flex flex-wrap items-center justify-center lg:justify-start gap-2.5" style={{ borderColor: COLOR.BORDER }}>
+              {/* Only one primary button */}
+              <button
+                onClick={handleBuyNow}
+                className="group px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg flex items-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98]"
+                style={{
+                  background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, ${COLOR.AMBER_DARK} 100%)`,
+                }}
+              >
+                <ShoppingBag size={18} className="group-hover:scale-110 transition-transform" />
+                <span>Buy Now</span>
+                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+              </button>
+
+              {/* Thumbnail strip */}
+              <div className="mt-10 pt-6 border-t flex flex-wrap items-center gap-2.5" style={{ borderColor: COLOR.BORDER }}>
                 {slideData.map((item, idx) => (
                   <button
                     key={item._id || item.id || idx}
@@ -248,8 +250,8 @@ const Home = () => {
                     }`}
                     style={{
                       borderColor: active === idx ? COLOR.AMBER : COLOR.BORDER,
-                      width: "54px",
-                      height: "54px",
+                      width: "52px",
+                      height: "52px",
                     }}
                   >
                     <img
@@ -263,24 +265,30 @@ const Home = () => {
               </div>
             </div>
 
-            {/* ===== RIGHT PRODUCT CARD ===== */}
+            {/* ===== RIGHT PRODUCT DISPLAY ===== */}
             <div className="lg:col-span-7 order-1 lg:order-2 flex justify-center">
               <div
                 onMouseEnter={() => setPaused(true)}
                 onMouseLeave={() => setPaused(false)}
                 className="relative w-full max-w-[360px] sm:max-w-[420px] md:max-w-[480px]"
               >
-                {/* Main Card */}
+                {/* Soft glow behind product */}
                 <div
-                  className="relative aspect-[4/3.3] rounded-[2rem] bg-white border shadow-2xl overflow-hidden flex items-center justify-center p-4 sm:p-6"
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[85%] rounded-full blur-[60px] opacity-40 pointer-events-none"
+                  style={{ background: "rgba(240, 164, 32, 0.35)" }}
+                />
+
+                {/* Product Card */}
+                <div
+                  className="relative aspect-[4/3.3] rounded-[2rem] bg-white border shadow-2xl overflow-hidden flex items-center justify-center p-5 sm:p-7"
                   style={{ borderColor: COLOR.BORDER }}
                 >
-                  {/* Soft inner light */}
+                  {/* Inner soft light */}
                   <div
                     className="absolute inset-0 pointer-events-none"
                     style={{
                       background:
-                        "radial-gradient(circle at 40% 30%, rgba(240,164,32,0.13), transparent 60%)",
+                        "radial-gradient(circle at 45% 35%, rgba(240,164,32,0.12), transparent 65%)",
                     }}
                   />
 
@@ -320,15 +328,16 @@ const Home = () => {
                   </button>
                 </div>
 
-                {/* Floating dots indicator (mobile friendly) */}
+                {/* Mobile dots */}
                 <div className="flex justify-center gap-2 mt-5 lg:hidden">
                   {slideData.map((_, idx) => (
                     <button
                       key={idx}
                       onClick={() => setActive(idx)}
                       className={`h-1.5 rounded-full transition-all duration-300 ${
-                        active === idx ? "w-6 bg-amber-500" : "w-1.5 bg-gray-300"
+                        active === idx ? "w-6" : "w-1.5 bg-gray-300"
                       }`}
+                      style={active === idx ? { background: COLOR.AMBER } : {}}
                     />
                   ))}
                 </div>
@@ -390,7 +399,7 @@ const Home = () => {
         @keyframes heroFade {
           0% {
             opacity: 0;
-            transform: scale(0.94) translateY(12px);
+            transform: scale(0.94) translateY(10px);
           }
           100% {
             opacity: 1;
@@ -398,7 +407,7 @@ const Home = () => {
           }
         }
         .animate-hero-fade {
-          animation: heroFade 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+          animation: heroFade 0.55s cubic-bezier(0.22, 1, 0.36, 1);
         }
       `}</style>
     </div>
