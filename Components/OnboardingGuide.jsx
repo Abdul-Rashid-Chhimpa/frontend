@@ -9,21 +9,21 @@ const STEPS = [
   {
     id: "welcome",
     title: "Welcome to Pedwal Tools!",
-    description: "Let’s quickly show you how to explore and buy tools easily. This will only take a few seconds.",
-    target: null, // centered
-    placement: "center",
+    description: "Let’s quickly show you how to navigate our store. Here is your Home button to return anytime.",
+    target: "a[href='/'], button:has-text('Home'), nav a:first-child", // Top Home link selector
+    placement: "bottom",
   },
   {
-    id: "buy-now",
-    title: "Buy Featured Product",
-    description: "Click this button to open the current featured product’s details page and buy it directly.",
-    target: "#tour-buy-btn",
-    placement: "bottom",
+    id: "shop-collection",
+    title: "Shop the Collection",
+    description: "Click this button to explore our premium range of durable hand tools crafted for every job.",
+    target: "#tour-shop-btn", // Make sure to add id="tour-shop-btn" to your "Shop the collection" button element
+    placement: "top",
   },
   {
     id: "filters",
     title: "Smart Filters",
-    description: "Filter products by category, price, offers and new arrivals. On mobile, tap the Filters button.",
+    description: "Filter products by category, price, offers and new arrivals easily.",
     target: "#filters-trigger",
     placement: "right",
   },
@@ -37,7 +37,7 @@ const STEPS = [
   {
     id: "product-card",
     title: "Product Cards",
-    description: "Click anywhere on a product card to open its full details. You can also Add to Cart or Buy Now from here.",
+    description: "Click anywhere on a product card to open full details, Add to Cart or Buy Now.",
     target: ".product-card-item",
     placement: "top",
   },
@@ -46,7 +46,7 @@ const STEPS = [
 const OnboardingGuide = () => {
   const [visible, setVisible] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const [spotlight, setSpotlight] = useState(null); // { top, left, width, height }
+  const [spotlight, setSpotlight] = useState(null);
   const tooltipRef = useRef(null);
 
   const step = STEPS[currentStep];
@@ -70,18 +70,25 @@ const OnboardingGuide = () => {
         return;
       }
 
-      const el = document.querySelector(step.target);
+      // Try selecting by ID/class or fallback query selector
+      let el = document.querySelector(step.target);
+      
+      // Fallback selector for Home button if generic query fails
+      if (!el && currentStep === 0) {
+        el = Array.from(document.querySelectorAll("a, button")).find(el => el.textContent?.includes("Home"));
+      }
+
       if (!el) {
         setSpotlight(null);
         return;
       }
 
       const rect = el.getBoundingClientRect();
-      const padding = 10;
+      const padding = 8;
 
       setSpotlight({
         top: rect.top - padding + window.scrollY,
-        left: rect.left - padding,
+        left: rect.left - padding + window.scrollX,
         width: rect.width + padding * 2,
         height: rect.height + padding * 2,
       });
@@ -127,7 +134,7 @@ const OnboardingGuide = () => {
       };
     }
 
-    const gap = 18;
+    const gap = 16;
 
     if (step.placement === "bottom") {
       return {
@@ -141,7 +148,7 @@ const OnboardingGuide = () => {
 
     if (step.placement === "top") {
       return {
-        top: spotlight.top - gap - 160,
+        top: spotlight.top - gap - 180,
         left: Math.min(
           Math.max(spotlight.left + spotlight.width / 2 - 160, 16),
           window.innerWidth - 336
@@ -156,7 +163,6 @@ const OnboardingGuide = () => {
       };
     }
 
-    // default bottom
     return {
       top: spotlight.top + spotlight.height + gap,
       left: spotlight.left,
@@ -171,7 +177,7 @@ const OnboardingGuide = () => {
       {/* Spotlight hole */}
       {spotlight && (
         <div
-          className="absolute rounded-2xl pointer-events-none transition-all duration-500 ease-out"
+          className="absolute rounded-xl pointer-events-none transition-all duration-500 ease-out"
           style={{
             top: spotlight.top,
             left: spotlight.left,
@@ -200,7 +206,7 @@ const OnboardingGuide = () => {
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-2">
               <div
-                className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0"
+                className="w-9 h-9 rounded-xl flex items-center justify-center text-white shrink-0 shadow-md"
                 style={{ background: STEEL }}
               >
                 <Sparkles size={18} />
@@ -240,7 +246,7 @@ const OnboardingGuide = () => {
             {!isFirst && (
               <button
                 onClick={handlePrev}
-                className="flex items-center gap-1 px-3 py-2.5 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"
+                className="flex items-center gap-1 px-3 py-2 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition"
               >
                 <ChevronLeft size={16} />
                 Back
@@ -249,14 +255,14 @@ const OnboardingGuide = () => {
 
             <button
               onClick={finishGuide}
-              className="ml-auto px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-50 transition"
+              className="ml-auto px-3 py-2 rounded-xl text-sm font-semibold text-gray-500 hover:bg-gray-50 transition"
             >
               Skip
             </button>
 
             <button
               onClick={handleNext}
-              className="px-5 py-2.5 rounded-xl text-sm font-bold text-white flex items-center gap-1.5 transition active:scale-95"
+              className="px-4 py-2 rounded-xl text-sm font-bold text-white flex items-center gap-1.5 transition active:scale-95 shadow-lg"
               style={{
                 background: `linear-gradient(135deg, ${AMBER}, ${AMBER_DARK})`,
               }}
