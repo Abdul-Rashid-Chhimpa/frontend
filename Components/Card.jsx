@@ -376,9 +376,6 @@ const Card = () => {
               {Array.from({ length: 8 }).map((_, i) => renderSkeletonCard(i))}
             </div>
           </div>
-          <p className="text-center text-xs mt-6" style={{ color: MUTED }}>
-            Products load ho rahe hain... (server pehli baar 30-50 second le sakta hai)
-          </p>
         </div>
         <style>{`
           .shimmer { position: relative; overflow: hidden; }
