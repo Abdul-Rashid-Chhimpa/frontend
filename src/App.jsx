@@ -16,7 +16,7 @@ import MyOrders from "../Components/MyOrders";
 import ResetPassword from "../Components/ResetPassword";
 import OrderStatus from "../Components/OrderStatus";
 import Profile from "../Components/Profile";
-import SessionWarningModal from "../Components/SessionWarningModal"; // ✅ Imported here
+import SessionWarningModal from "../Components/SessionWarningModal";
 
 import CartProvider from "../Components/Context";
 import { Toaster } from "react-hot-toast";
@@ -28,6 +28,7 @@ import AdminSettings from "../Components/AdminSettings";
 import AdminCategories from "../Components/AdminCategories";
 import AdminAnalytics from "../Components/AdminAnalytics";
 import AdminBills from "../Components/AdminBills";
+import AdminBannerManager from "../Components/AdminBannerManager"; // ✅ Imported Admin Banner Manager
 
 import ProtectedRoute from "../Components/ProtectedRoute";
 import NotFound from "../Components/NotFound";
@@ -171,6 +172,15 @@ function App() {
             element={
               <ProtectedRoute adminOnly>
                 <AdminBills />
+              </ProtectedRoute>
+            }
+          />
+          {/* ✅ New Admin Route for Hero Showcase Banners */}
+          <Route
+            path="/admin/banners"
+            element={
+              <ProtectedRoute adminOnly>
+                <AdminBannerManager />
               </ProtectedRoute>
             }
           />
