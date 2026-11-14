@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import ProductCard from "./Card";
 import Nav from "./Nav";
 import RandomImg from "./RandomImg";
@@ -13,11 +14,11 @@ import {
   Wrench,
   ArrowRight,
   Sparkles,
+  ShoppingBag,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com";
 
-// Brand Palette
 const COLOR = {
   INK: "#15181C",
   MUTED: "#6B7280",
@@ -30,7 +31,6 @@ const COLOR = {
   STEEL_DARK: "#17303E",
 };
 
-// Fallback slides
 const defaultSlideData = [
   {
     _id: "1",
@@ -82,6 +82,7 @@ const handleImgError = (e) => {
 };
 
 const Home = () => {
+  const navigate = useNavigate();
   const [slideData, setSlideData] = useState(defaultSlideData);
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -110,7 +111,7 @@ const Home = () => {
     if (slideData.length <= 1 || paused) return;
     const timer = setInterval(() => {
       setActive((prev) => (prev + 1) % slideData.length);
-    }, 4500);
+    }, 4800);
     return () => clearInterval(timer);
   }, [slideData.length, paused]);
 
@@ -123,6 +124,20 @@ const Home = () => {
   };
 
   const current = slideData[active] || slideData[0];
+
+  // Direct Buy / View Product
+  const handleBuyNow = () => {
+    // If banner has productId → go to product details
+    if (current?.productId) {
+      navigate(`/product/${current.productId}`);
+    } else {
+      // Fallback: scroll to products section
+      const productsSection = document.getElementById("products-section");
+      if (productsSection) {
+        productsSection.scrollIntoView({ behavior: "smooth" });
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
@@ -155,137 +170,169 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ========== HERO SHOWCASE (Modern + Mobile friendly) ========== */}
-      <section className="relative w-full py-8 sm:py-14 md:py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
-        {/* Soft ambient glow */}
+      {/* ========== NEW UNIQUE HERO SHOWCASE ========== */}
+      <section className="relative w-full overflow-hidden">
+        {/* Background gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FFF8EE] via-[#F8FAFC] to-[#EEF2FF] pointer-events-none" />
+
+        {/* Soft floating glow */}
         <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[280px] sm:w-[480px] lg:w-[640px] h-[280px] sm:h-[480px] rounded-full blur-[120px] pointer-events-none opacity-25"
+          className="absolute top-20 right-10 w-72 h-72 rounded-full blur-[100px] opacity-30 pointer-events-none"
           style={{ background: COLOR.AMBER }}
         />
+        <div
+          className="absolute bottom-10 left-10 w-64 h-64 rounded-full blur-[90px] opacity-20 pointer-events-none"
+          style={{ background: COLOR.STEEL }}
+        />
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-center relative z-10">
-          {/* ===== LEFT: Text content ===== */}
-          <div className="lg:col-span-5 flex flex-col justify-center order-2 lg:order-1">
-            {/* Tagline badge */}
-            <div
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-semibold w-fit mx-auto lg:mx-0 shadow-sm"
-              style={{
-                background: COLOR.SURFACE,
-                borderColor: COLOR.BORDER,
-                color: COLOR.STEEL,
-              }}
-            >
-              <ShieldCheck size={14} style={{ color: COLOR.AMBER_DARK }} />
-              {current?.tagline || "Premium Tools"}
-            </div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 lg:py-20">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight mt-4 leading-[1.15] text-center lg:text-left">
-              {current?.title || "Featured Tool"}
-            </h1>
+            {/* ===== LEFT CONTENT ===== */}
+            <div className="lg:col-span-5 order-2 lg:order-1 text-center lg:text-left">
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border shadow-sm mb-5">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                <span className="text-xs font-semibold" style={{ color: COLOR.STEEL }}>
+                  {current?.tagline || "Premium Collection"}
+                </span>
+              </div>
 
-            <p
-              className="text-sm sm:text-base mt-3 font-medium text-center lg:text-left max-w-md mx-auto lg:mx-0"
-              style={{ color: COLOR.MUTED }}
-            >
-              {current?.specs || "High quality industrial tools"}
-            </p>
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-[3.4rem] font-extrabold tracking-tight leading-[1.12] mb-4">
+                {current?.title || "Featured Tool"}
+              </h1>
 
-            {/* CTA */}
-            <div className="mt-6 sm:mt-8 flex justify-center lg:justify-start">
-              <button
-                className="px-6 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
-                style={{
-                  background: `linear-gradient(135deg, ${COLOR.AMBER}, ${COLOR.AMBER_DARK})`,
-                }}
-              >
-                <span>Explore Specification</span>
-                <ArrowRight size={16} />
-              </button>
-            </div>
+              <p className="text-sm sm:text-base max-w-md mx-auto lg:mx-0 mb-7" style={{ color: COLOR.MUTED }}>
+                {current?.specs || "High quality industrial tools built for professionals"}
+              </p>
 
-            {/* Thumbnail strip */}
-            <div
-              className="flex flex-wrap items-center justify-center lg:justify-start gap-2.5 mt-8 pt-6 border-t"
-              style={{ borderColor: COLOR.BORDER }}
-            >
-              {slideData.map((item, idx) => (
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
+                {/* Primary Buy Now */}
                 <button
-                  key={item._id || item.id || idx}
-                  onClick={() => setActive(idx)}
-                  aria-label={`Show slide ${idx + 1}`}
-                  className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
-                    active === idx
-                      ? "shadow-md -translate-y-0.5 scale-105"
-                      : "opacity-60 hover:opacity-100 hover:-translate-y-0.5"
-                  }`}
+                  onClick={handleBuyNow}
+                  className="w-full sm:w-auto group px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98]"
                   style={{
-                    borderColor: active === idx ? COLOR.AMBER : COLOR.BORDER,
-                    width: "52px",
-                    height: "52px",
+                    background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, ${COLOR.AMBER_DARK} 100%)`,
                   }}
                 >
-                  <img
-                    src={getImageUrl(item.image)}
-                    alt={item.title}
-                    onError={handleImgError}
-                    className="w-full h-full object-cover"
-                  />
+                  <ShoppingBag size={18} className="group-hover:scale-110 transition-transform" />
+                  <span>Buy Now</span>
+                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </button>
-              ))}
+
+                {/* Secondary */}
+                <button
+                  onClick={() => {
+                    const el = document.getElementById("products-section");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-semibold text-sm border bg-white hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                  style={{ borderColor: COLOR.BORDER, color: COLOR.INK }}
+                >
+                  View All Products
+                </button>
+              </div>
+
+              {/* Thumbnail Navigation */}
+              <div className="mt-9 pt-6 border-t flex flex-wrap items-center justify-center lg:justify-start gap-2.5" style={{ borderColor: COLOR.BORDER }}>
+                {slideData.map((item, idx) => (
+                  <button
+                    key={item._id || item.id || idx}
+                    onClick={() => setActive(idx)}
+                    aria-label={`Show slide ${idx + 1}`}
+                    className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
+                      active === idx
+                        ? "shadow-md scale-105 -translate-y-0.5"
+                        : "opacity-55 hover:opacity-100 hover:-translate-y-0.5"
+                    }`}
+                    style={{
+                      borderColor: active === idx ? COLOR.AMBER : COLOR.BORDER,
+                      width: "54px",
+                      height: "54px",
+                    }}
+                  >
+                    <img
+                      src={getImageUrl(item.image)}
+                      alt={item.title}
+                      onError={handleImgError}
+                      className="w-full h-full object-cover"
+                    />
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
 
-          {/* ===== RIGHT: Product image card ===== */}
-          <div className="lg:col-span-7 relative flex justify-center items-center order-1 lg:order-2">
-            <div
-              onMouseEnter={() => setPaused(true)}
-              onMouseLeave={() => setPaused(false)}
-              className="relative w-full max-w-[340px] sm:max-w-md md:max-w-lg aspect-[4/3.2] rounded-3xl p-3 sm:p-5 shadow-2xl border bg-white flex items-center justify-center overflow-hidden"
-              style={{ borderColor: COLOR.BORDER }}
-            >
-              {/* Soft inner glow */}
+            {/* ===== RIGHT PRODUCT CARD ===== */}
+            <div className="lg:col-span-7 order-1 lg:order-2 flex justify-center">
               <div
-                className="absolute inset-0 opacity-40 pointer-events-none"
-                style={{
-                  background:
-                    "radial-gradient(circle at 30% 20%, rgba(240,164,32,0.12), transparent 55%)",
-                }}
-              />
-
-              <img
-                key={current?._id || current?.id || active}
-                src={getImageUrl(current?.image)}
-                alt={current?.title}
-                onError={handleImgError}
-                className="relative z-10 w-full h-full object-contain rounded-2xl animate-slide-fade transition-transform duration-700 hover:scale-[1.03]"
-              />
-
-              {/* Navigation arrows */}
-              <button
-                onClick={goPrev}
-                aria-label="Previous slide"
-                className="absolute left-2.5 sm:left-3 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 backdrop-blur-md z-20"
-                style={{
-                  background: "rgba(255,255,255,0.9)",
-                  border: `1px solid ${COLOR.BORDER}`,
-                  color: COLOR.INK,
-                }}
+                onMouseEnter={() => setPaused(true)}
+                onMouseLeave={() => setPaused(false)}
+                className="relative w-full max-w-[360px] sm:max-w-[420px] md:max-w-[480px]"
               >
-                <ChevronLeft size={18} />
-              </button>
+                {/* Main Card */}
+                <div
+                  className="relative aspect-[4/3.3] rounded-[2rem] bg-white border shadow-2xl overflow-hidden flex items-center justify-center p-4 sm:p-6"
+                  style={{ borderColor: COLOR.BORDER }}
+                >
+                  {/* Soft inner light */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      background:
+                        "radial-gradient(circle at 40% 30%, rgba(240,164,32,0.13), transparent 60%)",
+                    }}
+                  />
 
-              <button
-                onClick={goNext}
-                aria-label="Next slide"
-                className="absolute right-2.5 sm:right-3 top-1/2 -translate-y-1/2 w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center shadow-lg transition-all hover:scale-110 backdrop-blur-md z-20"
-                style={{
-                  background: "rgba(255,255,255,0.9)",
-                  border: `1px solid ${COLOR.BORDER}`,
-                  color: COLOR.INK,
-                }}
-              >
-                <ChevronRight size={18} />
-              </button>
+                  <img
+                    key={current?._id || current?.id || active}
+                    src={getImageUrl(current?.image)}
+                    alt={current?.title}
+                    onError={handleImgError}
+                    className="relative z-10 w-full h-full object-contain rounded-2xl animate-hero-fade"
+                  />
+
+                  {/* Navigation Arrows */}
+                  <button
+                    onClick={goPrev}
+                    aria-label="Previous"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
+                    style={{
+                      background: "rgba(255,255,255,0.92)",
+                      border: `1px solid ${COLOR.BORDER}`,
+                      color: COLOR.INK,
+                    }}
+                  >
+                    <ChevronLeft size={20} />
+                  </button>
+
+                  <button
+                    onClick={goNext}
+                    aria-label="Next"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
+                    style={{
+                      background: "rgba(255,255,255,0.92)",
+                      border: `1px solid ${COLOR.BORDER}`,
+                      color: COLOR.INK,
+                    }}
+                  >
+                    <ChevronRight size={20} />
+                  </button>
+                </div>
+
+                {/* Floating dots indicator (mobile friendly) */}
+                <div className="flex justify-center gap-2 mt-5 lg:hidden">
+                  {slideData.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActive(idx)}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        active === idx ? "w-6 bg-amber-500" : "w-1.5 bg-gray-300"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -322,7 +369,7 @@ const Home = () => {
       </section>
 
       {/* ========== PRODUCTS ========== */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+      <main id="products-section" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <ProductCard />
       </main>
 
@@ -340,12 +387,18 @@ const Home = () => {
           animation-play-state: paused;
         }
 
-        @keyframes slideFade {
-          from { opacity: 0; transform: scale(0.96); }
-          to { opacity: 1; transform: scale(1); }
+        @keyframes heroFade {
+          0% {
+            opacity: 0;
+            transform: scale(0.94) translateY(12px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+          }
         }
-        .animate-slide-fade {
-          animation: slideFade 0.55s ease;
+        .animate-hero-fade {
+          animation: heroFade 0.6s cubic-bezier(0.22, 1, 0.36, 1);
         }
       `}</style>
     </div>
