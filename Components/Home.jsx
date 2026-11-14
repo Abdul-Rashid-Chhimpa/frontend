@@ -5,6 +5,7 @@ import ProductCard from "./Card";
 import Nav from "./Nav";
 import RandomImg from "./RandomImg";
 import Footer from "./Footer";
+import OnboardingGuide from "./OnboardingGuide";
 import {
   ChevronLeft,
   ChevronRight,
@@ -142,6 +143,8 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
+      {/* ========== FIRST TIME USER GUIDE ========== */}
+      <OnboardingGuide />
       <Nav />
       <RandomImg />
 
