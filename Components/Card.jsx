@@ -33,7 +33,7 @@ import { CartContext } from "../Components/Context";
 // ======================================================
 const API_BASE = "https://backend-3-axez.onrender.com";
 
-// /uploads/xyz.jpg -> full backend URL (http links aur frontend assets jaise hain waise rehte hain)
+// /uploads/xyz.jpg -> full backend URL
 const getImageUrl = (img) => {
   if (!img || typeof img !== "string") return "/no-image.png";
   if (img.startsWith("http") || img.startsWith("data:")) return img;
@@ -65,7 +65,6 @@ const AMBER_DARK = "#C97F0F";
 const STEEL = "#2B4A5E";
 const STEEL_DARK = "#17303E";
 
-// Desktop par dono columns ki same height (viewport ke hisaab se)
 const PANEL_HEIGHT = "lg:h-[calc(100vh-7rem)] lg:min-h-[540px]";
 
 const SORT_OPTIONS = [
@@ -85,7 +84,7 @@ const WHY_POINTS = [
 // ======================================================
 // STAR RATING
 // ======================================================
-const StarRating = ({ rating = 0, size = 14 }) => {
+const StarRating = ({ rating = 0, size = 12 }) => {
   const value = Math.min(5, Math.max(0, Number(rating) || 0));
   const full = Math.floor(value);
   const hasHalf = value - full >= 0.5;
@@ -107,7 +106,7 @@ const StarRating = ({ rating = 0, size = 14 }) => {
         );
       })}
       {value > 0 && (
-        <span className="ml-1 text-[10px] sm:text-xs font-semibold" style={{ color: MUTED }}>
+        <span className="ml-1 text-[10px] font-semibold" style={{ color: MUTED }}>
           {value.toFixed(1)}
         </span>
       )}
@@ -128,15 +127,15 @@ const Card = () => {
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
   const [selectedCategory, setSelectedCategory] = useState([]);
-  const [maxPrice, setMaxPrice] = useState(null); // null = koi limit nahi (auto max)
+  const [maxPrice, setMaxPrice] = useState(null);
   const [showOnlyOffers, setShowOnlyOffers] = useState(false);
   const [showOnlyNew, setShowOnlyNew] = useState(false);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("featured");
-  const [visibleProducts, setVisibleProducts] = useState(8);
+  const [visibleProducts, setVisibleProducts] = useState(12); // slightly more because cards are smaller
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
-  // --- 1. FETCH PRODUCTS (x-user-id header ke saath) ---
+  // --- 1. FETCH PRODUCTS ---
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -146,12 +145,12 @@ const Card = () => {
       const userId = localStorage.getItem("userId") || storedUser?._id || "";
 
       const { data } = await axios.get(`${API_BASE}/api/products`, {
-        timeout: 60000, // Render free plan jaagne me 30-50 sec leta hai
+        timeout: 60000,
         headers: {
           "x-user-id": userId,
         },
         params: {
-          userId: userId, // Query param fallback
+          userId: userId,
         },
       });
 
@@ -159,7 +158,6 @@ const Card = () => {
         throw new Error(data.message || "Server ne products nahi diye");
       }
 
-      // Dono format support: [ ... ] ya { success, products: [ ... ] }
       const list = Array.isArray(data) ? data : data?.products || data?.data || [];
       setProducts(Array.isArray(list) ? list : []);
     } catch (error) {
@@ -213,7 +211,6 @@ const Card = () => {
     );
   };
 
-  // Base / Lowest Price Calculator
   const getLowestPrice = (product) => {
     if (product.pricing && product.pricing.length > 0) {
       return Math.min(
@@ -223,7 +220,6 @@ const Card = () => {
     return Number(product.price || 0);
   };
 
-  // --- 2. CALCULATE FINAL DISCOUNTED PRICE ---
   const getCalculatedPrice = (product) => {
     const basePrice = getLowestPrice(product);
     const discountPercent = Number(product.discountPercent || product.offer || 0);
@@ -244,7 +240,6 @@ const Card = () => {
     );
   };
 
-  // Price slider ka max: sabse mehnge product ke hisaab se
   const priceLimit = useMemo(() => {
     const highest = products.reduce(
       (max, p) => Math.max(max, getCalculatedPrice(p)),
@@ -255,7 +250,6 @@ const Card = () => {
 
   const effectiveMax = maxPrice === null ? priceLimit : Math.min(maxPrice, priceLimit);
 
-  // ---------- Filter + Search + Sort ----------
   const searchQuery = search.trim().toLowerCase();
 
   const filteredProducts = products
@@ -292,9 +286,8 @@ const Card = () => {
       }
     });
 
-  // Filter / search / sort badalne par list upar se start ho
   useEffect(() => {
-    setVisibleProducts(8);
+    setVisibleProducts(12);
     productsScrollRef.current?.scrollTo({ top: 0 });
   }, [selectedCategory, maxPrice, showOnlyOffers, showOnlyNew, search, sortBy]);
 
@@ -325,7 +318,6 @@ const Card = () => {
     (showOnlyNew ? 1 : 0) +
     (searchQuery ? 1 : 0);
 
-  // Left sidebar ke "Store at a glance" ke liye live ginti
   const offersCount = products.filter((p) => (p.discountPercent || p.offer || 0) > 0).length;
   const inStockCount = products.filter((p) => p.stock > 0).length;
   const glanceStats = [
@@ -336,32 +328,32 @@ const Card = () => {
   ];
 
   // ======================================================
-  // SKELETON
+  // SKELETON (smaller cards)
   // ======================================================
   const renderSkeletonCard = (key) => (
     <div
       key={key}
-      className="relative rounded-xl sm:rounded-2xl overflow-hidden"
+      className="relative rounded-xl overflow-hidden"
       style={{
         background: "rgba(255, 255, 255, 0.45)",
         border: "1px solid rgba(255, 255, 255, 0.6)",
-        boxShadow: "0 8px 24px rgba(21, 24, 28, 0.06)",
+        boxShadow: "0 6px 18px rgba(21, 24, 28, 0.05)",
       }}
     >
       <div
-        className="relative h-44 sm:h-52 overflow-hidden shimmer"
+        className="relative h-32 sm:h-36 overflow-hidden shimmer"
         style={{ background: "rgba(230, 232, 235, 0.6)" }}
       />
-      <div className="p-3.5 sm:p-4">
-        <div className="h-4 w-3/4 rounded-md shimmer" style={{ background: "rgba(230, 232, 235, 0.7)" }} />
-        <div className="h-3 w-1/2 rounded-md shimmer mt-2.5" style={{ background: "rgba(230, 232, 235, 0.6)" }} />
-        <div className="flex justify-between mt-4">
-          <div className="h-6 w-16 rounded-md shimmer" style={{ background: "rgba(230, 232, 235, 0.7)" }} />
-          <div className="h-6 w-10 rounded-md shimmer" style={{ background: "rgba(230, 232, 235, 0.6)" }} />
+      <div className="p-2.5 sm:p-3">
+        <div className="h-3.5 w-3/4 rounded-md shimmer" style={{ background: "rgba(230, 232, 235, 0.7)" }} />
+        <div className="h-2.5 w-1/2 rounded-md shimmer mt-2" style={{ background: "rgba(230, 232, 235, 0.6)" }} />
+        <div className="flex justify-between mt-3">
+          <div className="h-5 w-14 rounded-md shimmer" style={{ background: "rgba(230, 232, 235, 0.7)" }} />
+          <div className="h-5 w-8 rounded-md shimmer" style={{ background: "rgba(230, 232, 235, 0.6)" }} />
         </div>
-        <div className="grid grid-cols-2 gap-2 mt-4">
-          <div className="h-9 rounded-xl shimmer" style={{ background: "rgba(230, 232, 235, 0.7)" }} />
-          <div className="h-9 rounded-xl shimmer" style={{ background: "rgba(230, 232, 235, 0.6)" }} />
+        <div className="grid grid-cols-2 gap-1.5 mt-3">
+          <div className="h-8 rounded-lg shimmer" style={{ background: "rgba(230, 232, 235, 0.7)" }} />
+          <div className="h-8 rounded-lg shimmer" style={{ background: "rgba(230, 232, 235, 0.6)" }} />
         </div>
       </div>
     </div>
@@ -374,8 +366,8 @@ const Card = () => {
           <div className="h-8 w-48 rounded-lg shimmer mb-6" style={{ background: "rgba(230,232,235,0.7)" }} />
           <div className="grid lg:grid-cols-4 gap-6">
             <div className="hidden lg:block" />
-            <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
-              {Array.from({ length: 6 }).map((_, i) => renderSkeletonCard(i))}
+            <div className="lg:col-span-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {Array.from({ length: 8 }).map((_, i) => renderSkeletonCard(i))}
             </div>
           </div>
           <p className="text-center text-xs mt-6" style={{ color: MUTED }}>
@@ -630,7 +622,6 @@ const Card = () => {
           <aside
             className={`hidden lg:flex lg:col-span-1 flex-col gap-4 overflow-y-auto scrollbar-hide ${PANEL_HEIGHT}`}
           >
-            {/* Filter card */}
             <div className="shrink-0 rounded-2xl xl:rounded-3xl overflow-hidden shadow-md">
               <div
                 className="p-5 xl:p-6"
@@ -642,7 +633,6 @@ const Card = () => {
               </div>
             </div>
 
-            {/* Store at a glance */}
             <div
               className="shrink-0 rounded-2xl p-4"
               style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
@@ -668,7 +658,6 @@ const Card = () => {
               </div>
             </div>
 
-            {/* Why Pedwal (bachi hui jagah tak failta hai) */}
             <div
               className="flex-1 min-h-[170px] rounded-2xl p-4 flex flex-col"
               style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
@@ -723,7 +712,7 @@ const Card = () => {
 
           {/* ================= RIGHT: PRODUCTS PANEL ================= */}
           <div className={`lg:col-span-3 flex flex-col ${PANEL_HEIGHT}`}>
-            {/* Toolbar (fixed): search + sort */}
+            {/* Toolbar */}
             <div className="shrink-0 flex flex-col sm:flex-row gap-2.5 mb-3">
               <div className="relative flex-1">
                 <Search
@@ -773,7 +762,7 @@ const Card = () => {
               </select>
             </div>
 
-            {/* Scroll area: sirf product cards yahan scroll hote hain (desktop par) */}
+            {/* Scroll area */}
             <div
               ref={productsScrollRef}
               className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-2 pt-1 pb-2 products-scroll"
@@ -839,7 +828,8 @@ const Card = () => {
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+                /* ========== UPDATED GRID: 2 → 3 → 4 columns + smaller cards ========== */
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
                   {filteredProducts.slice(0, visibleProducts).map((product) => {
                     const basePrice = getLowestPrice(product);
                     const discountPercentage = Number(
@@ -854,37 +844,36 @@ const Card = () => {
                     return (
                       <div
                         key={product._id}
-                        className="group rounded-xl sm:rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl flex flex-col"
+                        className="group rounded-xl overflow-hidden transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg flex flex-col"
                         style={{
                           background: SURFACE,
                           border: `1px solid ${BORDER}`,
                         }}
                       >
-                        {/* Image */}
+                        {/* Image - reduced height */}
                         <div
-                          className="relative h-44 sm:h-52 overflow-hidden"
+                          className="relative h-28 sm:h-32 md:h-36 overflow-hidden"
                           style={{ background: "#F1F2EF" }}
                         >
                           <img
                             src={getProductImage(product)}
                             alt={product.name}
-                            className="w-full h-full object-contain p-4 group-hover:scale-105 transition duration-500"
+                            className="w-full h-full object-contain p-2.5 sm:p-3 group-hover:scale-105 transition duration-500"
                             onError={(e) => {
                               e.currentTarget.onerror = null;
                               e.currentTarget.src = "https://placehold.co/400x400?text=No+Image";
                             }}
                           />
 
-                          {/* --- 3. DYNAMIC DISCOUNT BADGE (SPECIAL / GENERAL) --- */}
                           {hasDiscount && (
                             <span
-                              className="absolute top-2 left-0 animated-discount-badge text-[10px] sm:text-xs font-bold text-white px-2.5 py-1 flex items-center gap-1 shadow-md z-10"
+                              className="absolute top-1.5 left-0 animated-discount-badge text-[9px] sm:text-[10px] font-bold text-white px-2 py-0.5 flex items-center gap-0.5 shadow-md z-10"
                               style={{
                                 background: `linear-gradient(135deg, ${AMBER_DARK} 0%, #D9381E 100%)`,
                                 clipPath: "polygon(0 0, 100% 0, 92% 100%, 0% 100%)",
                               }}
                             >
-                              <Sparkles size={12} className="animate-pulse" />
+                              <Sparkles size={10} className="animate-pulse" />
                               {discountTagNote
                                 ? `${discountTagNote} (${discountPercentage}% OFF)`
                                 : `${discountPercentage}% OFF`}
@@ -892,14 +881,14 @@ const Card = () => {
                           )}
 
                           {product.isNewProduct && (
-                            <span className="absolute bottom-2 left-2 z-10 flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase text-white bg-emerald-600 shadow">
-                              <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                            <span className="absolute bottom-1.5 left-1.5 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-extrabold uppercase text-white bg-emerald-600 shadow">
+                              <span className="w-1 h-1 rounded-full bg-white animate-ping" />
                               New
                             </span>
                           )}
 
                           <span
-                            className="absolute top-2 right-2 text-[10px] font-semibold px-2.5 py-0.5 rounded-full z-10"
+                            className="absolute top-1.5 right-1.5 text-[9px] font-semibold px-2 py-0.5 rounded-full z-10"
                             style={
                               inStock
                                 ? { background: "#E4F3E9", color: "#1D7A43" }
@@ -910,26 +899,26 @@ const Card = () => {
                           </span>
                         </div>
 
-                        {/* Body */}
-                        <div className="p-3.5 sm:p-4 flex-1 flex flex-col justify-between">
+                        {/* Body - tighter padding & smaller text */}
+                        <div className="p-2.5 sm:p-3 flex-1 flex flex-col justify-between">
                           <div>
                             <h2
-                              className="font-bold text-sm sm:text-base line-clamp-2"
+                              className="font-bold text-xs sm:text-sm line-clamp-2 leading-snug"
                               style={{ color: INK }}
                             >
                               {product.name}
                             </h2>
 
-                            <div className="mt-1.5">
-                              <StarRating rating={rating} size={13} />
+                            <div className="mt-1">
+                              <StarRating rating={rating} size={11} />
                             </div>
 
-                            <div className="mt-1.5 space-y-0.5">
-                              <p className="text-[11px] sm:text-xs" style={{ color: MUTED }}>
+                            <div className="mt-1 space-y-0.5">
+                              <p className="text-[10px] sm:text-[11px]" style={{ color: MUTED }}>
                                 Brand:{" "}
                                 <span style={{ color: INK }}>{product.brand || "N/A"}</span>
                               </p>
-                              <p className="text-[11px] sm:text-xs" style={{ color: MUTED }}>
+                              <p className="text-[10px] sm:text-[11px]" style={{ color: MUTED }}>
                                 Material:{" "}
                                 <span style={{ color: INK }}>
                                   {product.material || "N/A"}
@@ -939,27 +928,26 @@ const Card = () => {
                           </div>
 
                           <div>
-                            <div className="flex justify-between items-end mt-3">
+                            <div className="flex justify-between items-end mt-2">
                               <div>
-                                <p className="text-[9px]" style={{ color: MUTED }}>
+                                <p className="text-[8px]" style={{ color: MUTED }}>
                                   Price
                                 </p>
-                                {/* --- 4. DISCOUNTED PRICE VS ORIGINAL PRICE DISPLAY --- */}
                                 {hasDiscount ? (
-                                  <div className="flex items-baseline gap-1.5">
+                                  <div className="flex items-baseline gap-1">
                                     <h3
-                                      className="text-lg sm:text-xl font-extrabold"
+                                      className="text-base sm:text-lg font-extrabold"
                                       style={{ color: "#D9381E" }}
                                     >
                                       ₹{finalPrice}
                                     </h3>
-                                    <span className="text-xs text-gray-400 line-through font-medium">
+                                    <span className="text-[10px] text-gray-400 line-through font-medium">
                                       ₹{basePrice}
                                     </span>
                                   </div>
                                 ) : (
                                   <h3
-                                    className="text-lg sm:text-xl font-extrabold"
+                                    className="text-base sm:text-lg font-extrabold"
                                     style={{ color: INK }}
                                   >
                                     ₹{basePrice}
@@ -967,23 +955,23 @@ const Card = () => {
                                 )}
                               </div>
                               <div className="text-right">
-                                <p className="text-[9px]" style={{ color: MUTED }}>
+                                <p className="text-[8px]" style={{ color: MUTED }}>
                                   Stock
                                 </p>
-                                <h4 className="font-bold text-base" style={{ color: "#1D7A43" }}>
+                                <h4 className="font-bold text-sm" style={{ color: "#1D7A43" }}>
                                   {product.stock ?? 0}
                                 </h4>
                               </div>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2 mt-4">
+                            <div className="grid grid-cols-2 gap-1.5 mt-2.5">
                               <button
                                 onClick={() =>
                                   navigate(`/product/${product._id}`, {
                                     state: { product },
                                   })
                                 }
-                                className="text-white rounded-xl py-2.5 text-xs sm:text-sm font-semibold hover:opacity-90 active:scale-95 transition"
+                                className="text-white rounded-lg py-2 text-[11px] sm:text-xs font-semibold hover:opacity-90 active:scale-95 transition"
                                 style={{ background: STEEL }}
                               >
                                 Buy now
@@ -997,7 +985,7 @@ const Card = () => {
                                     price: finalPrice,
                                   })
                                 }
-                                className="rounded-xl py-2.5 text-xs sm:text-sm font-bold transition disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
+                                className="rounded-lg py-2 text-[11px] sm:text-xs font-bold transition disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
                                 style={
                                   product.stock === 0
                                     ? { background: "#F1F2EF", color: MUTED }
@@ -1023,7 +1011,7 @@ const Card = () => {
                                       },
                                     })
                                   }
-                                  className="w-full mt-2 py-2 rounded-xl border font-semibold text-xs sm:text-sm hover:bg-gray-50 active:scale-95 transition"
+                                  className="w-full mt-1.5 py-1.5 rounded-lg border font-semibold text-[10px] sm:text-[11px] hover:bg-gray-50 active:scale-95 transition"
                                   style={{ borderColor: BORDER, color: STEEL }}
                                 >
                                   View more varieties
@@ -1038,7 +1026,7 @@ const Card = () => {
               )}
             </div>
 
-            {/* Bottom bar (fixed): scroll box ke bahar, list ke saath scroll nahi hota */}
+            {/* Bottom bar */}
             {hasResults && (
               <div
                 className="shrink-0 mt-3 pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t"
@@ -1058,7 +1046,7 @@ const Card = () => {
 
                 {filteredProducts.length > visibleProducts && (
                   <button
-                    onClick={() => setVisibleProducts((p) => p + 8)}
+                    onClick={() => setVisibleProducts((p) => p + 12)}
                     className="w-full sm:w-auto px-7 py-2.5 rounded-xl text-white font-semibold text-sm hover:opacity-90 active:scale-95 transition"
                     style={{ background: STEEL }}
                   >
@@ -1075,7 +1063,6 @@ const Card = () => {
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { scrollbar-width: none; }
 
-        /* Products list ka patla scrollbar */
         .products-scroll { scrollbar-width: thin; scrollbar-color: #C7CBCE transparent; }
         .products-scroll::-webkit-scrollbar { width: 6px; }
         .products-scroll::-webkit-scrollbar-track { background: transparent; }
@@ -1090,7 +1077,6 @@ const Card = () => {
           animation: slide-left 0.3s ease-out;
         }
 
-        /* Discount Offers blink */
         @keyframes offer-blink {
           0%, 100% {
             box-shadow: 0 0 0 0 rgba(240, 164, 32, 0.4);
