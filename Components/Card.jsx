@@ -1,7 +1,7 @@
 // ======================================================
 // IMPORTS
 // ======================================================
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useContext, useRef, useMemo } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import {
@@ -9,6 +9,7 @@ import {
   Wrench,
   Drill,
   Shield,
+  ShieldCheck,
   Ruler,
   Cog,
   Settings,
@@ -21,8 +22,35 @@ import {
   Tag,
   Clock,
   Star,
+  Search,
+  Zap,
+  Award,
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
+
+// ======================================================
+// CONFIG
+// ======================================================
+const API_BASE = "https://backend-3-axez.onrender.com";
+
+// /uploads/xyz.jpg -> full backend URL (http links aur frontend assets jaise hain waise rehte hain)
+const getImageUrl = (img) => {
+  if (!img || typeof img !== "string") return "/no-image.png";
+  if (img.startsWith("http") || img.startsWith("data:")) return img;
+  if (img.startsWith("/uploads/")) return `${API_BASE}${img}`;
+  if (img.startsWith("uploads/")) return `${API_BASE}/${img}`;
+  return img;
+};
+
+const getProductImage = (product) => {
+  const first = Array.isArray(product.images) ? product.images[0] : null;
+  const raw =
+    (typeof first === "string" ? first : first?.url) ||
+    product.image ||
+    product.imageUrl ||
+    "";
+  return getImageUrl(raw);
+};
 
 // ======================================================
 // DESIGN TOKENS
@@ -36,6 +64,23 @@ const AMBER = "#F0A420";
 const AMBER_DARK = "#C97F0F";
 const STEEL = "#2B4A5E";
 const STEEL_DARK = "#17303E";
+
+// Desktop par dono columns ki same height (viewport ke hisaab se)
+const PANEL_HEIGHT = "lg:h-[calc(100vh-7rem)] lg:min-h-[540px]";
+
+const SORT_OPTIONS = [
+  { value: "featured", label: "Featured" },
+  { value: "priceLow", label: "Price: Low to High" },
+  { value: "priceHigh", label: "Price: High to Low" },
+  { value: "name", label: "Name: A to Z" },
+];
+
+const WHY_POINTS = [
+  { icon: ShieldCheck, title: "Quality Guaranteed", note: "Built for long life" },
+  { icon: Wrench, title: "Drop Forged Steel", note: "Maximum strength structure" },
+  { icon: Zap, title: "Induction Hardened", note: "Precision cutting edges" },
+  { icon: Award, title: "Ergonomic Grip", note: "Slip-resistant comfort" },
+];
 
 // ======================================================
 // STAR RATING
@@ -77,44 +122,54 @@ const Card = () => {
   const { addToCart } = useContext(CartContext);
   const navigate = useNavigate();
   const categoryScrollRef = useRef(null);
+  const productsScrollRef = useRef(null);
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
   const [selectedCategory, setSelectedCategory] = useState([]);
-  const [maxPrice, setMaxPrice] = useState(5000);
+  const [maxPrice, setMaxPrice] = useState(null); // null = koi limit nahi (auto max)
   const [showOnlyOffers, setShowOnlyOffers] = useState(false);
   const [showOnlyNew, setShowOnlyNew] = useState(false);
+  const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState("featured");
   const [visibleProducts, setVisibleProducts] = useState(8);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
-  // --- 1. FETCH PRODUCTS WITH USERID HEADER FIX ---
+  // --- 1. FETCH PRODUCTS (x-user-id header ke saath) ---
   const fetchProducts = async () => {
     try {
       setLoading(true);
+      setFetchError("");
 
-      // LocalStorage se User Details aur ID extract karein
       const storedUser = JSON.parse(localStorage.getItem("user") || "null");
       const userId = localStorage.getItem("userId") || storedUser?._id || "";
 
-      const { data } = await axios.get(
-        "https://backend-3-axez.onrender.com/api/products",
-        {
-          headers: {
-            "x-user-id": userId,
-          },
-          params: {
-            userId: userId, // Query param fallback
-          },
-        }
-      );
+      const { data } = await axios.get(`${API_BASE}/api/products`, {
+        timeout: 60000, // Render free plan jaagne me 30-50 sec leta hai
+        headers: {
+          "x-user-id": userId,
+        },
+        params: {
+          userId: userId, // Query param fallback
+        },
+      });
 
-      if (data.success) {
-        setProducts(data.products || []);
-      } else {
-        setProducts([]);
+      if (!Array.isArray(data) && data?.success === false) {
+        throw new Error(data.message || "Server ne products nahi diye");
       }
+
+      // Dono format support: [ ... ] ya { success, products: [ ... ] }
+      const list = Array.isArray(data) ? data : data?.products || data?.data || [];
+      setProducts(Array.isArray(list) ? list : []);
     } catch (error) {
       console.error("Failed to fetch products:", error);
+      const status = error.response?.status;
+      setFetchError(
+        status
+          ? `Server error (Status ${status}): ${error.response?.data?.message || "koi message nahi"}`
+          : `Server se connect nahi ho paya (${error.message}). Ye CORS ya internet ki wajah se ho sakta hai.`
+      );
       setProducts([]);
     } finally {
       setLoading(false);
@@ -189,25 +244,59 @@ const Card = () => {
     );
   };
 
-  const filteredProducts = products.filter((product) => {
-    const productCategory = product.category || product.name;
-    const categoryMatch =
-      selectedCategory.length === 0 ||
-      selectedCategory.includes(productCategory);
-    
-    // Max price filter is checked against final calculated price
-    const currentPrice = getCalculatedPrice(product);
-    const priceMatch = currentPrice <= maxPrice;
-    
-    const discountPercentage = product.discountPercent || product.offer || 0;
-    const offerMatch = !showOnlyOffers || discountPercentage > 0;
-    const newArrivalMatch = !showOnlyNew || Boolean(product.isNewProduct);
-    return categoryMatch && priceMatch && offerMatch && newArrivalMatch;
-  });
+  // Price slider ka max: sabse mehnge product ke hisaab se
+  const priceLimit = useMemo(() => {
+    const highest = products.reduce(
+      (max, p) => Math.max(max, getCalculatedPrice(p)),
+      0
+    );
+    return Math.max(500, Math.ceil(highest / 100) * 100);
+  }, [products]);
 
+  const effectiveMax = maxPrice === null ? priceLimit : Math.min(maxPrice, priceLimit);
+
+  // ---------- Filter + Search + Sort ----------
+  const searchQuery = search.trim().toLowerCase();
+
+  const filteredProducts = products
+    .filter((product) => {
+      const productCategory = product.category || product.name;
+      const categoryMatch =
+        selectedCategory.length === 0 ||
+        selectedCategory.includes(productCategory);
+
+      const priceMatch = getCalculatedPrice(product) <= effectiveMax;
+
+      const discountPercentage = product.discountPercent || product.offer || 0;
+      const offerMatch = !showOnlyOffers || discountPercentage > 0;
+      const newArrivalMatch = !showOnlyNew || Boolean(product.isNewProduct);
+
+      const searchMatch =
+        !searchQuery ||
+        [product.name, product.brand, product.category, product.material]
+          .filter(Boolean)
+          .some((v) => String(v).toLowerCase().includes(searchQuery));
+
+      return categoryMatch && priceMatch && offerMatch && newArrivalMatch && searchMatch;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "priceLow":
+          return getCalculatedPrice(a) - getCalculatedPrice(b);
+        case "priceHigh":
+          return getCalculatedPrice(b) - getCalculatedPrice(a);
+        case "name":
+          return String(a.name || "").localeCompare(String(b.name || ""));
+        default:
+          return 0;
+      }
+    });
+
+  // Filter / search / sort badalne par list upar se start ho
   useEffect(() => {
     setVisibleProducts(8);
-  }, [selectedCategory, maxPrice, showOnlyOffers, showOnlyNew]);
+    productsScrollRef.current?.scrollTo({ top: 0 });
+  }, [selectedCategory, maxPrice, showOnlyOffers, showOnlyNew, search, sortBy]);
 
   const scrollCategories = (direction) => {
     if (categoryScrollRef.current) {
@@ -221,17 +310,30 @@ const Card = () => {
 
   const handleClearFilters = () => {
     setSelectedCategory([]);
-    setMaxPrice(5000);
+    setMaxPrice(null);
     setShowOnlyOffers(false);
     setShowOnlyNew(false);
+    setSearch("");
+    setSortBy("featured");
     setShowMobileFilter(false);
   };
 
   const activeFilterCount =
     selectedCategory.length +
-    (maxPrice < 5000 ? 1 : 0) +
+    (effectiveMax < priceLimit ? 1 : 0) +
     (showOnlyOffers ? 1 : 0) +
-    (showOnlyNew ? 1 : 0);
+    (showOnlyNew ? 1 : 0) +
+    (searchQuery ? 1 : 0);
+
+  // Left sidebar ke "Store at a glance" ke liye live ginti
+  const offersCount = products.filter((p) => (p.discountPercent || p.offer || 0) > 0).length;
+  const inStockCount = products.filter((p) => p.stock > 0).length;
+  const glanceStats = [
+    { label: "Products", value: products.length },
+    { label: "Categories", value: categories.length },
+    { label: "On offer", value: offersCount },
+    { label: "In stock", value: inStockCount },
+  ];
 
   // ======================================================
   // SKELETON
@@ -267,7 +369,7 @@ const Card = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen" style={{ background: BG }}>
+      <div style={{ background: BG }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 py-6">
           <div className="h-8 w-48 rounded-lg shimmer mb-6" style={{ background: "rgba(230,232,235,0.7)" }} />
           <div className="grid lg:grid-cols-4 gap-6">
@@ -276,7 +378,22 @@ const Card = () => {
               {Array.from({ length: 6 }).map((_, i) => renderSkeletonCard(i))}
             </div>
           </div>
+          <p className="text-center text-xs mt-6" style={{ color: MUTED }}>
+            Products load ho rahe hain... (server pehli baar 30-50 second le sakta hai)
+          </p>
         </div>
+        <style>{`
+          .shimmer { position: relative; overflow: hidden; }
+          .shimmer::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            transform: translateX(-100%);
+            background: linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%);
+            animation: shimmer-bar 1.6s infinite;
+          }
+          @keyframes shimmer-bar { 100% { transform: translateX(100%); } }
+        `}</style>
       </div>
     );
   }
@@ -322,7 +439,7 @@ const Card = () => {
               <Tag size={16} /> Discount Offers
             </span>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20">
-              {products.filter((p) => (p.discountPercent || p.offer || 0) > 0).length}
+              {offersCount}
             </span>
           </button>
 
@@ -428,22 +545,22 @@ const Card = () => {
             className="font-bold px-3 py-1 rounded-full text-sm"
             style={{ background: AMBER, color: "#1A1200" }}
           >
-            ₹{maxPrice}
+            ₹{effectiveMax}
           </span>
         </div>
         <input
           type="range"
           min="0"
-          max="5000"
+          max={priceLimit}
           step="100"
-          value={maxPrice}
+          value={effectiveMax}
           onChange={(e) => setMaxPrice(Number(e.target.value))}
           className="w-full h-2 rounded-lg appearance-none cursor-pointer"
           style={{ background: "rgba(255,255,255,0.25)", accentColor: AMBER }}
         />
         <div className="flex justify-between mt-2 text-xs text-white/60">
           <span>₹0</span>
-          <span>₹5000+</span>
+          <span>₹{priceLimit}</span>
         </div>
       </div>
 
@@ -465,8 +582,10 @@ const Card = () => {
   // ======================================================
   // MAIN RENDER
   // ======================================================
+  const hasResults = products.length > 0 && filteredProducts.length > 0;
+
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: BG }}>
+    <div className="flex flex-col" style={{ background: BG }}>
       <div className="max-w-7xl mx-auto w-full px-3 sm:px-4 md:px-6 py-5 sm:py-6 flex flex-col flex-1">
         {/* Header */}
         <div className="shrink-0 mb-4 sm:mb-5">
@@ -506,18 +625,13 @@ const Card = () => {
         </div>
 
         {/* LAYOUT */}
-        <div className="flex-1 grid lg:grid-cols-4 gap-5 lg:gap-6 min-h-0">
-          {/* LEFT: FIXED FILTER */}
-          <div className="hidden lg:block lg:col-span-1">
-            <div
-              className="rounded-2xl xl:rounded-3xl overflow-hidden shadow-md"
-              style={{
-                position: "sticky",
-                top: "1.5rem",
-                maxHeight: "calc(100vh - 3rem)",
-                overflowY: "auto",
-              }}
-            >
+        <div className="flex-1 grid lg:grid-cols-4 gap-5 lg:gap-6">
+          {/* ================= LEFT SIDEBAR (desktop) ================= */}
+          <aside
+            className={`hidden lg:flex lg:col-span-1 flex-col gap-4 overflow-y-auto scrollbar-hide ${PANEL_HEIGHT}`}
+          >
+            {/* Filter card */}
+            <div className="shrink-0 rounded-2xl xl:rounded-3xl overflow-hidden shadow-md">
               <div
                 className="p-5 xl:p-6"
                 style={{
@@ -527,9 +641,69 @@ const Card = () => {
                 {renderFilterSection()}
               </div>
             </div>
-          </div>
 
-          {/* Mobile filter */}
+            {/* Store at a glance */}
+            <div
+              className="shrink-0 rounded-2xl p-4"
+              style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
+            >
+              <h3 className="text-sm font-bold" style={{ color: INK }}>
+                Store at a glance
+              </h3>
+              <div className="grid grid-cols-2 gap-2.5 mt-3">
+                {glanceStats.map((s) => (
+                  <div
+                    key={s.label}
+                    className="rounded-xl px-3 py-2.5"
+                    style={{ background: BG }}
+                  >
+                    <p className="text-xl font-extrabold leading-none" style={{ color: STEEL }}>
+                      {s.value}
+                    </p>
+                    <p className="text-[11px] mt-1" style={{ color: MUTED }}>
+                      {s.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Why Pedwal (bachi hui jagah tak failta hai) */}
+            <div
+              className="flex-1 min-h-[170px] rounded-2xl p-4 flex flex-col"
+              style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
+            >
+              <div className="flex items-center gap-2">
+                <span className="w-1 h-4 rounded-full" style={{ background: AMBER }} />
+                <h3 className="text-sm font-bold" style={{ color: INK }}>
+                  Why Pedwal Tools
+                </h3>
+              </div>
+
+              <div className="flex-1 flex flex-col justify-around gap-3 mt-3">
+                {WHY_POINTS.map(({ icon: Icon, title, note }) => (
+                  <div key={title} className="flex items-center gap-3">
+                    <div
+                      className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 text-white"
+                      style={{ background: STEEL }}
+                    >
+                      <Icon size={16} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold truncate" style={{ color: INK }}>
+                        {title}
+                      </p>
+                      <p className="text-[11px] truncate" style={{ color: MUTED }}>
+                        {note}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+
+          {/* Mobile filter drawer */}
           {showMobileFilter && (
             <div className="fixed inset-0 z-50 lg:hidden">
               <div
@@ -547,38 +721,125 @@ const Card = () => {
             </div>
           )}
 
-          {/* RIGHT: PRODUCT CARDS */}
-          <div
-            className="lg:col-span-3 min-h-0"
-            style={{
-              maxHeight: "calc(100vh - 11rem)",
-              overflowY: "auto",
-              WebkitOverflowScrolling: "touch",
-            }}
-          >
-            {filteredProducts.length === 0 ? (
-              <div
-                className="h-[360px] flex flex-col justify-center items-center rounded-2xl"
-                style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
-              >
-                <Package size={56} style={{ color: "#C7CBCE" }} />
-                <h2 className="mt-4 text-xl font-bold" style={{ color: INK }}>
-                  No products found
-                </h2>
-                <p className="mt-2 text-sm" style={{ color: MUTED }}>
-                  No products match your current filters.
-                </p>
-                <button
-                  onClick={handleClearFilters}
-                  className="mt-6 px-6 py-2.5 rounded-xl text-white font-semibold text-sm"
-                  style={{ background: STEEL }}
-                >
-                  Clear filters
-                </button>
+          {/* ================= RIGHT: PRODUCTS PANEL ================= */}
+          <div className={`lg:col-span-3 flex flex-col ${PANEL_HEIGHT}`}>
+            {/* Toolbar (fixed): search + sort */}
+            <div className="shrink-0 flex flex-col sm:flex-row gap-2.5 mb-3">
+              <div className="relative flex-1">
+                <Search
+                  size={16}
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  style={{ color: MUTED }}
+                />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search product, brand ya material..."
+                  className="w-full rounded-xl pl-10 pr-9 py-2.5 text-sm outline-none transition"
+                  style={{
+                    background: SURFACE,
+                    border: `1px solid ${BORDER}`,
+                    color: INK,
+                  }}
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch("")}
+                    aria-label="Clear search"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100"
+                    style={{ color: MUTED }}
+                  >
+                    <X size={14} />
+                  </button>
+                )}
               </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
+
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className="rounded-xl px-3.5 py-2.5 text-sm outline-none cursor-pointer sm:w-52"
+                style={{
+                  background: SURFACE,
+                  border: `1px solid ${BORDER}`,
+                  color: INK,
+                }}
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Scroll area: sirf product cards yahan scroll hote hain (desktop par) */}
+            <div
+              ref={productsScrollRef}
+              className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-2 pt-1 pb-2 products-scroll"
+            >
+              {fetchError && products.length === 0 ? (
+                <div
+                  className="py-14 px-4 flex flex-col justify-center items-center text-center rounded-2xl"
+                  style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
+                >
+                  <Package size={52} style={{ color: "#C7CBCE" }} />
+                  <h2 className="mt-4 text-xl font-bold" style={{ color: "#B4302F" }}>
+                    Products load nahi ho paye
+                  </h2>
+                  <p className="mt-2 text-sm max-w-md" style={{ color: MUTED }}>
+                    {fetchError}
+                  </p>
+                  <button
+                    onClick={fetchProducts}
+                    className="mt-6 px-6 py-2.5 rounded-xl text-white font-semibold text-sm active:scale-95 transition"
+                    style={{ background: STEEL }}
+                  >
+                    Dobara try karein
+                  </button>
+                </div>
+              ) : products.length === 0 ? (
+                <div
+                  className="py-14 px-4 flex flex-col justify-center items-center text-center rounded-2xl"
+                  style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
+                >
+                  <Package size={52} style={{ color: "#C7CBCE" }} />
+                  <h2 className="mt-4 text-xl font-bold" style={{ color: INK }}>
+                    Abhi koi product available nahi hai
+                  </h2>
+                  <p className="mt-2 text-sm max-w-md" style={{ color: MUTED }}>
+                    Server se khali list aayi hai. Admin se product add karein.
+                  </p>
+                  <button
+                    onClick={fetchProducts}
+                    className="mt-6 px-6 py-2.5 rounded-xl text-white font-semibold text-sm active:scale-95 transition"
+                    style={{ background: STEEL }}
+                  >
+                    Refresh
+                  </button>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div
+                  className="h-[360px] flex flex-col justify-center items-center rounded-2xl"
+                  style={{ background: SURFACE, border: `1px solid ${BORDER}` }}
+                >
+                  <Package size={56} style={{ color: "#C7CBCE" }} />
+                  <h2 className="mt-4 text-xl font-bold" style={{ color: INK }}>
+                    No products found
+                  </h2>
+                  <p className="mt-2 text-sm" style={{ color: MUTED }}>
+                    No products match your current filters.
+                  </p>
+                  <button
+                    onClick={handleClearFilters}
+                    className="mt-6 px-6 py-2.5 rounded-xl text-white font-semibold text-sm"
+                    style={{ background: STEEL }}
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5">
                   {filteredProducts.slice(0, visibleProducts).map((product) => {
                     const basePrice = getLowestPrice(product);
                     const discountPercentage = Number(
@@ -605,11 +866,12 @@ const Card = () => {
                           style={{ background: "#F1F2EF" }}
                         >
                           <img
-                            src={product.images?.[0] || "/no-image.png"}
+                            src={getProductImage(product)}
                             alt={product.name}
                             className="w-full h-full object-contain p-4 group-hover:scale-105 transition duration-500"
                             onError={(e) => {
-                              e.target.src = "/no-image.png";
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = "https://placehold.co/400x400?text=No+Image";
                             }}
                           />
 
@@ -773,20 +1035,16 @@ const Card = () => {
                     );
                   })}
                 </div>
+              )}
+            </div>
 
-                {filteredProducts.length > visibleProducts && (
-                  <div className="flex justify-center mt-8 pb-4">
-                    <button
-                      onClick={() => setVisibleProducts((p) => p + 8)}
-                      className="px-7 py-3 rounded-xl text-white font-semibold text-sm hover:opacity-90 active:scale-95 transition"
-                      style={{ background: STEEL }}
-                    >
-                      Load more products
-                    </button>
-                  </div>
-                )}
-
-                <div className="mt-5 mb-4 text-center text-xs sm:text-sm" style={{ color: MUTED }}>
+            {/* Bottom bar (fixed): scroll box ke bahar, list ke saath scroll nahi hota */}
+            {hasResults && (
+              <div
+                className="shrink-0 mt-3 pt-3 flex flex-col sm:flex-row items-center justify-between gap-3 border-t"
+                style={{ borderColor: BORDER }}
+              >
+                <p className="text-xs sm:text-sm" style={{ color: MUTED }}>
                   Showing{" "}
                   <span className="font-bold" style={{ color: INK }}>
                     {Math.min(visibleProducts, filteredProducts.length)}
@@ -796,8 +1054,18 @@ const Card = () => {
                     {filteredProducts.length}
                   </span>{" "}
                   products
-                </div>
-              </>
+                </p>
+
+                {filteredProducts.length > visibleProducts && (
+                  <button
+                    onClick={() => setVisibleProducts((p) => p + 8)}
+                    className="w-full sm:w-auto px-7 py-2.5 rounded-xl text-white font-semibold text-sm hover:opacity-90 active:scale-95 transition"
+                    style={{ background: STEEL }}
+                  >
+                    Load more products
+                  </button>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -805,6 +1073,14 @@ const Card = () => {
 
       <style>{`
         .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { scrollbar-width: none; }
+
+        /* Products list ka patla scrollbar */
+        .products-scroll { scrollbar-width: thin; scrollbar-color: #C7CBCE transparent; }
+        .products-scroll::-webkit-scrollbar { width: 6px; }
+        .products-scroll::-webkit-scrollbar-track { background: transparent; }
+        .products-scroll::-webkit-scrollbar-thumb { background: #C7CBCE; border-radius: 9999px; }
+        .products-scroll::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
 
         @keyframes slide-left {
           from { transform: translateX(-100%); }
@@ -837,24 +1113,6 @@ const Card = () => {
         .animated-discount-badge {
           background-size: 200% 100% !important;
           animation: shimmer-sweep 3s infinite linear;
-        }
-
-        .shimmer { position: relative; overflow: hidden; }
-        .shimmer::after {
-          content: "";
-          position: absolute;
-          inset: 0;
-          transform: translateX(-100%);
-          background: linear-gradient(
-            90deg,
-            rgba(255,255,255,0) 0%,
-            rgba(255,255,255,0.55) 50%,
-            rgba(255,255,255,0) 100%
-          );
-          animation: shimmer-bar 1.6s infinite;
-        }
-        @keyframes shimmer-bar {
-          100% { transform: translateX(100%); }
         }
       `}</style>
     </div>
