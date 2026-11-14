@@ -92,9 +92,15 @@ const Home = () => {
   useEffect(() => {
     const fetchBanners = async () => {
       try {
-        const { data } = await axios.get(`${API_BASE}/api/banners`);
-        if (data.success && data.banners && data.banners.length > 0) {
-          setSlideData(data.banners);
+        const { data } = await axios.get(`${API_BASE}/api/banners`, {
+          timeout: 60000, // Render free plan jaagne me 30-50 sec leta hai
+        });
+
+        // Dono format support: [ ... ] ya { success, banners: [ ... ] }
+        const list = Array.isArray(data) ? data : data?.banners;
+
+        if (Array.isArray(list) && list.length > 0) {
+          setSlideData(list);
           setActive(0);
         }
       } catch (error) {
@@ -192,9 +198,9 @@ const Home = () => {
               </button>
             </div>
 
-            {/* Thumbnail Navigation Indicators */}
+            {/* Thumbnail Navigation Indicators (bina scrollbar ke) */}
             <div
-              className="flex items-center justify-center lg:justify-start gap-3 mt-8 pt-6 border-t overflow-x-auto"
+              className="flex flex-wrap items-center justify-center lg:justify-start gap-3 mt-8 pt-6 border-t"
               style={{ borderColor: COLOR.BORDER }}
             >
               {slideData.map((item, idx) => (
@@ -202,13 +208,15 @@ const Home = () => {
                   key={item._id || item.id}
                   onClick={() => setActive(idx)}
                   aria-label={`Show slide ${idx + 1}`}
-                  className={`relative rounded-lg overflow-hidden transition-all duration-300 border-2 shrink-0 ${
-                    active === idx ? "scale-110 shadow-md" : "opacity-50 hover:opacity-100"
+                  className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
+                    active === idx
+                      ? "shadow-lg -translate-y-0.5"
+                      : "opacity-50 hover:opacity-100 hover:-translate-y-0.5"
                   }`}
                   style={{
-                    borderColor: active === idx ? COLOR.AMBER : "transparent",
-                    width: "48px",
-                    height: "48px",
+                    borderColor: active === idx ? COLOR.AMBER : COLOR.BORDER,
+                    width: "56px",
+                    height: "56px",
                   }}
                 >
                   <img
