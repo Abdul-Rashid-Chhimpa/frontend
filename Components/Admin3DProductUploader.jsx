@@ -41,7 +41,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
 
   // Replace with your actual Cloudinary Cloud Name & Unsigned Preset
   const CLOUD_NAME = "upa2rnhx";
-  const UPLOAD_PRESET = "cloudinary://744198687524635:**********@upa2rnhx";
+  const UPLOAD_PRESET = "pedwal_tools_preset";
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
