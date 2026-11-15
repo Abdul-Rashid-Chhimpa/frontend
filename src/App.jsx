@@ -17,6 +17,7 @@ import ResetPassword from "../Components/ResetPassword";
 import OrderStatus from "../Components/OrderStatus";
 import Profile from "../Components/Profile";
 import SessionWarningModal from "../Components/SessionWarningModal";
+import Product3DShowcase from "../Components/Product3DShowcase";
 
 import CartProvider from "../Components/Context";
 import { Toaster } from "react-hot-toast";
@@ -73,7 +74,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/varieties/:group" element={<Varieties />} />
-          
+          <Route path="/product-3d-showcase" element={<Product3DShowcase />} />
           {/* Cashfree Payment Redirect Route */}
           <Route path="/order-status" element={<OrderStatus />} />
 
