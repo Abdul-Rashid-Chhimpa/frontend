@@ -28,7 +28,8 @@ import AdminSettings from "../Components/AdminSettings";
 import AdminCategories from "../Components/AdminCategories";
 import AdminAnalytics from "../Components/AdminAnalytics";
 import AdminBills from "../Components/AdminBills";
-import AdminBannerManager from "../Components/AdminBannerManager"; // ✅ Imported Admin Banner Manager
+import AdminBannerManager from "../Components/AdminBannerManager";
+import Admin3DProductUploader from "../Components/Admin3DProductUploader"; // ✅ Imported 3D & 360 Product Studio Uploader
 
 import ProtectedRoute from "../Components/ProtectedRoute";
 import NotFound from "../Components/NotFound";
@@ -175,12 +176,20 @@ function App() {
               </ProtectedRoute>
             }
           />
-          {/* ✅ New Admin Route for Hero Showcase Banners */}
           <Route
             path="/admin/banners"
             element={
               <ProtectedRoute adminOnly>
                 <AdminBannerManager />
+              </ProtectedRoute>
+            }
+          />
+          {/* ✅ New Admin Route for 3D & 360 Product Studio */}
+          <Route
+            path="/admin/3d-products"
+            element={
+              <ProtectedRoute adminOnly>
+                <Admin3DProductUploader />
               </ProtectedRoute>
             }
           />
