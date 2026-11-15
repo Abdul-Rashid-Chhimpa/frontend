@@ -36,7 +36,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
   });
 
   const [specs, setSpecs] = useState([{ label: "Hardness", value: "58-62 HRC" }]);
-  const [images, setImages] =dumps = useState([]);
+const [images, setImages] = useState([]);
   const [frames360, setFrames360] = useState([]);
 
   // 🔴 Apne Cloudinary details yahan dalein
