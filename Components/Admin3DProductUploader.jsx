@@ -36,11 +36,11 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
   });
 
   const [specs, setSpecs] = useState([{ label: "Hardness", value: "58-62 HRC" }]);
-  const [images, setImages] = useState([]);
+  const [images, setImages] =dumps = useState([]);
   const [frames360, setFrames360] = useState([]);
 
-  // Replace with your actual Cloudinary Cloud Name & Unsigned Preset
-  const CLOUD_NAME = "upa2rnhx";
+  // 🔴 Apne Cloudinary details yahan dalein
+  const CLOUD_NAME = "upa2rnhx"; 
   const UPLOAD_PRESET = "pedwal_tools_preset";
 
   const handleInputChange = (e) => {
@@ -48,7 +48,6 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle Specifications Dynamic Rows
   const handleSpecChange = (index, field, value) => {
     const updated = [...specs];
     updated[index][field] = value;
@@ -63,7 +62,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
     setSpecs(specs.filter((_, i) => i !== index));
   };
 
-  // Fixed Cloudinary Multi-Uploader with Instant State Preview
+  // Cloudinary Upload Handler
   const uploadToCloudinary = async (files, targetType) => {
     if (!files || files.length === 0) return;
     setUploading(true);
@@ -87,6 +86,8 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
             "/upload/f_auto,q_auto/"
           );
           uploadedUrls.push(optimizedUrl);
+        } else {
+          console.error("Cloudinary Error Data:", data);
         }
       }
 
@@ -97,25 +98,31 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
       }
     } catch (err) {
       console.error("Cloudinary upload failed:", err);
-      alert("Image upload failed. Please verify Cloudinary credentials.");
+      alert("Image upload failed to Cloudinary. Check console.");
     } finally {
       setUploading(false);
     }
   };
 
-  // Submit Handler to Backend API
+  // Submit Handler with Detailed Error Alert
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (images.length === 0) {
+    if (!images || images.length === 0) {
       alert("Please upload at least one main product image.");
       return;
     }
 
     const payload = {
-      ...formData,
+      name: formData.name,
+      tagline: formData.tagline || "Industrial Grade Precision Tool",
+      description: formData.description,
       price: Number(formData.price),
       discountPrice: formData.discountPrice ? Number(formData.discountPrice) : undefined,
+      category: formData.category,
+      material: formData.material,
+      warranty: formData.warranty,
+      status: formData.status,
       stock: Number(formData.stock),
       images,
       frames360,
@@ -129,13 +136,19 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
         await onSaveProduct(payload);
       } else {
         const token = localStorage.getItem("token");
-        await axios.post(`${API_BASE}/api/products/create`, payload, {
-          headers: { Authorization: `Bearer ${token}` },
+        const response = await axios.post(`${API_BASE}/api/products/create`, payload, {
+          headers: { 
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+          },
         });
+        
+        if (response.data.success) {
+          alert("Product successfully created & published to database!");
+        }
       }
-      alert("Product successfully created & published in real-time!");
       
-      // Reset Form
+      // Reset Form on Success
       setFormData({
         name: "",
         tagline: "",
@@ -152,8 +165,9 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
       setFrames360([]);
       setSpecs([{ label: "Hardness", value: "58-62 HRC" }]);
     } catch (err) {
-      console.error("Error saving product:", err);
-      alert("Failed to save product to database.");
+      console.error("Error saving product to DB:", err.response || err);
+      const errorMsg = err.response?.data?.message || err.message || "Failed to store product to database.";
+      alert(`Database Error: ${errorMsg}`);
     } finally {
       setUploading(false);
     }
@@ -166,7 +180,6 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
       }`}
     >
       <div className="max-w-4xl mx-auto">
-        {/* Top Header & Theme Toggle */}
         <div className="flex items-center justify-between mb-8 p-6 rounded-3xl border backdrop-blur-xl bg-white/[0.03] border-white/10 shadow-xl">
           <div className="flex items-center gap-4">
             <div className="p-3.5 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
@@ -180,7 +193,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-1">
-                Manage high-performance 3D models, 360° rotation sequences & specs with real-time sync.
+                Manage high-performance 3D models, 360° rotation sequences & specs.
               </p>
             </div>
           </div>
@@ -194,14 +207,12 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
           </button>
         </div>
 
-        {/* Form Container */}
         <form
           onSubmit={handleSubmit}
           className={`p-8 rounded-3xl border shadow-2xl backdrop-blur-xl space-y-6 ${
             isDark ? "bg-white/[0.02] border-white/10" : "bg-white border-slate-200"
           }`}
         >
-          {/* Section 1: Basic Info */}
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 mb-4 flex items-center gap-2">
               <Tag size={16} /> 1. General Information & Status
@@ -248,7 +259,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-slate-400">Category</label>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-400">Category *</label>
                 <input
                   type="text"
                   name="category"
@@ -262,7 +273,6 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
             </div>
           </div>
 
-          {/* Section 2: Pricing & Inventory */}
           <div>
             <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 mb-4 flex items-center gap-2">
               <DollarSign size={16} /> 2. Pricing & Stock
@@ -321,7 +331,6 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
             </div>
           </div>
 
-          {/* Section 3: Technical Specifications */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
@@ -367,15 +376,13 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
             </div>
           </div>
 
-          {/* Section 4: Cloudinary Media & 360° Sequence */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-            {/* Main Gallery Images */}
             <div className="p-5 rounded-2xl border-2 border-dashed border-slate-700/60 bg-slate-900/20 flex flex-col justify-between">
               <div>
                 <label className="flex flex-col items-center cursor-pointer text-center">
                   <UploadCloud className="text-amber-400 mb-2" size={32} />
                   <span className="text-sm font-bold text-slate-200">Main Product Gallery</span>
-                  <span className="text-xs text-slate-400 mt-0.5">Upload high-res photos for cards & lightbox</span>
+                  <span className="text-xs text-slate-400 mt-0.5">Upload high-res photos</span>
                   <input
                     type="file"
                     multiple
@@ -402,13 +409,12 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
               </div>
             </div>
 
-            {/* 360° Sequence Frames */}
             <div className="p-5 rounded-2xl border-2 border-dashed border-amber-500/40 bg-amber-500/5 flex flex-col justify-between">
               <div>
                 <label className="flex flex-col items-center cursor-pointer text-center">
-                  <Rotate3d className="text-amber-400 mb-2 animate-spin-slow" size={32} />
+                  <Rotate3d className="text-amber-400 mb-2" size={32} />
                   <span className="text-sm font-bold text-slate-200">360° Rotation Frames</span>
-                  <span className="text-xs text-slate-400 mt-0.5">Select 4–24 sequential angles for turntable view</span>
+                  <span className="text-xs text-slate-400 mt-0.5">Select sequential angles</span>
                   <input
                     type="file"
                     multiple
@@ -432,7 +438,6 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
             </div>
           </div>
 
-          {/* Submit Action Button */}
           <button
             type="submit"
             disabled={uploading}
@@ -441,7 +446,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
           >
             {uploading ? (
               <>
-                <Loader2 className="animate-spin" size={20} /> Processing & Syncing Media...
+                <Loader2 className="animate-spin" size={20} /> Processing & Saving...
               </>
             ) : (
               <>
