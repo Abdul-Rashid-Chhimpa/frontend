@@ -115,29 +115,31 @@ const [images, setImages] = useState([]);
 
 const payload = {
       name: formData.name,
-      tagline: formData.tagline || "Industrial Grade Precision Tool",
-      description: formData.description,
-      price: Number(formData.price),
-      discountPrice: formData.discountPrice ? Number(formData.discountPrice) : undefined,
+      brand: formData.brand || "Pedwal Tools",
       category: formData.category,
-      material: formData.material,
-      warranty: formData.warranty,
-      status: formData.status,
-      stock: Number(formData.stock),
+      material: formData.material || "Chrome Vanadium Steel",
+      stock: Number(formData.stock) || 10,
+      description: formData.description,
       
-      // 👇 Yeh raha fix: Backend ke pricing validator ke liye quantity add kar di
+      // 👇 Yeh raha sabse important part: Schema ke mutabiq 'pricing' array
       pricing: [
         {
-          price: Number(formData.price),
-          discountPrice: formData.discountPrice ? Number(formData.discountPrice) : Number(formData.price),
-          quantity: 1 // <-- Yeh field missing thi, ab add ho gayi
+          quantity: 1,
+          price: Number(formData.price)
         }
       ],
 
+      discountPercent: formData.discountPrice 
+        ? Math.round(((Number(formData.price) - Number(formData.discountPrice)) / Number(formData.price)) * 100) 
+        : 0,
+      
       images,
-      frames360,
-      specs,
-      is360Enabled: frames360.length > 0,
+      
+      // Extra 3D showcase fields agar schema mein baad mein add karne hon ya flexible rakhna ho:
+      tagline: formData.tagline || "",
+      status: formData.status || "Active",
+      frames360: frames360 || [],
+      specs: specs || [],
     };
 
     try {
