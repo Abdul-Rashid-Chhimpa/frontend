@@ -6,7 +6,6 @@ import Nav from "./Nav";
 import RandomImg from "./RandomImg";
 import Footer from "./Footer";
 import OnboardingGuide from "./OnboardingGuide";
-import Product3DShowcase from "./Product3DShowcase";
 import {
   ChevronLeft,
   ChevronRight,
@@ -245,7 +244,7 @@ const Home = () => {
 
                {/* Explore Product Button */}
 <button
-  onClick={() => navigate("/Product3DShowcase")} // Yahan apna sahi 3D showcase route daal dein (e.g., /showcase-3d ya /product-3d)
+  onClick={() => navigate("/admin/3d-products")} // Yahan apna sahi 3D showcase route daal dein (e.g., /showcase-3d ya /product-3d)
   className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
   style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
 >
