@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
+import axios from "axios";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Rotate3d,
   Maximize2,
@@ -15,39 +17,34 @@ import {
   Zap,
   ChevronLeft,
   ChevronRight,
+  Sun,
+  Moon,
+  Share2,
+  Heart,
+  CheckCircle2,
+  Layers,
+  Sparkles,
 } from "lucide-react";
+import Nav from "./Nav";
+import Footer from "./Footer";
+import { toast } from "react-hot-toast";
+
+const API_BASE = "https://backend-3-axez.onrender.com";
 
 const AMBER = "#F0A420";
 const STEEL = "#2B4A5E";
 
-const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
-  // Fallback demo data if testing standalone
-  const item = product || {
-    name: "Pedwal Pro-Torque Heavy Duty Wrench Set",
-    tagline: "Forged Chrome-Vanadium Steel • Anti-Slip Grip",
-    description:
-      "Engineered for extreme industrial torque and precision workshop tasks. Heat-treated alloy body with mirror-chrome corrosion resistance.",
-    price: 2499,
-    discountPrice: 1899,
-    material: "CR-V Forged Alloy Steel",
-    warranty: "Lifetime Manufacturing Warranty",
-    images: [
-      "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1530124566582-a618bc2615dc?auto=format&fit=crop&w=900&q=80",
-      "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80",
-    ],
-    frames360: [], // Admin can upload 8-24 angles here
-    specs: [
-      { label: "Hardness Rating", value: "58–62 HRC" },
-      { label: "Finish", value: "Satin Mirror Chrome" },
-      { label: "Standard", value: "DIN 3113 / ISO 9001" },
-      { label: "Weight", value: "1.45 kg" },
-    ],
-  };
+const Product3DShowcase = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
 
-  const allFrames =
-    item.frames360 && item.frames360.length > 0 ? item.frames360 : item.images;
+  const [item, setItem] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isDark, setIsDark] = useState(true);
+  const [isWishlisted, setIsWishlisted] = useState(false);
 
+  // Interactive 3D / 360 States
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0 });
   const [is360Mode, setIs360Mode] = useState(false);
@@ -59,6 +56,45 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
   const [zoom, setZoom] = useState(1);
 
   const cardRef = useRef(null);
+
+  // Fetch Product by ID or get latest 3D product
+  useEffect(() => {
+    const fetchProductDetails = async () => {
+      try {
+        setLoading(true);
+        let endpoint = `${API_BASE}/api/products`;
+        if (id) {
+          endpoint = `${API_BASE}/api/products/${id}`;
+        }
+        const { data } = await axios.get(endpoint);
+        
+        let productData = null;
+        if (id && data.product) {
+          productData = data.product;
+        } else if (data.products && data.products.length > 0) {
+          productData = data.products[0]; // fallback to first item if no id specified
+          setRelatedProducts(data.products.slice(1, 4));
+        }
+
+        if (productData) {
+          setItem(productData);
+        }
+      } catch (err) {
+        console.error("Failed to fetch product details:", err);
+        toast.error("Error loading product showcase.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProductDetails();
+  }, [id]);
+
+  const allFrames =
+    item?.frames360 && item.frames360.length > 0
+      ? item.frames360
+      : item?.images || [
+          "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?auto=format&fit=crop&w=900&q=80",
+        ];
 
   // Auto-rotate 360 effect
   useEffect(() => {
@@ -116,11 +152,102 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
     setIsDragging(false);
   };
 
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Product link copied to clipboard!");
+  };
+
+  const handleAddToCart = () => {
+    toast.success(`${item?.name} added to cart successfully!`);
+  };
+
+  const handleBuyNow = () => {
+    navigate("/cart");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center font-bold text-lg">
+        Loading 3D & 360° Studio Showcase...
+      </div>
+    );
+  }
+
+  if (!item) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4">
+        <h2 className="text-2xl font-bold">Product Not Found</h2>
+        <button
+          onClick={() => navigate("/")}
+          className="px-6 py-3 rounded-xl bg-amber-400 text-slate-950 font-bold"
+        >
+          Back to Home
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 overflow-x-hidden">
+    <div
+      className={`min-h-screen font-sans transition-colors duration-500 overflow-x-hidden ${
+        isDark ? "bg-[#0b0f17] text-slate-100" : "bg-[#F8FAFC] text-slate-900"
+      }`}
+    >
+      <Nav />
+
+      {/* ================= HEADER CONTROLS (Theme + Share + Wishlist) ================= */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/20 flex items-center gap-1">
+            <Sparkles size={12} /> Immersive 3D & 360° Studio
+          </span>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsWishlisted(!isWishlisted)}
+            className={`p-2.5 rounded-xl border transition cursor-pointer ${
+              isWishlisted
+                ? "bg-red-500/20 border-red-500/40 text-red-400"
+                : isDark
+                ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+            title="Wishlist"
+          >
+            <Heart size={18} fill={isWishlisted ? "currentColor" : "none"} />
+          </button>
+
+          <button
+            onClick={handleShare}
+            className={`p-2.5 rounded-xl border transition cursor-pointer ${
+              isDark
+                ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+            title="Share Product"
+          >
+            <Share2 size={18} />
+          </button>
+
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className={`p-2.5 rounded-xl border transition cursor-pointer ${
+              isDark
+                ? "bg-white/5 border-white/10 text-amber-400 hover:bg-white/10"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+            title="Toggle Theme"
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+      </div>
+
       {/* ================= HERO PRODUCT 3D & 360 SECTION ================= */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+          
           {/* LEFT: 3D & 360 Interactive Stage */}
           <div className="lg:col-span-7 flex flex-col gap-4">
             <div
@@ -137,10 +264,10 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
                 is360Mode && handleDragMove(e.touches[0].clientX)
               }
               onTouchEnd={handleDragEnd}
-              className="relative h-[420px] sm:h-[500px] rounded-3xl bg-gradient-to-br from-slate-900 via-[#1e3544] to-slate-900 shadow-2xl overflow-hidden flex items-center justify-center select-none border border-slate-700/60 group"
+              className="relative h-[420px] sm:h-[500px] rounded-3xl bg-gradient-to-br from-slate-900 via-[#162736] to-slate-950 shadow-2xl overflow-hidden flex items-center justify-center select-none border border-slate-700/60 group"
               style={{ perspective: "1200px" }}
             >
-              {/* Animated Radial Glow */}
+              {/* Radial Glow */}
               <div
                 className="absolute w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none transition-transform duration-500 group-hover:scale-125"
                 style={{ background: AMBER }}
@@ -210,7 +337,7 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
               </div>
 
               {/* Bottom 360° Instruction / Auto-Spin Bar */}
-              <div className="absolute bottom-4 inset-x-4 z-20 flex items-center justify-between bg-black/45 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 text-white text-xs">
+              <div className="absolute bottom-4 inset-x-4 z-20 flex items-center justify-between bg-black/55 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 text-white text-xs">
                 <span className="text-slate-300">
                   {is360Mode
                     ? "↔ Drag left or right to rotate 360°"
@@ -260,18 +387,18 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
             <div>
               <span
                 className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
-                style={{ background: "#FEF3C7", color: "#B45309" }}
+                style={{ background: isDark ? "rgba(240,164,32,0.15)" : "#FEF3C7", color: AMBER }}
               >
-                {item.tagline}
+                {item.tagline || item.category || "Industrial Grade"}
               </span>
-              <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 leading-tight">
+              <h1 className={`text-3xl sm:text-4xl font-extrabold leading-tight ${isDark ? "text-white" : "text-slate-900"}`}>
                 {item.name}
               </h1>
             </div>
 
             {/* Price Block */}
             <div className="flex items-baseline gap-3">
-              <span className="text-3xl font-black text-slate-900">
+              <span className={`text-3xl font-black ${isDark ? "text-amber-400" : "text-slate-900"}`}>
                 ₹{item.discountPrice || item.price}
               </span>
               {item.discountPrice && (
@@ -286,31 +413,31 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
               )}
             </div>
 
-            <p className="text-slate-600 leading-relaxed text-sm sm:text-base">
+            <p className={`leading-relaxed text-sm sm:text-base ${isDark ? "text-slate-300" : "text-slate-600"}`}>
               {item.description}
             </p>
 
-            {/* Technical Specs Grid */}
-            <div className="grid grid-cols-2 gap-3">
-              {item.specs?.map((spec, i) => (
-                <div
-                  key={i}
-                  className="p-3.5 rounded-2xl bg-white border border-slate-200/80 shadow-sm"
-                >
-                  <p className="text-xs text-slate-400 font-medium">
-                    {spec.label}
-                  </p>
-                  <p className="text-sm font-bold text-slate-800 mt-0.5">
-                    {spec.value}
-                  </p>
+            {/* Technical Specs Table format */}
+            {item.specs && item.specs.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Layers size={14} /> Technical Specifications
+                </h4>
+                <div className={`rounded-2xl border overflow-hidden ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}>
+                  {item.specs.map((spec, i) => (
+                    <div key={i} className={`flex justify-between px-4 py-2.5 text-xs border-b last:border-0 ${isDark ? "border-white/5" : "border-slate-100"}`}>
+                      <span className="font-semibold text-slate-400">{spec.label}</span>
+                      <span className={`font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>{spec.value}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
-                onClick={() => onAddToCart && onAddToCart(item)}
+                onClick={handleAddToCart}
                 className="flex-1 py-3.5 px-6 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg hover:opacity-95 active:scale-98 transition cursor-pointer"
                 style={{ background: STEEL }}
               >
@@ -318,7 +445,7 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
                 Add to Cart
               </button>
               <button
-                onClick={() => onBuyNow && onBuyNow(item)}
+                onClick={handleBuyNow}
                 className="flex-1 py-3.5 px-6 rounded-2xl font-bold text-slate-950 flex items-center justify-center gap-2 shadow-lg hover:brightness-105 active:scale-98 transition cursor-pointer"
                 style={{ background: AMBER }}
               >
@@ -330,14 +457,37 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
         </div>
       </section>
 
+      {/* ================= RELATED PRODUCTS SECTION ================= */}
+      {relatedProducts.length > 0 && (
+        <section className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t ${isDark ? "border-white/10" : "border-slate-200"}`}>
+          <h3 className="text-xl font-extrabold mb-6">Related Tools & Equipment</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {relatedProducts.map((p) => (
+              <div
+                key={p._id}
+                onClick={() => navigate(`/product-3d-showcase/${p._id}`)}
+                className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer hover:-translate-y-1 ${
+                  isDark ? "bg-white/5 border-white/10 hover:border-amber-400/40" : "bg-white border-slate-200 shadow-sm"
+                }`}
+              >
+                <div className="h-40 rounded-xl overflow-hidden mb-3 bg-slate-900/40 flex items-center justify-center">
+                  <img src={p.images?.[0]} alt={p.name} className="h-full object-contain" />
+                </div>
+                <h4 className="font-bold text-sm line-clamp-1">{p.name}</h4>
+                <p className="text-amber-400 font-black text-sm mt-1">₹{p.discountPrice || p.price}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ================= ANIMATED COMPANY OVERVIEW SECTION ================= */}
-      <section className="bg-slate-900 text-white py-16 mt-8">
+      <section className={`py-16 mt-8 ${isDark ? "bg-slate-900 text-white" : "bg-[#17303E] text-white"}`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-            {/* Company Story & Animated Visual */}
             <div className="lg:col-span-6 space-y-5">
               <span
-                className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest text-slate-950"
+                className="px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-widest text-slate-950"
                 style={{ background: AMBER }}
               >
                 About Pedwal Tools
@@ -352,75 +502,35 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
                 industrial and workshop conditions.
               </p>
 
-              {/* Animated Metrics */}
               <div className="grid grid-cols-3 gap-4 pt-3">
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400/50 transition">
-                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
-                    100%
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Drop-Forged Alloy
-                  </p>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">100%</p>
+                  <p className="text-xs text-slate-400 mt-1">Drop-Forged Alloy</p>
                 </div>
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400/50 transition">
-                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
-                    50K+
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Tools Delivered
-                  </p>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">50K+</p>
+                  <p className="text-xs text-slate-400 mt-1">Tools Delivered</p>
                 </div>
-                <div className="p-4 rounded-2xl bg-white/5 border border-white/10 hover:border-amber-400/50 transition">
-                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
-                    ISO
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Certified Quality
-                  </p>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">ISO</p>
+                  <p className="text-xs text-slate-400 mt-1">Certified Quality</p>
                 </div>
               </div>
             </div>
 
-            {/* Company Feature Cards */}
             <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                {
-                  icon: <Factory size={22} />,
-                  title: "In-House Forging",
-                  desc: "Precision CNC machining and drop-forged steel for zero-slip grip.",
-                },
-                {
-                  icon: <ShieldCheck size={22} />,
-                  title: "Rust-Proof Coating",
-                  desc: "Triple-layer nickel-chrome plating protects against humidity and oil.",
-                },
-                {
-                  icon: <Wrench size={22} />,
-                  title: "High-Torque Tested",
-                  desc: "Batch-tested above 1.5x international DIN torque standards.",
-                },
-                {
-                  icon: <Award size={22} />,
-                  title: "Direct Warranty",
-                  desc: "Hassle-free replacement support across India for every tool.",
-                },
+                { icon: <Factory size={22} />, title: "In-House Forging", desc: "Precision CNC machining and drop-forged steel for zero-slip grip." },
+                { icon: <ShieldCheck size={22} />, title: "Rust-Proof Coating", desc: "Triple-layer nickel-chrome plating protects against humidity and oil." },
+                { icon: <Wrench size={22} />, title: "High-Torque Tested", desc: "Batch-tested above 1.5x international DIN torque standards." },
+                { icon: <Award size={22} />, title: "Direct Warranty", desc: "Hassle-free replacement support across India for every tool." },
               ].map((feat, idx) => (
-                <div
-                  key={idx}
-                  className="p-6 rounded-3xl bg-white/5 border border-white/10 hover:-translate-y-1.5 hover:bg-white/10 transition-all duration-300"
-                >
-                  <div
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-950 mb-4 shadow-lg"
-                    style={{ background: AMBER }}
-                  >
+                <div key={idx} className="p-6 rounded-3xl bg-white/5 border border-white/10 hover:-translate-y-1.5 transition">
+                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-950 mb-4" style={{ background: AMBER }}>
                     {feat.icon}
                   </div>
-                  <h3 className="font-bold text-lg text-white mb-1">
-                    {feat.title}
-                  </h3>
-                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                    {feat.desc}
-                  </p>
+                  <h3 className="font-bold text-lg text-white mb-1">{feat.title}</h3>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{feat.desc}</p>
                 </div>
               ))}
             </div>
@@ -439,89 +549,45 @@ const Product3DShowcase = ({ product, onAddToCart, onBuyNow }) => {
           onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
           onTouchEnd={handleDragEnd}
         >
-          {/* Top Modal Bar */}
           <div className="absolute top-5 inset-x-6 flex items-center justify-between text-white z-20">
             <div className="flex items-center gap-3">
               <Rotate3d className="text-amber-400" size={24} />
               <div>
                 <h4 className="font-bold text-sm sm:text-base">{item.name}</h4>
-                <p className="text-xs text-slate-400">
-                  Drag horizontally for 360° rotation • Use controls to zoom
-                </p>
+                <p className="text-xs text-slate-400">Drag horizontally for 360° rotation • Use controls to zoom</p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setZoom((z) => Math.max(0.7, z - 0.25))}
-                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"
-              >
-                <ZoomOut size={18} />
-              </button>
-              <button
-                onClick={() => setZoom((z) => Math.min(2.2, z + 0.25))}
-                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"
-              >
-                <ZoomIn size={18} />
-              </button>
-              <button
-                onClick={() => setAutoSpin(!autoSpin)}
-                className="px-3.5 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
-              >
+              <button onClick={() => setZoom((z) => Math.max(0.7, z - 0.25))} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"><ZoomOut size={18} /></button>
+              <button onClick={() => setZoom((z) => Math.min(2.2, z + 0.25))} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"><ZoomIn size={18} /></button>
+              <button onClick={() => setAutoSpin(!autoSpin)} className="px-3.5 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer">
                 {autoSpin ? <Pause size={15} /> : <Play size={15} />}
                 {autoSpin ? "Stop Spin" : "360° Auto"}
               </button>
-              <button
-                onClick={() => {
-                  setFullScreenOpen(false);
-                  setAutoSpin(false);
-                }}
-                className="p-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white transition cursor-pointer"
-              >
-                <X size={20} />
-              </button>
+              <button onClick={() => { setFullScreenOpen(false); setAutoSpin(false); }} className="p-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white transition cursor-pointer"><X size={20} /></button>
             </div>
           </div>
 
-          {/* Center 360 Rotating Stage */}
           <div className="relative w-full max-w-4xl h-[70vh] flex items-center justify-center">
             <img
               src={allFrames[selectedIdx]}
               alt="360 Full View"
               draggable={false}
               className="max-h-full max-w-full object-contain transition-transform duration-150 cursor-grab active:cursor-grabbing"
-              style={{
-                transform: `scale(${zoom}) rotateY(${rotationAngle}deg)`,
-              }}
+              style={{ transform: `scale(${zoom}) rotateY(${rotationAngle}deg)` }}
             />
           </div>
 
-          {/* Bottom Frame Slider */}
           <div className="flex items-center gap-4 text-white text-xs bg-white/10 px-5 py-2.5 rounded-full">
-            <button
-              onClick={() =>
-                setSelectedIdx(
-                  (prev) => (prev - 1 + allFrames.length) % allFrames.length
-                )
-              }
-              className="hover:text-amber-400 cursor-pointer"
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <span>
-              Angle {selectedIdx + 1} / {allFrames.length} ({Math.round(rotationAngle)}°)
-            </span>
-            <button
-              onClick={() =>
-                setSelectedIdx((prev) => (prev + 1) % allFrames.length)
-              }
-              className="hover:text-amber-400 cursor-pointer"
-            >
-              <ChevronRight size={18} />
-            </button>
+            <button onClick={() => setSelectedIdx((prev) => (prev - 1 + allFrames.length) % allFrames.length)} className="hover:text-amber-400 cursor-pointer"><ChevronLeft size={18} /></button>
+            <span>Angle {selectedIdx + 1} / {allFrames.length} ({Math.round(rotationAngle)}°)</span>
+            <button onClick={() => setSelectedIdx((prev) => (prev + 1) % allFrames.length)} className="hover:text-amber-400 cursor-pointer"><ChevronRight size={18} /></button>
           </div>
         </div>
       )}
+
+      <Footer />
     </div>
   );
 };
