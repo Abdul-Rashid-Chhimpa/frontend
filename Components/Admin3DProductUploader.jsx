@@ -40,8 +40,8 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
   const [frames360, setFrames360] = useState([]);
 
   // Replace with your actual Cloudinary Cloud Name & Unsigned Preset
-  const CLOUD_NAME = "YOUR_CLOUDINARY_CLOUD_NAME";
-  const UPLOAD_PRESET = "YOUR_UPLOAD_PRESET";
+  const CLOUD_NAME = "upa2rnhx";
+  const UPLOAD_PRESET = "cloudinary://744198687524635:**********@upa2rnhx";
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
