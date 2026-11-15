@@ -125,11 +125,12 @@ const payload = {
       status: formData.status,
       stock: Number(formData.stock),
       
-      // 👇 Backend ke purane validation ko khush karne ke liye yeh add kar dein:
+      // 👇 Yeh raha fix: Backend ke pricing validator ke liye quantity add kar di
       pricing: [
         {
           price: Number(formData.price),
-          discountPrice: formData.discountPrice ? Number(formData.discountPrice) : Number(formData.price)
+          discountPrice: formData.discountPrice ? Number(formData.discountPrice) : Number(formData.price),
+          quantity: 1 // <-- Yeh field missing thi, ab add ho gayi
         }
       ],
 
