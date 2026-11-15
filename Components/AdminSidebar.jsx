@@ -17,7 +17,8 @@ import {
   Sun,
   Moon,
   Sparkles,
-  Image as ImageIcon, // ✅ Added icon for Banner Manager
+  Image as ImageIcon,
+  Rotate3d, // ✅ Added for 3D/360 Product Showcase menu
 } from "lucide-react";
 
 const AdminDashboard = () => {
@@ -41,6 +42,15 @@ const AdminDashboard = () => {
       icon: <ImageIcon size={20} />,
       badge: "Slider",
       glowColor: "group-hover:shadow-[0_0_30px_-5px_rgba(240,164,32,0.4)]",
+      accent: "text-amber-400 border-amber-500/20 bg-amber-500/10",
+    },
+    {
+      title: "3D & 360° Product Studio",
+      subtitle: "Manage interactive 3D tools & 360 frames",
+      path: "/admin/3d-products", // Link to your 3D/360 uploader & manager
+      icon: <Rotate3d size={20} />,
+      badge: "3D View",
+      glowColor: "group-hover:shadow-[0_0_30px_-5px_rgba(240,164,32,0.5)]",
       accent: "text-amber-400 border-amber-500/20 bg-amber-500/10",
     },
     {
@@ -222,7 +232,7 @@ const AdminDashboard = () => {
                   Admin Console
                 </h1>
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold tracking-widest uppercase px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/20">
-                  <Sparkles size={10} /> v2.5
+                  <Sparkles size={10} /> v2.6
                 </span>
               </div>
 
