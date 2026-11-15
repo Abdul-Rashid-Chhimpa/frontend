@@ -8,7 +8,6 @@ import {
   Loader2, 
   Plus, 
   Layers, 
-  Eye, 
   Sun, 
   Moon,
   Sparkles,
@@ -32,7 +31,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
     category: "Wrenches",
     material: "Chrome Vanadium Steel",
     warranty: "5 Years Replacement Warranty",
-    status: "Active", // Active / Draft / Hidden
+    status: "Active",
     stock: 10,
   });
 
@@ -40,7 +39,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
   const [images, setImages] = useState([]);
   const [frames360, setFrames360] = useState([]);
 
-  // Cloudinary Settings
+  // Replace with your actual Cloudinary Cloud Name & Unsigned Preset
   const CLOUD_NAME = "YOUR_CLOUDINARY_CLOUD_NAME";
   const UPLOAD_PRESET = "YOUR_UPLOAD_PRESET";
 
@@ -64,8 +63,9 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
     setSpecs(specs.filter((_, i) => i !== index));
   };
 
-  // Cloudinary Multi-Uploader with Optimization
+  // Fixed Cloudinary Multi-Uploader with Instant State Preview
   const uploadToCloudinary = async (files, targetType) => {
+    if (!files || files.length === 0) return;
     setUploading(true);
     const uploadedUrls = [];
 
@@ -186,6 +186,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
           </div>
 
           <button
+            type="button"
             onClick={() => setIsDark(!isDark)}
             className="p-3 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 transition cursor-pointer text-amber-400"
           >
@@ -320,7 +321,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
             </div>
           </div>
 
-          {/* Section 3: Technical Specifications (Table Format) */}
+          {/* Section 3: Technical Specifications */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
@@ -392,7 +393,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
                     <button
                       type="button"
                       onClick={() => setImages(images.filter((_, i) => i !== idx))}
-                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow"
+                      className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 shadow cursor-pointer"
                     >
                       <Trash2 size={10} />
                     </button>
