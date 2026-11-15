@@ -113,22 +113,26 @@ const [images, setImages] = useState([]);
       return;
     }
 
-  const payload = {
+const payload = {
       name: formData.name,
-      tagline: formData.tagline,
+      tagline: formData.tagline || "Industrial Grade Precision Tool",
       description: formData.description,
+      price: Number(formData.price),
+      discountPrice: formData.discountPrice ? Number(formData.discountPrice) : undefined,
       category: formData.category,
       material: formData.material,
       warranty: formData.warranty,
       status: formData.status,
       stock: Number(formData.stock),
-      // Agar backend pricing object maang raha hai:
-      pricing: {
-        price: Number(formData.price),
-        discountPrice: formData.discountPrice ? Number(formData.discountPrice) : Number(formData.price)
-      },
-      price: Number(formData.price), // fallback
-      discountPrice: formData.discountPrice ? Number(formData.discountPrice) : undefined,
+      
+      // 👇 Backend ke purane validation ko khush karne ke liye yeh add kar dein:
+      pricing: [
+        {
+          price: Number(formData.price),
+          discountPrice: formData.discountPrice ? Number(formData.discountPrice) : Number(formData.price)
+        }
+      ],
+
       images,
       frames360,
       specs,
