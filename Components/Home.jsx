@@ -242,15 +242,15 @@ const Home = () => {
                   <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                 </button>
 
-                {/* Explore Product Button */}
-                <button
-                  onClick={() => navigate("/admin/3d-products")}
-                  className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
-                  style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                >
-                  <Rotate3d size={17} style={{ color: COLOR.AMBER }} />
-                  <span>Explore Product</span>
-                </button>
+               {/* Explore Product Button */}
+<button
+  onClick={() => navigate("/showcase-3d")} // Yahan apna sahi 3D showcase route daal dein (e.g., /showcase-3d ya /product-3d)
+  className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
+  style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
+>
+  <Rotate3d size={17} style={{ color: COLOR.AMBER }} />
+  <span>Explore Product</span>
+</button>
 
                 {/* Company Details Button */}
                 <button
