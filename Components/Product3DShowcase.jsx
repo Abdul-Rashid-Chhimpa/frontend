@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import axios from "axios";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -21,9 +21,10 @@ import {
   Moon,
   Share2,
   Heart,
-  CheckCircle2,
   Layers,
   Sparkles,
+  Package,
+  Tag,
 } from "lucide-react";
 import Nav from "./Nav";
 import Footer from "./Footer";
@@ -33,6 +34,39 @@ const API_BASE = "https://backend-3-axez.onrender.com";
 
 const AMBER = "#F0A420";
 const STEEL = "#2B4A5E";
+
+const getSellingPrice = (product) => {
+  if (!product) return null;
+  const firstTier =
+    Array.isArray(product.pricing) && product.pricing.length > 0
+      ? product.pricing[0]?.price
+      : undefined;
+
+  for (const val of [
+    product.discountPrice,
+    product.sellingPrice,
+    firstTier,
+    product.price,
+    product.mrp,
+  ]) {
+    if (val !== undefined && val !== null && val !== "") {
+      const num = Number(val);
+      if (!Number.isNaN(num) && num >= 0) return num;
+    }
+  }
+  return null;
+};
+
+const getMrpPrice = (product) => {
+  if (!product) return null;
+  for (const val of [product.price, product.mrp]) {
+    if (val !== undefined && val !== null && val !== "") {
+      const num = Number(val);
+      if (!Number.isNaN(num) && num > 0) return num;
+    }
+  }
+  return null;
+};
 
 const Product3DShowcase = () => {
   const { id } = useParams();
@@ -57,27 +91,50 @@ const Product3DShowcase = () => {
 
   const cardRef = useRef(null);
 
-  // Fetch Product by ID or get latest 3D product
   useEffect(() => {
     const fetchProductDetails = async () => {
       try {
         setLoading(true);
-        let endpoint = `${API_BASE}/api/products`;
-        if (id) {
-          endpoint = `${API_BASE}/api/products/${id}`;
-        }
+        setSelectedIdx(0);
+        setRotationAngle(0);
+        setIs360Mode(false);
+        setAutoSpin(false);
+
+        const endpoint = id
+          ? `${API_BASE}/api/products/${id}`
+          : `${API_BASE}/api/products`;
         const { data } = await axios.get(endpoint);
-        
+
         let productData = null;
+        let allProductsList = [];
+
         if (id && data.product) {
           productData = data.product;
-        } else if (data.products && data.products.length > 0) {
-          productData = data.products[0]; // fallback to first item if no id specified
-          setRelatedProducts(data.products.slice(1, 4));
+        } else if (Array.isArray(data.products) && data.products.length > 0) {
+          productData = data.products[0];
+          allProductsList = data.products;
         }
 
         if (productData) {
           setItem(productData);
+
+          if (allProductsList.length === 0) {
+            const listRes = await axios.get(`${API_BASE}/api/products`);
+            if (Array.isArray(listRes.data?.products)) {
+              allProductsList = listRes.data.products;
+            }
+          }
+
+          const others = allProductsList.filter((p) => p._id !== productData._id);
+          const sameCategory = others.filter(
+            (p) =>
+              p.category &&
+              productData.category &&
+              p.category.toLowerCase() === productData.category.toLowerCase()
+          );
+
+          const relatedPool = sameCategory.length > 0 ? sameCategory : others;
+          setRelatedProducts(relatedPool.slice(0, 3));
         }
       } catch (err) {
         console.error("Failed to fetch product details:", err);
@@ -86,15 +143,21 @@ const Product3DShowcase = () => {
         setLoading(false);
       }
     };
+
     fetchProductDetails();
   }, [id]);
 
-  const allFrames =
-    item?.frames360 && item.frames360.length > 0
-      ? item.frames360
-      : item?.images || [
-          "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?auto=format&fit=crop&w=900&q=80",
-        ];
+  const allFrames = useMemo(() => {
+    if (Array.isArray(item?.frames360) && item.frames360.length > 0) {
+      return item.frames360;
+    }
+    if (Array.isArray(item?.images) && item.images.length > 0) {
+      return item.images;
+    }
+    return [
+      "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?auto=format&fit=crop&w=900&q=80",
+    ];
+  }, [item]);
 
   // Auto-rotate 360 effect
   useEffect(() => {
@@ -108,7 +171,6 @@ const Product3DShowcase = () => {
     return () => clearInterval(interval);
   }, [autoSpin, allFrames.length]);
 
-  // 3D Mouse Tilt Handler
   const handleMouseMove = (e) => {
     if (is360Mode || !cardRef.current) return;
     const rect = cardRef.current.getBoundingClientRect();
@@ -125,7 +187,6 @@ const Product3DShowcase = () => {
     setIsDragging(false);
   };
 
-  // 360 Drag Rotation Handlers
   const handleDragStart = (clientX) => {
     setIsDragging(true);
     setAutoSpin(false);
@@ -187,6 +248,21 @@ const Product3DShowcase = () => {
     );
   }
 
+  const sellingPrice = getSellingPrice(item);
+  const mrpPrice = getMrpPrice(item);
+  const hasDiscount =
+    sellingPrice !== null && mrpPrice !== null && mrpPrice > sellingPrice;
+  const savedAmount = hasDiscount ? Math.round(mrpPrice - sellingPrice) : 0;
+  const computedDiscountPct =
+    typeof item.discountPercent === "number" && item.discountPercent > 0
+      ? item.discountPercent
+      : hasDiscount
+      ? Math.round(((mrpPrice - sellingPrice) / mrpPrice) * 100)
+      : 0;
+
+  const stockCount = typeof item.stock === "number" ? item.stock : null;
+  const inStock = stockCount === null ? true : stockCount > 0;
+
   return (
     <div
       className={`min-h-screen font-sans transition-colors duration-500 overflow-x-hidden ${
@@ -195,12 +271,17 @@ const Product3DShowcase = () => {
     >
       <Nav />
 
-      {/* ================= HEADER CONTROLS (Theme + Share + Wishlist) ================= */}
+      {/* ================= HEADER CONTROLS ================= */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/20 flex items-center gap-1">
             <Sparkles size={12} /> Immersive 3D & 360° Studio
           </span>
+          {item.category && (
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10 text-slate-300">
+              {item.category}
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -246,8 +327,7 @@ const Product3DShowcase = () => {
 
       {/* ================= HERO PRODUCT 3D & 360 SECTION ================= */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-          
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           {/* LEFT: 3D & 360 Interactive Stage */}
           <div className="lg:col-span-7 flex flex-col gap-4">
             <div
@@ -267,14 +347,12 @@ const Product3DShowcase = () => {
               className="relative h-[420px] sm:h-[500px] rounded-3xl bg-gradient-to-br from-slate-900 via-[#162736] to-slate-950 shadow-2xl overflow-hidden flex items-center justify-center select-none border border-slate-700/60 group"
               style={{ perspective: "1200px" }}
             >
-              {/* Radial Glow */}
               <div
                 className="absolute w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none transition-transform duration-500 group-hover:scale-125"
                 style={{ background: AMBER }}
               />
 
-              {/* Top Badges */}
-              <div className="absolute top-4 left-4 z-20 flex items-center gap-2">
+              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 flex-wrap">
                 <span
                   className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-slate-950 shadow"
                   style={{ background: AMBER }}
@@ -284,9 +362,13 @@ const Product3DShowcase = () => {
                 <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-white backdrop-blur-md border border-white/15">
                   {Math.round(rotationAngle)}°
                 </span>
+                {Array.isArray(item.frames360) && item.frames360.length > 0 && (
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    {item.frames360.length} 360° Frames
+                  </span>
+                )}
               </div>
 
-              {/* Action Controls Top-Right */}
               <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
                 <button
                   onClick={() => {
@@ -315,11 +397,12 @@ const Product3DShowcase = () => {
                 </button>
               </div>
 
-              {/* 3D Transforming Product Image */}
               <div
                 onClick={() => !is360Mode && setFullScreenOpen(true)}
                 className={`relative z-10 w-[78%] h-[78%] flex items-center justify-center transition-transform ${
-                  isDragging ? "duration-0 cursor-grabbing" : "duration-200 ease-out cursor-zoom-in"
+                  isDragging
+                    ? "duration-0 cursor-grabbing"
+                    : "duration-200 ease-out cursor-zoom-in"
                 }`}
                 style={{
                   transform: is360Mode
@@ -336,7 +419,6 @@ const Product3DShowcase = () => {
                 />
               </div>
 
-              {/* Bottom 360° Instruction / Auto-Spin Bar */}
               <div className="absolute bottom-4 inset-x-4 z-20 flex items-center justify-between bg-black/55 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 text-white text-xs">
                 <span className="text-slate-300">
                   {is360Mode
@@ -385,49 +467,185 @@ const Product3DShowcase = () => {
           {/* RIGHT: Product Details & Purchase Box */}
           <div className="lg:col-span-5 space-y-6">
             <div>
-              <span
-                className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider mb-3"
-                style={{ background: isDark ? "rgba(240,164,32,0.15)" : "#FEF3C7", color: AMBER }}
+              <div className="flex items-center gap-2 flex-wrap mb-3">
+                <span
+                  className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
+                  style={{
+                    background: isDark ? "rgba(240,164,32,0.15)" : "#FEF3C7",
+                    color: AMBER,
+                  }}
+                >
+                  {item.tagline || item.category || "Industrial Grade"}
+                </span>
+                {item.brand && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10 text-slate-300">
+                    {item.brand}
+                  </span>
+                )}
+              </div>
+
+              <h1
+                className={`text-3xl sm:text-4xl font-extrabold leading-tight ${
+                  isDark ? "text-white" : "text-slate-900"
+                }`}
               >
-                {item.tagline || item.category || "Industrial Grade"}
-              </span>
-              <h1 className={`text-3xl sm:text-4xl font-extrabold leading-tight ${isDark ? "text-white" : "text-slate-900"}`}>
                 {item.name}
               </h1>
             </div>
 
             {/* Price Block */}
-            <div className="flex items-baseline gap-3">
-              <span className={`text-3xl font-black ${isDark ? "text-amber-400" : "text-slate-900"}`}>
-                ₹{item.discountPrice || item.price}
-              </span>
-              {item.discountPrice && (
+            <div className="flex items-baseline gap-3 flex-wrap">
+              {sellingPrice !== null ? (
+                <span
+                  className={`text-3xl font-black ${
+                    isDark ? "text-amber-400" : "text-slate-900"
+                  }`}
+                >
+                  ₹{sellingPrice.toLocaleString("en-IN")}
+                </span>
+              ) : (
+                <span className="text-xl font-bold text-amber-400">
+                  Price on Request
+                </span>
+              )}
+
+              {hasDiscount && (
                 <>
                   <span className="text-lg text-slate-400 line-through">
-                    ₹{item.price}
+                    ₹{mrpPrice.toLocaleString("en-IN")}
                   </span>
-                  <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-700">
-                    SAVE ₹{item.price - item.discountPrice}
+                  <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    SAVE ₹{savedAmount.toLocaleString("en-IN")}
+                    {computedDiscountPct > 0 ? ` (${computedDiscountPct}% OFF)` : ""}
                   </span>
                 </>
               )}
             </div>
 
-            <p className={`leading-relaxed text-sm sm:text-base ${isDark ? "text-slate-300" : "text-slate-600"}`}>
-              {item.description}
-            </p>
+            {/* Stock & Metadata Pills */}
+            <div className="flex items-center gap-2.5 flex-wrap text-xs">
+              <span
+                className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 border ${
+                  inStock
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                    : "bg-red-500/10 text-red-400 border-red-500/25"
+                }`}
+              >
+                <Package size={14} />
+                {inStock
+                  ? stockCount !== null
+                    ? `In Stock (${stockCount} units)`
+                    : "In Stock"
+                  : "Out of Stock"}
+              </span>
 
-            {/* Technical Specs Table format */}
-            {item.specs && item.specs.length > 0 && (
+              {item.material && (
+                <span className="px-3 py-1.5 rounded-xl font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5">
+                  <Wrench size={14} className="text-amber-400" />
+                  {item.material}
+                </span>
+              )}
+
+              {item.warranty && (
+                <span className="px-3 py-1.5 rounded-xl font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-amber-400" />
+                  {item.warranty}
+                </span>
+              )}
+            </div>
+
+            {/* Description */}
+            {item.description && (
+              <p
+                className={`leading-relaxed text-sm sm:text-base ${
+                  isDark ? "text-slate-300" : "text-slate-600"
+                }`}
+              >
+                {item.description}
+              </p>
+            )}
+
+            {/* Key Product Info Grid (Category, Brand, Material, Warranty) */}
+            <div
+              className={`grid grid-cols-2 gap-3 p-4 rounded-2xl border text-xs ${
+                isDark
+                  ? "border-white/10 bg-white/[0.03]"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <div>
+                <span className="text-slate-400 block">Brand</span>
+                <span className="font-bold">{item.brand || "Pedwal"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">Category</span>
+                <span className="font-bold">{item.category || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">Material</span>
+                <span className="font-bold">{item.material || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">Warranty</span>
+                <span className="font-bold">{item.warranty || "—"}</span>
+              </div>
+            </div>
+
+            {/* Technical Specs Table */}
+            {Array.isArray(item.specs) &&
+              item.specs.filter((s) => s.label || s.value).length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <Layers size={14} /> Technical Specifications
+                  </h4>
+                  <div
+                    className={`rounded-2xl border overflow-hidden ${
+                      isDark
+                        ? "border-white/10 bg-white/5"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    {item.specs
+                      .filter((s) => s.label || s.value)
+                      .map((spec, i) => (
+                        <div
+                          key={i}
+                          className={`flex justify-between px-4 py-2.5 text-xs border-b last:border-0 ${
+                            isDark ? "border-white/5" : "border-slate-100"
+                          }`}
+                        >
+                          <span className="font-semibold text-slate-400">
+                            {spec.label}
+                          </span>
+                          <span
+                            className={`font-bold ${
+                              isDark ? "text-slate-200" : "text-slate-800"
+                            }`}
+                          >
+                            {spec.value}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+            {/* Tiered Pricing if present with multiple tiers */}
+            {Array.isArray(item.pricing) && item.pricing.length > 1 && (
               <div className="space-y-2">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                  <Layers size={14} /> Technical Specifications
+                  <Tag size={14} /> Bulk / Quantity Pricing
                 </h4>
-                <div className={`rounded-2xl border overflow-hidden ${isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"}`}>
-                  {item.specs.map((spec, i) => (
-                    <div key={i} className={`flex justify-between px-4 py-2.5 text-xs border-b last:border-0 ${isDark ? "border-white/5" : "border-slate-100"}`}>
-                      <span className="font-semibold text-slate-400">{spec.label}</span>
-                      <span className={`font-bold ${isDark ? "text-slate-200" : "text-slate-800"}`}>{spec.value}</span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {item.pricing.map((tier, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl border border-white/10 bg-white/5 text-xs"
+                    >
+                      <div className="text-slate-400">Qty: {tier.quantity}+</div>
+                      <div className="font-extrabold text-amber-400 mt-0.5">
+                        ₹{Number(tier.price).toLocaleString("en-IN")}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -438,15 +656,17 @@ const Product3DShowcase = () => {
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <button
                 onClick={handleAddToCart}
-                className="flex-1 py-3.5 px-6 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg hover:opacity-95 active:scale-98 transition cursor-pointer"
+                disabled={!inStock}
+                className="flex-1 py-3.5 px-6 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg hover:opacity-95 active:scale-98 transition cursor-pointer disabled:opacity-50"
                 style={{ background: STEEL }}
               >
                 <ShoppingCart size={18} />
-                Add to Cart
+                {inStock ? "Add to Cart" : "Out of Stock"}
               </button>
               <button
                 onClick={handleBuyNow}
-                className="flex-1 py-3.5 px-6 rounded-2xl font-bold text-slate-950 flex items-center justify-center gap-2 shadow-lg hover:brightness-105 active:scale-98 transition cursor-pointer"
+                disabled={!inStock}
+                className="flex-1 py-3.5 px-6 rounded-2xl font-bold text-slate-950 flex items-center justify-center gap-2 shadow-lg hover:brightness-105 active:scale-98 transition cursor-pointer disabled:opacity-50"
                 style={{ background: AMBER }}
               >
                 <Zap size={18} />
@@ -459,30 +679,53 @@ const Product3DShowcase = () => {
 
       {/* ================= RELATED PRODUCTS SECTION ================= */}
       {relatedProducts.length > 0 && (
-        <section className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t ${isDark ? "border-white/10" : "border-slate-200"}`}>
-          <h3 className="text-xl font-extrabold mb-6">Related Tools & Equipment</h3>
+        <section
+          className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t ${
+            isDark ? "border-white/10" : "border-slate-200"
+          }`}
+        >
+          <h3 className="text-xl font-extrabold mb-6">
+            Related Tools & Equipment
+          </h3>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {relatedProducts.map((p) => (
-              <div
-                key={p._id}
-                onClick={() => navigate(`/product-3d-showcase/${p._id}`)}
-                className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer hover:-translate-y-1 ${
-                  isDark ? "bg-white/5 border-white/10 hover:border-amber-400/40" : "bg-white border-slate-200 shadow-sm"
-                }`}
-              >
-                <div className="h-40 rounded-xl overflow-hidden mb-3 bg-slate-900/40 flex items-center justify-center">
-                  <img src={p.images?.[0]} alt={p.name} className="h-full object-contain" />
+            {relatedProducts.map((p) => {
+              const relPrice = getSellingPrice(p);
+              return (
+                <div
+                  key={p._id}
+                  onClick={() => navigate(`/product-3d-showcase/${p._id}`)}
+                  className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer hover:-translate-y-1 ${
+                    isDark
+                      ? "bg-white/5 border-white/10 hover:border-amber-400/40"
+                      : "bg-white border-slate-200 shadow-sm"
+                  }`}
+                >
+                  <div className="h-40 rounded-xl overflow-hidden mb-3 bg-slate-900/40 flex items-center justify-center">
+                    <img
+                      src={p.images?.[0] || p.frames360?.[0]}
+                      alt={p.name}
+                      className="h-full object-contain"
+                    />
+                  </div>
+                  <h4 className="font-bold text-sm line-clamp-1">{p.name}</h4>
+                  <p className="text-amber-400 font-black text-sm mt-1">
+                    {relPrice !== null
+                      ? `₹${relPrice.toLocaleString("en-IN")}`
+                      : "Price on Request"}
+                  </p>
                 </div>
-                <h4 className="font-bold text-sm line-clamp-1">{p.name}</h4>
-                <p className="text-amber-400 font-black text-sm mt-1">₹{p.discountPrice || p.price}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}
 
       {/* ================= ANIMATED COMPANY OVERVIEW SECTION ================= */}
-      <section className={`py-16 mt-8 ${isDark ? "bg-slate-900 text-white" : "bg-[#17303E] text-white"}`}>
+      <section
+        className={`py-16 mt-8 ${
+          isDark ? "bg-slate-900 text-white" : "bg-[#17303E] text-white"
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-6 space-y-5">
@@ -504,15 +747,21 @@ const Product3DShowcase = () => {
 
               <div className="grid grid-cols-3 gap-4 pt-3">
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                  <p className="text-2xl sm:text-3xl font-black text-amber-400">100%</p>
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
+                    100%
+                  </p>
                   <p className="text-xs text-slate-400 mt-1">Drop-Forged Alloy</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                  <p className="text-2xl sm:text-3xl font-black text-amber-400">50K+</p>
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
+                    50K+
+                  </p>
                   <p className="text-xs text-slate-400 mt-1">Tools Delivered</p>
                 </div>
                 <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                  <p className="text-2xl sm:text-3xl font-black text-amber-400">ISO</p>
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
+                    ISO
+                  </p>
                   <p className="text-xs text-slate-400 mt-1">Certified Quality</p>
                 </div>
               </div>
@@ -520,17 +769,43 @@ const Product3DShowcase = () => {
 
             <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                { icon: <Factory size={22} />, title: "In-House Forging", desc: "Precision CNC machining and drop-forged steel for zero-slip grip." },
-                { icon: <ShieldCheck size={22} />, title: "Rust-Proof Coating", desc: "Triple-layer nickel-chrome plating protects against humidity and oil." },
-                { icon: <Wrench size={22} />, title: "High-Torque Tested", desc: "Batch-tested above 1.5x international DIN torque standards." },
-                { icon: <Award size={22} />, title: "Direct Warranty", desc: "Hassle-free replacement support across India for every tool." },
+                {
+                  icon: <Factory size={22} />,
+                  title: "In-House Forging",
+                  desc: "Precision CNC machining and drop-forged steel for zero-slip grip.",
+                },
+                {
+                  icon: <ShieldCheck size={22} />,
+                  title: "Rust-Proof Coating",
+                  desc: "Triple-layer nickel-chrome plating protects against humidity and oil.",
+                },
+                {
+                  icon: <Wrench size={22} />,
+                  title: "High-Torque Tested",
+                  desc: "Batch-tested above 1.5x international DIN torque standards.",
+                },
+                {
+                  icon: <Award size={22} />,
+                  title: "Direct Warranty",
+                  desc: "Hassle-free replacement support across India for every tool.",
+                },
               ].map((feat, idx) => (
-                <div key={idx} className="p-6 rounded-3xl bg-white/5 border border-white/10 hover:-translate-y-1.5 transition">
-                  <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-950 mb-4" style={{ background: AMBER }}>
+                <div
+                  key={idx}
+                  className="p-6 rounded-3xl bg-white/5 border border-white/10 hover:-translate-y-1.5 transition"
+                >
+                  <div
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-950 mb-4"
+                    style={{ background: AMBER }}
+                  >
                     {feat.icon}
                   </div>
-                  <h3 className="font-bold text-lg text-white mb-1">{feat.title}</h3>
-                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">{feat.desc}</p>
+                  <h3 className="font-bold text-lg text-white mb-1">
+                    {feat.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    {feat.desc}
+                  </p>
                 </div>
               ))}
             </div>
@@ -554,18 +829,41 @@ const Product3DShowcase = () => {
               <Rotate3d className="text-amber-400" size={24} />
               <div>
                 <h4 className="font-bold text-sm sm:text-base">{item.name}</h4>
-                <p className="text-xs text-slate-400">Drag horizontally for 360° rotation • Use controls to zoom</p>
+                <p className="text-xs text-slate-400">
+                  Drag horizontally for 360° rotation • Use controls to zoom
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
-              <button onClick={() => setZoom((z) => Math.max(0.7, z - 0.25))} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"><ZoomOut size={18} /></button>
-              <button onClick={() => setZoom((z) => Math.min(2.2, z + 0.25))} className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"><ZoomIn size={18} /></button>
-              <button onClick={() => setAutoSpin(!autoSpin)} className="px-3.5 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer">
+              <button
+                onClick={() => setZoom((z) => Math.max(0.7, z - 0.25))}
+                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"
+              >
+                <ZoomOut size={18} />
+              </button>
+              <button
+                onClick={() => setZoom((z) => Math.min(2.2, z + 0.25))}
+                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"
+              >
+                <ZoomIn size={18} />
+              </button>
+              <button
+                onClick={() => setAutoSpin(!autoSpin)}
+                className="px-3.5 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
                 {autoSpin ? <Pause size={15} /> : <Play size={15} />}
                 {autoSpin ? "Stop Spin" : "360° Auto"}
               </button>
-              <button onClick={() => { setFullScreenOpen(false); setAutoSpin(false); }} className="p-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white transition cursor-pointer"><X size={20} /></button>
+              <button
+                onClick={() => {
+                  setFullScreenOpen(false);
+                  setAutoSpin(false);
+                }}
+                className="p-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white transition cursor-pointer"
+              >
+                <X size={20} />
+              </button>
             </div>
           </div>
 
@@ -575,14 +873,35 @@ const Product3DShowcase = () => {
               alt="360 Full View"
               draggable={false}
               className="max-h-full max-w-full object-contain transition-transform duration-150 cursor-grab active:cursor-grabbing"
-              style={{ transform: `scale(${zoom}) rotateY(${rotationAngle}deg)` }}
+              style={{
+                transform: `scale(${zoom}) rotateY(${rotationAngle}deg)`,
+              }}
             />
           </div>
 
           <div className="flex items-center gap-4 text-white text-xs bg-white/10 px-5 py-2.5 rounded-full">
-            <button onClick={() => setSelectedIdx((prev) => (prev - 1 + allFrames.length) % allFrames.length)} className="hover:text-amber-400 cursor-pointer"><ChevronLeft size={18} /></button>
-            <span>Angle {selectedIdx + 1} / {allFrames.length} ({Math.round(rotationAngle)}°)</span>
-            <button onClick={() => setSelectedIdx((prev) => (prev + 1) % allFrames.length)} className="hover:text-amber-400 cursor-pointer"><ChevronRight size={18} /></button>
+            <button
+              onClick={() =>
+                setSelectedIdx(
+                  (prev) => (prev - 1 + allFrames.length) % allFrames.length
+                )
+              }
+              className="hover:text-amber-400 cursor-pointer"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span>
+              Angle {selectedIdx + 1} / {allFrames.length} (
+              {Math.round(rotationAngle)}°)
+            </span>
+            <button
+              onClick={() =>
+                setSelectedIdx((prev) => (prev + 1) % allFrames.length)
+              }
+              className="hover:text-amber-400 cursor-pointer"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       )}
