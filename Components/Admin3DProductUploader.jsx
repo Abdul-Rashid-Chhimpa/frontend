@@ -1,18 +1,18 @@
 import React, { useState } from "react";
 import axios from "axios";
-import { 
-  UploadCloud, 
-  Rotate3d, 
-  Trash2, 
-  CheckCircle2, 
-  Loader2, 
-  Plus, 
-  Layers, 
-  Sun, 
+import {
+  UploadCloud,
+  Rotate3d,
+  Trash2,
+  CheckCircle2,
+  Loader2,
+  Plus,
+  Layers,
+  Sun,
   Moon,
   Sparkles,
   Tag,
-  DollarSign
+  DollarSign,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com";
@@ -21,7 +21,6 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
   const [isDark, setIsDark] = useState(true);
   const [uploading, setUploading] = useState(false);
 
-  // Product Form States
   const [formData, setFormData] = useState({
     name: "",
     tagline: "",
@@ -36,11 +35,11 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
   });
 
   const [specs, setSpecs] = useState([{ label: "Hardness", value: "58-62 HRC" }]);
-const [images, setImages] = useState([]);
+  const [images, setImages] = useState([]);
   const [frames360, setFrames360] = useState([]);
 
   // 🔴 Apne Cloudinary details yahan dalein
-  const CLOUD_NAME = "upa2rnhx"; 
+  const CLOUD_NAME = "yahan_apna_cloud_name_daalein";
   const UPLOAD_PRESET = "pedwal_tools_preset";
 
   const handleInputChange = (e) => {
@@ -62,7 +61,6 @@ const [images, setImages] = useState([]);
     setSpecs(specs.filter((_, i) => i !== index));
   };
 
-  // Cloudinary Upload Handler
   const uploadToCloudinary = async (files, targetType) => {
     if (!files || files.length === 0) return;
     setUploading(true);
@@ -79,7 +77,7 @@ const [images, setImages] = useState([]);
           { method: "POST", body: dataForm }
         );
         const data = await res.json();
-        
+
         if (data.secure_url) {
           const optimizedUrl = data.secure_url.replace(
             "/upload/",
@@ -104,7 +102,6 @@ const [images, setImages] = useState([]);
     }
   };
 
-  // Submit Handler with Detailed Error Alert
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -113,33 +110,42 @@ const [images, setImages] = useState([]);
       return;
     }
 
-const payload = {
-      name: formData.name,
-      brand: formData.brand || "Pedwal Tools",
-      category: formData.category,
-      material: formData.material || "Chrome Vanadium Steel",
-      stock: Number(formData.stock) || 10,
-      description: formData.description,
-      
-      // 👇 Yeh raha sabse important part: Schema ke mutabiq 'pricing' array
+    const mrp = Number(formData.price) || 0;
+    const selling = formData.discountPrice ? Number(formData.discountPrice) : mrp;
+
+    if (mrp <= 0) {
+      alert("Please enter a valid MRP price greater than 0.");
+      return;
+    }
+
+    const discountPercent =
+      selling < mrp
+        ? Math.max(0, Math.min(100, Math.round(((mrp - selling) / mrp) * 100)))
+        : 0;
+
+    const payload = {
+      name: formData.name.trim(),
+      brand: "Pedwal",
+      tagline: formData.tagline || "Industrial Grade Precision Tool",
+      description: formData.description.trim(),
+      price: mrp,
+      discountPrice: selling,
+      discountPercent,
+      category: formData.category.trim(),
+      material: formData.material.trim(),
+      warranty: formData.warranty.trim(),
+      status: formData.status,
+      stock: Number(formData.stock) || 0,
       pricing: [
         {
           quantity: 1,
-          price: Number(formData.price)
-        }
+          price: selling > 0 ? selling : mrp,
+        },
       ],
-
-      discountPercent: formData.discountPrice 
-        ? Math.round(((Number(formData.price) - Number(formData.discountPrice)) / Number(formData.price)) * 100) 
-        : 0,
-      
       images,
-      
-      // Extra 3D showcase fields agar schema mein baad mein add karne hon ya flexible rakhna ho:
-      tagline: formData.tagline || "",
-      status: formData.status || "Active",
-      frames360: frames360 || [],
-      specs: specs || [],
+      frames360,
+      specs,
+      is360Enabled: frames360.length > 0,
     };
 
     try {
@@ -149,18 +155,17 @@ const payload = {
       } else {
         const token = localStorage.getItem("token");
         const response = await axios.post(`${API_BASE}/api/products/create`, payload, {
-          headers: { 
+          headers: {
             "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}) 
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
         });
-        
-        if (response.data.success) {
+
+        if (response.data?.success) {
           alert("Product successfully created & published to database!");
         }
       }
-      
-      // Reset Form on Success
+
       setFormData({
         name: "",
         tagline: "",
@@ -178,7 +183,10 @@ const payload = {
       setSpecs([{ label: "Hardness", value: "58-62 HRC" }]);
     } catch (err) {
       console.error("Error saving product to DB:", err.response || err);
-      const errorMsg = err.response?.data?.message || err.message || "Failed to store product to database.";
+      const errorMsg =
+        err.response?.data?.message ||
+        err.message ||
+        "Failed to store product to database.";
       alert(`Database Error: ${errorMsg}`);
     } finally {
       setUploading(false);
@@ -199,7 +207,9 @@ const payload = {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black tracking-tight">3D & 360° Studio Uploader</h1>
+                <h1 className="text-2xl font-black tracking-tight">
+                  3D & 360° Studio Uploader
+                </h1>
                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
                   <Sparkles size={10} className="inline mr-1" /> Pro Admin
                 </span>
@@ -232,7 +242,9 @@ const payload = {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold mb-1.5 text-slate-400">Product Name *</label>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                  Product Name *
+                </label>
                 <input
                   type="text"
                   name="name"
@@ -245,7 +257,9 @@ const payload = {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-slate-400">Product Status</label>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                  Product Status
+                </label>
                 <select
                   name="status"
                   value={formData.status}
@@ -259,7 +273,9 @@ const payload = {
               </div>
 
               <div className="sm:col-span-2">
-                <label className="block text-xs font-semibold mb-1.5 text-slate-400">Tagline / Subtitle</label>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                  Tagline / Subtitle
+                </label>
                 <input
                   type="text"
                   name="tagline"
@@ -271,7 +287,9 @@ const payload = {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-slate-400">Category *</label>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                  Category *
+                </label>
                 <input
                   type="text"
                   name="category"
@@ -292,10 +310,13 @@ const payload = {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-slate-400">MRP Price (₹) *</label>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                  MRP Price (₹) *
+                </label>
                 <input
                   type="number"
                   name="price"
+                  min="1"
                   placeholder="2499"
                   value={formData.price}
                   onChange={handleInputChange}
@@ -305,10 +326,13 @@ const payload = {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-slate-400">Selling Price (₹)</label>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                  Selling Price (₹)
+                </label>
                 <input
                   type="number"
                   name="discountPrice"
+                  min="0"
                   placeholder="1899"
                   value={formData.discountPrice}
                   onChange={handleInputChange}
@@ -317,10 +341,13 @@ const payload = {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold mb-1.5 text-slate-400">Initial Stock</label>
+                <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                  Initial Stock
+                </label>
                 <input
                   type="number"
                   name="stock"
+                  min="0"
                   placeholder="50"
                   value={formData.stock}
                   onChange={handleInputChange}
@@ -330,7 +357,9 @@ const payload = {
             </div>
 
             <div className="mt-4">
-              <label className="block text-xs font-semibold mb-1.5 text-slate-400">Full Description *</label>
+              <label className="block text-xs font-semibold mb-1.5 text-slate-400">
+                Full Description *
+              </label>
               <textarea
                 name="description"
                 rows={4}
@@ -393,8 +422,12 @@ const payload = {
               <div>
                 <label className="flex flex-col items-center cursor-pointer text-center">
                   <UploadCloud className="text-amber-400 mb-2" size={32} />
-                  <span className="text-sm font-bold text-slate-200">Main Product Gallery</span>
-                  <span className="text-xs text-slate-400 mt-0.5">Upload high-res photos</span>
+                  <span className="text-sm font-bold text-slate-200">
+                    Main Product Gallery
+                  </span>
+                  <span className="text-xs text-slate-400 mt-0.5">
+                    Upload high-res photos
+                  </span>
                   <input
                     type="file"
                     multiple
@@ -407,7 +440,10 @@ const payload = {
 
               <div className="flex gap-2 mt-4 flex-wrap">
                 {images.map((url, idx) => (
-                  <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-700">
+                  <div
+                    key={idx}
+                    className="relative w-16 h-16 rounded-xl overflow-hidden border border-slate-700"
+                  >
                     <img src={url} alt="" className="w-full h-full object-cover" />
                     <button
                       type="button"
@@ -425,8 +461,12 @@ const payload = {
               <div>
                 <label className="flex flex-col items-center cursor-pointer text-center">
                   <Rotate3d className="text-amber-400 mb-2" size={32} />
-                  <span className="text-sm font-bold text-slate-200">360° Rotation Frames</span>
-                  <span className="text-xs text-slate-400 mt-0.5">Select sequential angles</span>
+                  <span className="text-sm font-bold text-slate-200">
+                    360° Rotation Frames
+                  </span>
+                  <span className="text-xs text-slate-400 mt-0.5">
+                    Select sequential angles
+                  </span>
                   <input
                     type="file"
                     multiple
@@ -439,7 +479,10 @@ const payload = {
 
               <div className="flex gap-2 mt-4 flex-wrap">
                 {frames360.map((url, idx) => (
-                  <div key={idx} className="relative w-14 h-14 rounded-xl overflow-hidden border border-amber-400/60">
+                  <div
+                    key={idx}
+                    className="relative w-14 h-14 rounded-xl overflow-hidden border border-amber-400/60"
+                  >
                     <img src={url} alt="" className="w-full h-full object-cover" />
                     <span className="absolute bottom-0 inset-x-0 bg-black/80 text-amber-400 text-[10px] text-center font-bold">
                       #{idx + 1}
