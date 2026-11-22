@@ -555,7 +555,7 @@ const Home = () => {
 
           <button
             type="button"
-            onClick={() => navigate("/my-orders")}
+            onClick={() => navigate("/orders")}
             className="flex flex-col items-center justify-center gap-1 h-full text-[#6B7280] active:scale-95 transition"
             aria-label="My orders"
           >
