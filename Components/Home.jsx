@@ -18,7 +18,6 @@ import {
   ShoppingBag,
   Rotate3d,
   Building2,
-  Factory,
   CheckCircle2,
   X,
 } from "lucide-react";
@@ -492,96 +491,6 @@ const Home = () => {
         >
           <ProductCard />
         </main>
-
-        {/* ========== COMPANY OVERVIEW SECTION ========== */}
-        <section
-          id="company-overview"
-          className="scroll-mt-20 w-full py-16 text-white relative overflow-hidden"
-          style={{ background: COLOR.STEEL_DARK }}
-        >
-          <div
-            className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-[120px] opacity-20 pointer-events-none"
-            style={{ background: COLOR.AMBER }}
-          />
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              <div className="lg:col-span-6 space-y-5">
-                <span
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-slate-950"
-                  style={{ background: COLOR.AMBER }}
-                >
-                  <Factory size={14} /> Company Overview
-                </span>
-                <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight">
-                  Pedwal Life Creation — Engineered for Heavy-Duty Reliability
-                </h2>
-                <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                  From precision drop-forged pliers to high-torque industrial
-                  wrenches, Pedwal Life Creation delivers certified hand tools
-                  designed for workshops, technicians, and builders across India.
-                </p>
-
-                <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-2">
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <p
-                      className="text-2xl sm:text-3xl font-black"
-                      style={{ color: COLOR.AMBER }}
-                    >
-                      100%
-                    </p>
-                    <p className="text-xs text-slate-300 mt-1">
-                      Drop Forged Steel
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <p
-                      className="text-2xl sm:text-3xl font-black"
-                      style={{ color: COLOR.AMBER }}
-                    >
-                      DIN
-                    </p>
-                    <p className="text-xs text-slate-300 mt-1">
-                      Torque Certified
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <p
-                      className="text-2xl sm:text-3xl font-black"
-                      style={{ color: COLOR.AMBER }}
-                    >
-                      PAN
-                    </p>
-                    <p className="text-xs text-slate-300 mt-1">
-                      India Dispatch
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {companyHighlights.map((box, idx) => (
-                  <div
-                    key={idx}
-                    className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition"
-                  >
-                    <CheckCircle2
-                      size={22}
-                      style={{ color: COLOR.AMBER }}
-                      className="mb-3"
-                    />
-                    <h3 className="font-bold text-base text-white mb-1">
-                      {box.title}
-                    </h3>
-                    <p className="text-xs text-slate-300 leading-relaxed">
-                      {box.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </section>
 
         <Footer />
       </div>
