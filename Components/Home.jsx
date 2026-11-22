@@ -20,6 +20,11 @@ import {
   Building2,
   CheckCircle2,
   X,
+  Home as HomeIcon,
+  Search,
+  ShoppingCart,
+  ClipboardList,
+  UserRound,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com";
@@ -181,7 +186,7 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
+    <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden pb-24 md:pb-0">
       {/* ========== FIRST TIME USER GUIDE ========== */}
       <OnboardingGuide />
 
@@ -191,7 +196,7 @@ const Home = () => {
       </header>
 
       {/* ========== SCROLLABLE CONTENT BELOW FIXED NAVBAR ========== */}
-      <div className="pt-16 sm:pt-20">
+      <div className="pt-16 sm:pt-20 pb-24 md:pb-0">
         <RandomImg />
 
         {/* ========== RUNNING MARQUEE ========== */}
@@ -508,6 +513,67 @@ const Home = () => {
 
         <Footer />
       </div>
+
+      {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
+      <nav
+        aria-label="Mobile navigation"
+        className="md:hidden fixed bottom-0 inset-x-0 z-[100] bg-white/95 backdrop-blur-xl border-t border-[#E6E8EB] shadow-[0_-8px_25px_rgba(15,23,42,0.08)]"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="max-w-xl mx-auto h-[68px] px-2 grid grid-cols-5 items-center">
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            className="flex flex-col items-center justify-center gap-1 h-full text-[#2B4A5E] active:scale-95 transition"
+            aria-label="Home"
+          >
+            <HomeIcon size={20} strokeWidth={2.2} />
+            <span className="text-[10px] font-semibold">Home</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => document.getElementById("products-section")?.scrollIntoView({ behavior: "smooth" })}
+            className="flex flex-col items-center justify-center gap-1 h-full text-[#6B7280] active:scale-95 transition"
+            aria-label="Explore products"
+          >
+            <Search size={20} strokeWidth={2} />
+            <span className="text-[10px] font-medium">Explore</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/cart")}
+            className="flex flex-col items-center justify-center h-full active:scale-95 transition"
+            aria-label="Open shopping cart"
+          >
+            <span className="-mt-5 w-12 h-12 rounded-2xl flex items-center justify-center bg-[#F0A420] text-[#15181C] shadow-lg shadow-amber-500/25 border-4 border-white relative">
+              <ShoppingCart size={21} strokeWidth={2.3} />
+            </span>
+            <span className="text-[10px] font-bold text-[#15181C] mt-0.5">Cart</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/my-orders")}
+            className="flex flex-col items-center justify-center gap-1 h-full text-[#6B7280] active:scale-95 transition"
+            aria-label="My orders"
+          >
+            <ClipboardList size={20} strokeWidth={2} />
+            <span className="text-[10px] font-medium">Orders</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate("/profile")}
+            className="flex flex-col items-center justify-center gap-1 h-full text-[#6B7280] active:scale-95 transition"
+            aria-label="Profile"
+          >
+            <UserRound size={20} strokeWidth={2} />
+            <span className="text-[10px] font-medium">Profile</span>
+          </button>
+        </div>
+      </nav>
 
       {/* ========== COMPANY DETAILS POPUP MODAL ========== */}
       {companyModalOpen && (
