@@ -18,7 +18,7 @@ import {
 const API_BASE = "https://backend-3-axez.onrender.com";
 
 // 🔴 Apna actual Cloudinary Cloud Name yahan dalein (ya .env se lein)
-const CLOUD_NAME = "yahan_apna_cloud_name_daalein";
+const CLOUD_NAME = "upa2rnhx";
 const UPLOAD_PRESET = "pedwal_tools_preset";
 
 const Admin3DProductUploader = ({ onSaveProduct }) => {
