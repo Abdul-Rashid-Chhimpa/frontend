@@ -18,8 +18,8 @@ import {
   ShoppingBag,
   Rotate3d,
   Building2,
-  Factory,
   CheckCircle2,
+  X,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com";
@@ -74,6 +74,25 @@ const defaultSlideData = [
   },
 ];
 
+const companyHighlights = [
+  {
+    title: "Induction Hardened Edges",
+    desc: "Precision heat-treated cutting jaws for effortless wire & bolt cutting.",
+  },
+  {
+    title: "Anti-Rust Finish",
+    desc: "Satin & mirror-chrome coating built to resist workshop oil and corrosion.",
+  },
+  {
+    title: "Ergonomic Sleeve Grip",
+    desc: "Shock-absorbing insulated handles reduce hand fatigue during long shifts.",
+  },
+  {
+    title: "Strict Quality Testing",
+    desc: "Every batch undergoes hardness and load testing before dispatch.",
+  },
+];
+
 const getImageUrl = (img) => {
   if (!img) return "";
   if (img.startsWith("http") || img.startsWith("data:")) return img;
@@ -91,6 +110,7 @@ const Home = () => {
   const [slideData, setSlideData] = useState(defaultSlideData);
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
+  const [companyModalOpen, setCompanyModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -120,6 +140,17 @@ const Home = () => {
     return () => clearInterval(timer);
   }, [slideData.length, paused]);
 
+  useEffect(() => {
+    if (!companyModalOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setCompanyModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [companyModalOpen]);
+
   const goPrev = () => {
     setActive((prev) => (prev - 1 + slideData.length) % slideData.length);
   };
@@ -141,9 +172,12 @@ const Home = () => {
     }
   };
 
-  const scrollToCompany = () => {
-    const el = document.getElementById("company-overview");
-    if (el) el.scrollIntoView({ behavior: "smooth" });
+  const handleExplore3DProduct = () => {
+    if (current?.productId) {
+      navigate(`/product-3d-showcase/${current.productId}`);
+    } else {
+      navigate("/product-3d-showcase");
+    }
   };
 
   return (
@@ -163,14 +197,21 @@ const Home = () => {
         {/* ========== RUNNING MARQUEE ========== */}
         <div
           className="w-full overflow-hidden py-3.5 sm:py-4 border-y shadow-inner relative z-10"
-          style={{ background: COLOR.STEEL_DARK, borderColor: "rgba(255,255,255,0.1)" }}
+          style={{
+            background: COLOR.STEEL_DARK,
+            borderColor: "rgba(255,255,255,0.1)",
+          }}
         >
           <div className="flex w-max animate-ticker">
             {[1, 2].map((groupKey) => (
-              <div key={groupKey} className="flex items-center whitespace-nowrap gap-6 sm:gap-10 px-4">
+              <div
+                key={groupKey}
+                className="flex items-center whitespace-nowrap gap-6 sm:gap-10 px-4"
+              >
                 <span className="flex items-center gap-3 text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-white">
                   <Sparkles size={18} style={{ color: COLOR.AMBER }} />
-                  Welcome to <span style={{ color: COLOR.AMBER }}>Pedwal Life Creation</span>
+                  Welcome to{" "}
+                  <span style={{ color: COLOR.AMBER }}>Pedwal Life Creation</span>
                 </span>
                 <span className="text-white/30">•</span>
                 <span className="text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-white">
@@ -201,12 +242,17 @@ const Home = () => {
 
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-20">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-
               {/* ===== LEFT CONTENT ===== */}
               <div className="lg:col-span-5 order-2 lg:order-1">
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border shadow-sm mb-5">
-                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: COLOR.AMBER }} />
-                  <span className="text-xs font-semibold tracking-wide" style={{ color: COLOR.STEEL }}>
+                  <span
+                    className="w-2 h-2 rounded-full animate-pulse"
+                    style={{ background: COLOR.AMBER }}
+                  />
+                  <span
+                    className="text-xs font-semibold tracking-wide"
+                    style={{ color: COLOR.STEEL }}
+                  >
                     {current?.tagline || "Premium Series"}
                   </span>
                 </div>
@@ -215,43 +261,63 @@ const Home = () => {
                   {current?.title || "Featured Tool"}
                 </h1>
 
-                <p className="text-sm sm:text-base max-w-md mb-6" style={{ color: COLOR.MUTED }}>
-                  {current?.specs || "High quality industrial tools built for professionals"}
+                <p
+                  className="text-sm sm:text-base max-w-md mb-6"
+                  style={{ color: COLOR.MUTED }}
+                >
+                  {current?.specs ||
+                    "High quality industrial tools built for professionals"}
                 </p>
 
                 {/* Feature pills */}
                 <div className="flex flex-wrap gap-2.5 mb-8">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium" style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}>
+                  <div
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
+                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
+                  >
                     <Wrench size={13} />
                     Drop Forged
                   </div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium" style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}>
+                  <div
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
+                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
+                  >
                     <Zap size={13} />
                     Hardened Edge
                   </div>
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium" style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}>
+                  <div
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
+                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
+                  >
                     <ShieldCheck size={13} />
                     Quality Assured
                   </div>
                 </div>
 
-                {/* ACTION BUTTONS (Buy Now + Explore Product + Company Details) */}
+                {/* ACTION BUTTONS */}
                 <div className="flex flex-wrap items-center gap-3">
                   <button
+                    type="button"
                     onClick={handleBuyNow}
                     className="group px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg flex items-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
                     style={{
                       background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, ${COLOR.AMBER_DARK} 100%)`,
                     }}
                   >
-                    <ShoppingBag size={18} className="group-hover:scale-110 transition-transform" />
+                    <ShoppingBag
+                      size={18}
+                      className="group-hover:scale-110 transition-transform"
+                    />
                     <span>Buy Now</span>
-                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                    <ArrowRight
+                      size={16}
+                      className="group-hover:translate-x-1 transition-transform"
+                    />
                   </button>
 
-                  {/* Explore Product Button */}
                   <button
-                    onClick={() => navigate("/product-3d-showcase")}
+                    type="button"
+                    onClick={handleExplore3DProduct}
                     className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
                     style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
                   >
@@ -259,9 +325,9 @@ const Home = () => {
                     <span>Explore Product</span>
                   </button>
 
-                  {/* Company Details Button */}
                   <button
-                    onClick={scrollToCompany}
+                    type="button"
+                    onClick={() => setCompanyModalOpen(true)}
                     className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
                     style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
                   >
@@ -271,10 +337,14 @@ const Home = () => {
                 </div>
 
                 {/* Thumbnail strip */}
-                <div className="mt-10 pt-6 border-t flex flex-wrap items-center gap-2.5" style={{ borderColor: COLOR.BORDER }}>
+                <div
+                  className="mt-10 pt-6 border-t flex flex-wrap items-center gap-2.5"
+                  style={{ borderColor: COLOR.BORDER }}
+                >
                   {slideData.map((item, idx) => (
                     <button
                       key={item._id || item.id || idx}
+                      type="button"
                       onClick={() => setActive(idx)}
                       aria-label={`Show slide ${idx + 1}`}
                       className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
@@ -332,6 +402,7 @@ const Home = () => {
                     />
 
                     <button
+                      type="button"
                       onClick={goPrev}
                       aria-label="Previous"
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
@@ -345,6 +416,7 @@ const Home = () => {
                     </button>
 
                     <button
+                      type="button"
                       onClick={goNext}
                       aria-label="Next"
                       className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
@@ -362,6 +434,7 @@ const Home = () => {
                     {slideData.map((_, idx) => (
                       <button
                         key={idx}
+                        type="button"
                         onClick={() => setActive(idx)}
                         className={`h-1.5 rounded-full transition-all duration-300 ${
                           active === idx ? "w-6" : "w-1.5 bg-gray-300"
@@ -384,12 +457,31 @@ const Home = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 text-center md:text-left">
               {[
-                { icon: Wrench, title: "Drop Forged Steel", note: "Maximum strength structure" },
-                { icon: Zap, title: "Induction Hardened", note: "Precision cutting edges" },
-                { icon: Award, title: "Ergonomic Grip", note: "Slip-resistant comfort" },
-                { icon: ShieldCheck, title: "Quality Guaranteed", note: "Built for long life" },
+                {
+                  icon: Wrench,
+                  title: "Drop Forged Steel",
+                  note: "Maximum strength structure",
+                },
+                {
+                  icon: Zap,
+                  title: "Induction Hardened",
+                  note: "Precision cutting edges",
+                },
+                {
+                  icon: Award,
+                  title: "Ergonomic Grip",
+                  note: "Slip-resistant comfort",
+                },
+                {
+                  icon: ShieldCheck,
+                  title: "Quality Guaranteed",
+                  note: "Built for long life",
+                },
               ].map(({ icon: Icon, title, note }) => (
-                <div key={title} className="flex flex-col md:flex-row items-center gap-3">
+                <div
+                  key={title}
+                  className="flex flex-col md:flex-row items-center gap-3"
+                >
                   <div
                     className="p-3 rounded-xl shadow-sm text-white shrink-0"
                     style={{ background: COLOR.STEEL }}
@@ -407,90 +499,139 @@ const Home = () => {
         </section>
 
         {/* ========== PRODUCTS ========== */}
-        <main id="products-section" className="scroll-mt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <main
+          id="products-section"
+          className="scroll-mt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10"
+        >
           <ProductCard />
         </main>
 
-        {/* ========== COMPANY OVERVIEW SECTION (TARGET FOR BUTTON) ========== */}
-        <section
-          id="company-overview"
-          className="scroll-mt-20 w-full py-16 text-white relative overflow-hidden"
-          style={{ background: COLOR.STEEL_DARK }}
+        <Footer />
+      </div>
+
+      {/* ========== COMPANY DETAILS POPUP MODAL ========== */}
+      {companyModalOpen && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={() => setCompanyModalOpen(false)}
         >
           <div
-            className="absolute -top-24 -right-24 w-96 h-96 rounded-full blur-[120px] opacity-20 pointer-events-none"
-            style={{ background: COLOR.AMBER }}
-          />
-
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
-              <div className="lg:col-span-6 space-y-5">
+            className="relative w-full max-w-2xl rounded-3xl bg-white text-[#15181C] border border-[#E6E8EB] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div
+              className="px-6 py-5 text-white flex items-center justify-between"
+              style={{ background: COLOR.STEEL_DARK }}
+            >
+              <div className="flex items-center gap-2.5">
                 <span
-                  className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-slate-950"
+                  className="p-2 rounded-xl text-slate-950"
                   style={{ background: COLOR.AMBER }}
                 >
-                  <Factory size={14} /> Company Overview
+                  <Building2 size={18} />
                 </span>
-                <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight">
-                  Pedwal Life Creation — Engineered for Heavy-Duty Reliability
-                </h2>
-                <p className="text-slate-300 text-sm sm:text-base leading-relaxed">
-                  From precision drop-forged pliers to high-torque industrial wrenches,
-                  Pedwal Life Creation delivers certified hand tools designed for
-                  workshops, technicians, and builders across India.
-                </p>
-
-                <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-2">
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <p className="text-2xl sm:text-3xl font-black" style={{ color: COLOR.AMBER }}>100%</p>
-                    <p className="text-xs text-slate-300 mt-1">Drop Forged Steel</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <p className="text-2xl sm:text-3xl font-black" style={{ color: COLOR.AMBER }}>DIN</p>
-                    <p className="text-xs text-slate-300 mt-1">Torque Certified</p>
-                  </div>
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
-                    <p className="text-2xl sm:text-3xl font-black" style={{ color: COLOR.AMBER }}>PAN</p>
-                    <p className="text-xs text-slate-300 mt-1">India Dispatch</p>
-                  </div>
+                <div>
+                  <h3 className="text-lg font-extrabold leading-tight">
+                    Pedwal Life Creation
+                  </h3>
+                  <p className="text-xs text-slate-300">
+                    Company Overview & Manufacturing Standards
+                  </p>
                 </div>
               </div>
 
-              <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[
-                  {
-                    title: "Induction Hardened Edges",
-                    desc: "Precision heat-treated cutting jaws for effortless wire & bolt cutting.",
-                  },
-                  {
-                    title: "Anti-Rust Finish",
-                    desc: "Satin & mirror-chrome coating built to resist workshop oil and corrosion.",
-                  },
-                  {
-                    title: "Ergonomic Sleeve Grip",
-                    desc: "Shock-absorbing insulated handles reduce hand fatigue during long shifts.",
-                  },
-                  {
-                    title: "Strict Quality Testing",
-                    desc: "Every batch undergoes hardness and load testing before dispatch.",
-                  },
-                ].map((box, idx) => (
+              <button
+                type="button"
+                onClick={() => setCompanyModalOpen(false)}
+                aria-label="Close Company Details"
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto space-y-5">
+              <p className="text-sm text-[#6B7280] leading-relaxed">
+                From precision drop-forged pliers to high-torque industrial
+                wrenches, Pedwal Life Creation delivers certified hand tools
+                designed for workshops, technicians, and builders across India.
+              </p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
+                  <p
+                    className="text-xl sm:text-2xl font-black"
+                    style={{ color: COLOR.AMBER_DARK }}
+                  >
+                    100%
+                  </p>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    Drop Forged Steel
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
+                  <p
+                    className="text-xl sm:text-2xl font-black"
+                    style={{ color: COLOR.AMBER_DARK }}
+                  >
+                    DIN
+                  </p>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    Torque Certified
+                  </p>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
+                  <p
+                    className="text-xl sm:text-2xl font-black"
+                    style={{ color: COLOR.AMBER_DARK }}
+                  >
+                    PAN
+                  </p>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    India Dispatch
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {companyHighlights.map((box, idx) => (
                   <div
                     key={idx}
-                    className="p-5 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition"
+                    className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB]"
                   >
-                    <CheckCircle2 size={22} style={{ color: COLOR.AMBER }} className="mb-3" />
-                    <h3 className="font-bold text-base text-white mb-1">{box.title}</h3>
-                    <p className="text-xs text-slate-300 leading-relaxed">{box.desc}</p>
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle2
+                        size={16}
+                        style={{ color: COLOR.AMBER_DARK }}
+                      />
+                      <h4 className="font-bold text-sm text-[#15181C]">
+                        {box.title}
+                      </h4>
+                    </div>
+                    <p className="text-xs text-[#6B7280] leading-relaxed">
+                      {box.desc}
+                    </p>
                   </div>
                 ))}
               </div>
             </div>
-          </div>
-        </section>
 
-        <Footer />
-      </div>
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-[#F8FAFC] border-t border-[#E6E8EB] flex justify-end">
+              <button
+                type="button"
+                onClick={() => setCompanyModalOpen(false)}
+                className="px-5 py-2.5 rounded-xl font-bold text-sm text-white transition cursor-pointer"
+                style={{ background: COLOR.STEEL }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes ticker {
