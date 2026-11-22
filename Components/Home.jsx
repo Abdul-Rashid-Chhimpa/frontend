@@ -172,14 +172,6 @@ const Home = () => {
     }
   };
 
-  const handleExplore3DProduct = () => {
-    if (current?.productId) {
-      navigate(`/product-3d-showcase/${current.productId}`);
-    } else {
-      navigate("/product-3d-showcase");
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
       {/* ========== FIRST TIME USER GUIDE ========== */}
@@ -294,10 +286,9 @@ const Home = () => {
                   </div>
                 </div>
 
-                {/* ACTION BUTTONS */}
+                {/* ACTION BUTTONS (Buy Now + Explore Product + Company Details Popup) */}
                 <div className="flex flex-wrap items-center gap-3">
                   <button
-                    type="button"
                     onClick={handleBuyNow}
                     className="group px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg flex items-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
                     style={{
@@ -316,8 +307,7 @@ const Home = () => {
                   </button>
 
                   <button
-                    type="button"
-                    onClick={handleExplore3DProduct}
+                    onClick={() => navigate("/product-3d-showcase")}
                     className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
                     style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
                   >
@@ -344,7 +334,6 @@ const Home = () => {
                   {slideData.map((item, idx) => (
                     <button
                       key={item._id || item.id || idx}
-                      type="button"
                       onClick={() => setActive(idx)}
                       aria-label={`Show slide ${idx + 1}`}
                       className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
@@ -402,7 +391,6 @@ const Home = () => {
                     />
 
                     <button
-                      type="button"
                       onClick={goPrev}
                       aria-label="Previous"
                       className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
@@ -416,7 +404,6 @@ const Home = () => {
                     </button>
 
                     <button
-                      type="button"
                       onClick={goNext}
                       aria-label="Next"
                       className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
@@ -434,7 +421,6 @@ const Home = () => {
                     {slideData.map((_, idx) => (
                       <button
                         key={idx}
-                        type="button"
                         onClick={() => setActive(idx)}
                         className={`h-1.5 rounded-full transition-all duration-300 ${
                           active === idx ? "w-6" : "w-1.5 bg-gray-300"
