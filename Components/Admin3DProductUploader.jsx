@@ -17,6 +17,10 @@ import {
 
 const API_BASE = "https://backend-3-axez.onrender.com";
 
+// 🔴 Apna actual Cloudinary Cloud Name yahan dalein (ya .env se lein)
+const CLOUD_NAME = "yahan_apna_cloud_name_daalein";
+const UPLOAD_PRESET = "pedwal_tools_preset";
+
 const Admin3DProductUploader = ({ onSaveProduct }) => {
   const [isDark, setIsDark] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -38,10 +42,6 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
   const [images, setImages] = useState([]);
   const [frames360, setFrames360] = useState([]);
 
-  // 🔴 Apne Cloudinary details yahan dalein
-  const CLOUD_NAME = "yahan_apna_cloud_name_daalein";
-  const UPLOAD_PRESET = "pedwal_tools_preset";
-
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -61,13 +61,20 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
     setSpecs(specs.filter((_, i) => i !== index));
   };
 
-  const uploadToCloudinary = async (files, targetType) => {
+  const uploadToCloudinary = async (files, targetType, inputEl = null) => {
     if (!files || files.length === 0) return;
+
+    if (!CLOUD_NAME || CLOUD_NAME.includes("yahan_apna") || !UPLOAD_PRESET) {
+      alert("Please set a valid Cloudinary CLOUD_NAME and UPLOAD_PRESET first.");
+      if (inputEl) inputEl.value = "";
+      return;
+    }
+
     setUploading(true);
     const uploadedUrls = [];
 
     try {
-      for (const file of files) {
+      for (const file of Array.from(files)) {
         const dataForm = new FormData();
         dataForm.append("file", file);
         dataForm.append("upload_preset", UPLOAD_PRESET);
@@ -78,7 +85,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
         );
         const data = await res.json();
 
-        if (data.secure_url) {
+        if (res.ok && data.secure_url) {
           const optimizedUrl = data.secure_url.replace(
             "/upload/",
             "/upload/f_auto,q_auto/"
@@ -86,24 +93,33 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
           uploadedUrls.push(optimizedUrl);
         } else {
           console.error("Cloudinary Error Data:", data);
+          alert(`Cloudinary Upload Failed: ${data.error?.message || "Unknown error"}`);
         }
       }
 
-      if (targetType === "main") {
-        setImages((prev) => [...prev, ...uploadedUrls]);
-      } else {
-        setFrames360((prev) => [...prev, ...uploadedUrls]);
+      if (uploadedUrls.length > 0) {
+        if (targetType === "main") {
+          setImages((prev) => [...prev, ...uploadedUrls]);
+        } else {
+          setFrames360((prev) => [...prev, ...uploadedUrls]);
+        }
       }
     } catch (err) {
       console.error("Cloudinary upload failed:", err);
-      alert("Image upload failed to Cloudinary. Check console.");
+      alert("Network error while uploading to Cloudinary. Check console.");
     } finally {
+      if (inputEl) inputEl.value = "";
       setUploading(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (uploading) {
+      alert("Images are still uploading. Please wait a moment and try again.");
+      return;
+    }
 
     if (!images || images.length === 0) {
       alert("Please upload at least one main product image.");
@@ -423,7 +439,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
                 <label className="flex flex-col items-center cursor-pointer text-center">
                   <UploadCloud className="text-amber-400 mb-2" size={32} />
                   <span className="text-sm font-bold text-slate-200">
-                    Main Product Gallery
+                    Main Product Gallery ({images.length} uploaded)
                   </span>
                   <span className="text-xs text-slate-400 mt-0.5">
                     Upload high-res photos
@@ -432,8 +448,9 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
                     type="file"
                     multiple
                     accept="image/*"
+                    disabled={uploading}
                     className="hidden"
-                    onChange={(e) => uploadToCloudinary(e.target.files, "main")}
+                    onChange={(e) => uploadToCloudinary(e.target.files, "main", e.currentTarget)}
                   />
                 </label>
               </div>
@@ -462,7 +479,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
                 <label className="flex flex-col items-center cursor-pointer text-center">
                   <Rotate3d className="text-amber-400 mb-2" size={32} />
                   <span className="text-sm font-bold text-slate-200">
-                    360° Rotation Frames
+                    360° Rotation Frames ({frames360.length} uploaded)
                   </span>
                   <span className="text-xs text-slate-400 mt-0.5">
                     Select sequential angles
@@ -471,8 +488,9 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
                     type="file"
                     multiple
                     accept="image/*"
+                    disabled={uploading}
                     className="hidden"
-                    onChange={(e) => uploadToCloudinary(e.target.files, "360")}
+                    onChange={(e) => uploadToCloudinary(e.target.files, "360", e.currentTarget)}
                   />
                 </label>
               </div>
@@ -496,7 +514,7 @@ const Admin3DProductUploader = ({ onSaveProduct }) => {
           <button
             type="submit"
             disabled={uploading}
-            className="w-full py-4 rounded-2xl font-extrabold text-slate-950 flex items-center justify-center gap-2 shadow-xl hover:opacity-95 active:scale-[0.99] transition cursor-pointer"
+            className="w-full py-4 rounded-2xl font-extrabold text-slate-950 flex items-center justify-center gap-2 shadow-xl hover:opacity-95 active:scale-[0.99] transition cursor-pointer disabled:opacity-60"
             style={{ background: "#F0A420" }}
           >
             {uploading ? (
