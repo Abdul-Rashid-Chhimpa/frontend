@@ -23,7 +23,13 @@ const Login = () => {
   useEffect(() => {
     const token = localStorage.getItem("token");
     const expiry = Number(localStorage.getItem("tokenExpiry") || 0);
-    const user = JSON.parse(localStorage.getItem("user") || "null");
+    let user = null;
+
+    try {
+      user = JSON.parse(localStorage.getItem("user") || "null");
+    } catch {
+      user = null;
+    }
 
     const isTokenValid = Boolean(token) && (!expiry || Date.now() < expiry);
 
@@ -41,12 +47,6 @@ const Login = () => {
       setRememberMe(true);
     }
   }, [navigate]);
-
-  const handleSkipToHome = () => {
-    localStorage.setItem("guestBrowse", "true");
-    toast("Browsing Home as guest. Sign in required for account & cart features.");
-    navigate("/", { replace: true });
-  };
 
   const loginHandler = async (e) => {
     e.preventDefault();
@@ -75,9 +75,6 @@ const Login = () => {
         toast.error(data.message || "Login failed");
         return;
       }
-
-      // Clear guest browse flag on real sign-in
-      localStorage.removeItem("guestBrowse");
 
       // --- SAVE TOKEN, USER, USERID & EXACT 1-HOUR EXPIRY ---
       localStorage.setItem("token", data.token);
@@ -218,18 +215,9 @@ const Login = () => {
           </div>
 
           <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-8 sm:p-10 shadow-2xl shadow-indigo-950/50">
-            <div className="mb-6 flex items-start justify-between gap-3">
-              <div>
-                <h2 className="text-2xl font-bold text-white tracking-tight">Welcome back</h2>
-                <p className="text-slate-400 text-sm mt-1">Please enter your details to sign in.</p>
-              </div>
-              <button
-                type="button"
-                onClick={handleSkipToHome}
-                className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800/90 hover:bg-slate-700 text-slate-200 border border-slate-700/80 transition-colors cursor-pointer"
-              >
-                Skip → Home
-              </button>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white tracking-tight">Welcome back</h2>
+              <p className="text-slate-400 text-sm mt-1">Please enter your details to sign in.</p>
             </div>
 
             {/* Lockout Warning Banner */}
@@ -275,7 +263,7 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors"
+                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                   >
                     {showPassword ? (
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,7 +293,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowForgot(true)}
-                  className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                  className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors cursor-pointer"
                 >
                   Forgot password?
                 </button>
@@ -329,15 +317,6 @@ const Login = () => {
                   <span className="text-sm">Sign In</span>
                 )}
               </button>
-
-              {/* Skip Login Button */}
-              <button
-                type="button"
-                onClick={handleSkipToHome}
-                className="w-full bg-slate-800/70 hover:bg-slate-800 text-slate-300 hover:text-white font-medium py-2.5 rounded-xl border border-slate-700/70 text-xs transition-all cursor-pointer"
-              >
-                Skip for now & visit Home page
-              </button>
             </form>
 
             <div className="mt-8 pt-6 border-t border-slate-800/80 text-center text-xs text-slate-400">
@@ -360,7 +339,7 @@ const Login = () => {
           <div className="bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl w-full max-w-md p-6 sm:p-8 relative">
             <button
               onClick={closeForgotModal}
-              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors"
+              className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -398,7 +377,7 @@ const Login = () => {
                   <button
                     type="submit"
                     disabled={forgotLoading}
-                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl text-sm transition-all disabled:opacity-50"
+                    className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-medium py-3 rounded-xl text-sm transition-all disabled:opacity-50 cursor-pointer"
                   >
                     {forgotLoading ? "Sending link..." : "Send Reset Link"}
                   </button>
@@ -418,7 +397,7 @@ const Login = () => {
                 </p>
                 <button
                   onClick={closeForgotModal}
-                  className="w-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 rounded-xl transition-all"
+                  className="w-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-medium py-2.5 rounded-xl transition-all cursor-pointer"
                 >
                   Back to login
                 </button>
