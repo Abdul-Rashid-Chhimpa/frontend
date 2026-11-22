@@ -20,6 +20,12 @@ import {
   Check,
   Tag,
   Hash,
+  X,
+  ZoomIn,
+  ZoomOut,
+  ChevronLeft,
+  ChevronRight,
+  Maximize2,
 } from "lucide-react";
 import { CartContext } from "../Components/Context";
 import axios from "axios";
@@ -36,11 +42,12 @@ const getViewerId = () => {
 };
 
 // ======================================================
-// STOCK BATTERY – LIVE QUANTITY WISE (like mobile battery)
+// STOCK BATTERY
 // ======================================================
 const StockBattery = ({ stock, capacity = 100 }) => {
   const qty = Math.max(0, Number(stock) || 0);
-  const fillPercent = qty <= 0 ? 0 : Math.min(100, (qty / capacity) * 100);
+  const fillPercent =
+    qty <= 0 ? 0 : Math.min(100, (qty / capacity) * 100);
 
   let liquidColor = "#22C55E";
   let glowColor = "rgba(34, 197, 94, 0.45)";
@@ -90,18 +97,24 @@ const StockBattery = ({ stock, capacity = 100 }) => {
               />
             )}
           </div>
-          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-gray-800 drop-shadow-sm pointer-events-none">
+
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-bold text-gray-800 pointer-events-none">
             {qty <= 0 ? "0%" : `${Math.round(fillPercent)}%`}
           </span>
         </div>
+
         <div className="w-[5px] h-[12px] rounded-r-sm bg-gray-400" />
       </div>
+
       <div className="flex flex-col leading-tight">
-        <span className={`text-sm font-semibold ${labelColor}`}>{label}</span>
+        <span className={`text-sm font-semibold ${labelColor}`}>
+          {label}
+        </span>
         <span className="text-xs text-gray-500">
           {qty > 0 ? `${qty} units left` : "Currently unavailable"}
         </span>
       </div>
+
       <style>{`
         @keyframes batteryWave {
           0%, 100% { transform: translateY(0); opacity: 0.35; }
@@ -112,13 +125,18 @@ const StockBattery = ({ stock, capacity = 100 }) => {
   );
 };
 
+// ======================================================
+// PRODUCT DETAILS
+// ======================================================
 const ProductDetails = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
   const { addToCart, cart } = useContext(CartContext);
 
-  const [product, setProduct] = useState(location.state?.product || null);
+  const [product, setProduct] = useState(
+    location.state?.product || null
+  );
   const [loading, setLoading] = useState(!location.state?.product);
   const [error, setError] = useState(false);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -128,32 +146,105 @@ const ProductDetails = () => {
   const [selectedDeliveryMethod, setSelectedDeliveryMethod] =
     useState("standard");
 
+  // ================= IMAGE VIEWER STATES =================
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [dragging, setDragging] = useState(false);
+
   const priceScrollRef = useRef(null);
   const activeCardRef = useRef(null);
+
+  const dragStartRef = useRef({ x: 0, y: 0 });
+  const panStartRef = useRef({ x: 0, y: 0 });
+
+  const pinchStartRef = useRef({
+    distance: 0,
+    zoom: 1,
+  });
+
+  const MIN_ZOOM = 1;
+  const MAX_ZOOM = 4;
+
+  // ================= IMAGE VIEWER HELPERS =================
+  const resetZoom = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const openImageViewer = () => {
+    resetZoom();
+    setViewerOpen(true);
+  };
+
+  const closeImageViewer = () => {
+    setViewerOpen(false);
+    resetZoom();
+    setDragging(false);
+  };
+
+  const zoomIn = () => {
+    setZoom((prev) =>
+      Math.min(MAX_ZOOM, +(prev + 0.25).toFixed(2))
+    );
+  };
+
+  const zoomOut = () => {
+    setZoom((prev) => {
+      const next = Math.max(MIN_ZOOM, +(prev - 0.25).toFixed(2));
+
+      if (next === 1) {
+        setPan({ x: 0, y: 0 });
+      }
+
+      return next;
+    });
+  };
+
+  const changeViewerImage = (index) => {
+    setSelectedImage(index);
+    resetZoom();
+  };
+
+  const nextViewerImage = () => {
+    setSelectedImage((prev) => (prev + 1) % imagesList.length);
+    resetZoom();
+  };
+
+  const previousViewerImage = () => {
+    setSelectedImage(
+      (prev) => (prev - 1 + imagesList.length) % imagesList.length
+    );
+    resetZoom();
+  };
+
+  const getTouchDistance = (touches) => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+
+    return Math.sqrt(dx * dx + dy * dy);
+  };
 
   // ================= LIVE STOCK CALCULATION =================
   const alreadyInCart = useMemo(() => {
     if (!product) return 0;
+
     const productId = String(product._id || product.id || "");
+
     return (cart || [])
       .filter((item) => String(item._id || item.id) === productId)
       .reduce((sum, item) => sum + Number(item.quantity || 0), 0);
   }, [cart, product]);
 
   const backendStock = Math.max(0, Number(product?.stock) || 0);
-
-  // Max you can still add
   const maxStock = Math.max(0, backendStock - alreadyInCart);
-
-  // LIVE remaining after current quantity selection (like mobile battery)
   const liveRemaining = Math.max(0, maxStock - quantity);
-
-  // Capacity for percentage (use original stock so % looks natural)
   const batteryCapacity = Math.max(backendStock, 100);
 
   // ================= FETCH PRODUCT =================
   useEffect(() => {
     let isMounted = true;
+
     setSelectedImage(0);
     setQuantity(1);
 
@@ -185,9 +276,13 @@ const ProductDetails = () => {
         setError(false);
 
         try {
-          const { data } = await axios.get(`${API_BASE}/api/products/${id}`, {
-            params: { userId: viewerId },
-          });
+          const { data } = await axios.get(
+            `${API_BASE}/api/products/${id}`,
+            {
+              params: { userId: viewerId },
+            }
+          );
+
           if (isMounted && data.success && data.product) {
             setProduct(data.product);
             setLoading(false);
@@ -201,7 +296,10 @@ const ProductDetails = () => {
 
         if (!isMounted) return;
 
-        const found = res.data.products?.find((p) => p._id === id);
+        const found = res.data.products?.find(
+          (p) => String(p._id) === String(id)
+        );
+
         if (found) {
           setProduct(found);
         } else {
@@ -302,6 +400,7 @@ const ProductDetails = () => {
 
   const baseUnitPrice = useMemo(() => {
     let applicablePrice = pricingTiers[0]?.price || 0;
+
     for (let i = 0; i < pricingTiers.length; i++) {
       if (quantity >= pricingTiers[i].minQty) {
         applicablePrice = pricingTiers[i].price;
@@ -309,6 +408,7 @@ const ProductDetails = () => {
         break;
       }
     }
+
     return applicablePrice;
   }, [quantity, pricingTiers]);
 
@@ -322,34 +422,49 @@ const ProductDetails = () => {
   const unitPrice = useMemo(() => {
     if (discountPercent > 0 && discountPercent < 100) {
       return (
-        Math.round(originalUnitPrice * (1 - discountPercent / 100) * 100) / 100
+        Math.round(
+          originalUnitPrice * (1 - discountPercent / 100) * 100
+        ) / 100
       );
     }
+
     return originalUnitPrice;
   }, [originalUnitPrice, discountPercent]);
 
-  const hasDiscount = discountPercent > 0 && unitPrice < originalUnitPrice;
+  const hasDiscount =
+    discountPercent > 0 && unitPrice < originalUnitPrice;
+
   const totalOriginalPrice = originalUnitPrice * quantity;
   const totalPrice = unitPrice * quantity;
-  const totalSavings = hasDiscount ? totalOriginalPrice - totalPrice : 0;
+  const totalSavings = hasDiscount
+    ? totalOriginalPrice - totalPrice
+    : 0;
 
   // ================= DELIVERY =================
   const backendDeliveryCharge = useMemo(() => {
     if (!product) return 0;
+
     if (
       typeof product.delivery === "object" &&
       product.delivery?.charge !== undefined
     ) {
       return Number(product.delivery.charge) || 0;
     }
+
     if (product.deliveryCharge !== undefined) {
       return Number(product.deliveryCharge) || 0;
     }
-    return typeof product.delivery === "number" ? product.delivery : 0;
+
+    return typeof product.delivery === "number"
+      ? product.delivery
+      : 0;
   }, [product]);
 
   const deliveryCharge = useMemo(() => {
-    if (selectedDeliveryMethod === "standard") return backendDeliveryCharge;
+    if (selectedDeliveryMethod === "standard") {
+      return backendDeliveryCharge;
+    }
+
     return backendDeliveryCharge + 100;
   }, [selectedDeliveryMethod, backendDeliveryCharge]);
 
@@ -365,17 +480,23 @@ const ProductDetails = () => {
 
   // ================= IMAGES =================
   const imagesList = useMemo(() => {
-    return product?.images?.length > 0 ? product.images : ["/no-image.png"];
+    return product?.images?.length > 0
+      ? product.images
+      : ["/no-image.png"];
   }, [product]);
 
+  // ================= AUTO SLIDER =================
   useEffect(() => {
-    if (imagesList.length <= 1 || isPaused) return;
+    if (imagesList.length <= 1 || isPaused || viewerOpen) return;
+
     const interval = setInterval(() => {
       setSelectedImage((prev) => (prev + 1) % imagesList.length);
     }, 3500);
-    return () => clearInterval(interval);
-  }, [imagesList.length, isPaused]);
 
+    return () => clearInterval(interval);
+  }, [imagesList.length, isPaused, viewerOpen]);
+
+  // ================= PRICE CARD SCROLL =================
   useEffect(() => {
     if (activeCardRef.current && priceScrollRef.current) {
       activeCardRef.current.scrollIntoView({
@@ -386,15 +507,41 @@ const ProductDetails = () => {
     }
   }, [quantity]);
 
-  // Cap quantity if stock changes
+  // ================= CAP QUANTITY =================
   useEffect(() => {
     if (maxStock > 0 && quantity > maxStock) {
       setQuantity(maxStock);
     }
   }, [maxStock]);
 
+  // ================= VIEWER KEYBOARD =================
+  useEffect(() => {
+    if (!viewerOpen) return;
+
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") closeImageViewer();
+
+      if (e.key === "+" || e.key === "=") zoomIn();
+      if (e.key === "-") zoomOut();
+      if (e.key === "0") resetZoom();
+
+      if (e.key === "ArrowRight") nextViewerImage();
+      if (e.key === "ArrowLeft") previousViewerImage();
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [viewerOpen, imagesList.length]);
+
+  // ================= QUANTITY HANDLER =================
   const handleQuantityChange = (value) => {
     let qty = Number(value);
+
     if (isNaN(qty) || qty < 1) qty = 1;
 
     if (maxStock <= 0) {
@@ -430,6 +577,7 @@ const ProductDetails = () => {
 
     if (alreadyInCart + addQty > backendStock) {
       const left = Math.max(0, backendStock - alreadyInCart);
+
       if (left <= 0) {
         toast.error(
           `Out of stock in cart — you already have ${alreadyInCart} units (max ${backendStock})`
@@ -439,6 +587,7 @@ const ProductDetails = () => {
           `Only ${left} more unit${left === 1 ? "" : "s"} can be added (stock: ${backendStock})`
         );
       }
+
       return;
     }
 
@@ -460,21 +609,27 @@ const ProductDetails = () => {
       },
     });
 
-    toast.success(`${addQty} unit${addQty === 1 ? "" : "s"} added to cart`);
+    toast.success(
+      `${addQty} unit${addQty === 1 ? "" : "s"} added to cart`
+    );
   };
 
+  // ================= QUICK QUANTITIES =================
   const quickQtys = useMemo(() => {
     if (maxStock <= 0) return [];
+
     return [1, 5, 10, 25, 50, 100, 250, 500, maxStock].filter(
       (q, i, arr) => q <= maxStock && arr.indexOf(q) === i
     );
   }, [maxStock]);
 
+  // ================= LOADING =================
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
         <div className="text-center">
           <div className="w-12 h-12 sm:w-14 sm:h-14 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto" />
+
           <p className="mt-4 text-gray-600 font-medium text-sm sm:text-base">
             Loading product details...
           </p>
@@ -483,16 +638,20 @@ const ProductDetails = () => {
     );
   }
 
+  // ================= ERROR =================
   if (error || !product) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 px-4">
         <Package size={64} className="text-gray-300 mb-5 sm:mb-6" />
+
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 text-center">
           Product Not Found
         </h1>
+
         <p className="text-gray-500 mb-6 sm:mb-8 text-center text-sm sm:text-base">
           This product doesn't exist or was removed.
         </p>
+
         <button
           onClick={() => navigate("/")}
           className="flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold transition text-sm sm:text-base"
@@ -509,6 +668,8 @@ const ProductDetails = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 py-4 sm:py-6 md:py-8 px-3 sm:px-4">
       <div className="max-w-6xl mx-auto">
+
+        {/* BACK */}
         <button
           onClick={() => navigate(-1)}
           className="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-medium mb-4 sm:mb-6 transition text-sm sm:text-base"
@@ -517,23 +678,43 @@ const ProductDetails = () => {
           Back
         </button>
 
+        {/* PRODUCT CARD */}
         <div className="bg-white rounded-2xl sm:rounded-3xl shadow-xl overflow-hidden">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-0">
-            {/* LEFT - GALLERY */}
+
+            {/* =====================================================
+                LEFT - GALLERY
+            ===================================================== */}
             <div
               className="p-4 sm:p-6 md:p-8 bg-gradient-to-br from-gray-50 to-gray-100"
               onMouseEnter={() => setIsPaused(true)}
               onMouseLeave={() => setIsPaused(false)}
             >
+              {/* MAIN IMAGE */}
               <div className="relative bg-white rounded-xl sm:rounded-2xl border border-gray-100 overflow-hidden mb-4 sm:mb-5 flex items-center justify-center h-[280px] xs:h-[320px] sm:h-[380px] md:h-[420px] lg:h-[460px] p-1">
+
                 <img
                   src={imagesList[selectedImage]}
                   alt={product.name}
-                  className="max-h-full max-w-full object-contain transition-all duration-300"
+                  onClick={openImageViewer}
+                  className="max-h-full max-w-full object-contain transition-all duration-300 cursor-zoom-in hover:scale-[1.02]"
+                  title="Click to view full image"
                   onError={(e) => {
                     e.target.src = "/no-image.png";
                   }}
                 />
+
+                {/* FULLSCREEN BUTTON */}
+                <button
+                  type="button"
+                  onClick={openImageViewer}
+                  className="absolute bottom-3 right-3 z-10 bg-black/60 hover:bg-black/80 text-white p-2 rounded-lg backdrop-blur-sm transition"
+                  title="View fullscreen"
+                >
+                  <Maximize2 size={18} />
+                </button>
+
+                {/* DISCOUNT BADGE */}
                 {hasDiscount && (
                   <span className="absolute top-3 left-3 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full shadow flex items-center gap-1">
                     <Tag size={12} />
@@ -542,12 +723,14 @@ const ProductDetails = () => {
                 )}
               </div>
 
+              {/* THUMBNAILS */}
               {imagesList.length > 1 && (
                 <div className="flex gap-2 sm:gap-3 overflow-x-auto pb-2 scrollbar-hide">
                   {imagesList.map((img, index) => (
                     <button
                       key={index}
                       onClick={() => setSelectedImage(index)}
+                      onDoubleClick={openImageViewer}
                       className={`flex-shrink-0 w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-lg sm:rounded-xl overflow-hidden border transition-all duration-150 ${
                         selectedImage === index
                           ? "border-indigo-600 opacity-100"
@@ -567,6 +750,7 @@ const ProductDetails = () => {
                 </div>
               )}
 
+              {/* TRUST CARDS */}
               <div className="grid grid-cols-3 gap-2 mt-6 pt-6 border-t border-gray-200/80 text-center">
                 <div className="flex flex-col items-center">
                   <Truck size={20} className="text-indigo-600 mb-1" />
@@ -574,12 +758,14 @@ const ProductDetails = () => {
                     Fast Delivery
                   </span>
                 </div>
+
                 <div className="flex flex-col items-center">
                   <ShieldCheck size={20} className="text-emerald-600 mb-1" />
                   <span className="text-[11px] font-medium text-gray-700">
                     100% Authentic
                   </span>
                 </div>
+
                 <div className="flex flex-col items-center">
                   <RotateCcw size={20} className="text-purple-600 mb-1" />
                   <span className="text-[11px] font-medium text-gray-700">
@@ -589,9 +775,13 @@ const ProductDetails = () => {
               </div>
             </div>
 
-            {/* RIGHT - DETAILS */}
+            {/* =====================================================
+                RIGHT - DETAILS
+            ===================================================== */}
             <div className="p-4 sm:p-6 md:p-8 lg:p-10 flex flex-col">
               <div className="flex-1">
+
+                {/* PRODUCT TITLE */}
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-gray-900 mb-3 sm:mb-4 leading-snug sm:leading-tight capitalize">
                   {product.name}
                 </h1>
@@ -605,27 +795,31 @@ const ProductDetails = () => {
                           <p className="text-[11px] sm:text-xs text-gray-500 mb-0.5">
                             Original price
                           </p>
+
                           <p className="text-base sm:text-lg text-gray-400 line-through font-medium">
                             ₹{originalUnitPrice.toLocaleString()}
                           </p>
                         </div>
+
                         <div>
                           <p className="text-[11px] sm:text-xs text-emerald-700 mb-0.5 font-medium">
                             After {discountPercent}% off
                           </p>
+
                           <p className="text-2xl sm:text-3xl font-extrabold text-indigo-700">
                             ₹{unitPrice.toLocaleString()}
                           </p>
                         </div>
+
                         <span className="mb-1 inline-flex items-center gap-1 bg-red-500 text-white text-[10px] sm:text-xs font-bold px-2.5 py-1 rounded-full">
                           <Tag size={11} />
                           {discountPercent}% OFF
                         </span>
                       </div>
+
                       <p className="mt-2 text-xs sm:text-sm text-emerald-700 font-semibold">
                         You save ₹
-                        {(originalUnitPrice - unitPrice).toLocaleString()} per
-                        unit
+                        {(originalUnitPrice - unitPrice).toLocaleString()} per unit
                       </p>
                     </>
                   ) : (
@@ -633,6 +827,7 @@ const ProductDetails = () => {
                       <p className="text-[11px] sm:text-xs text-gray-500 mb-0.5">
                         Price
                       </p>
+
                       <p className="text-2xl sm:text-3xl font-extrabold text-indigo-700">
                         ₹{unitPrice.toLocaleString()}
                       </p>
@@ -648,11 +843,13 @@ const ProductDetails = () => {
                         {product.category}
                       </span>
                     )}
+
                     {product.brand && (
                       <span className="bg-emerald-50 text-emerald-700 text-xs font-semibold px-2.5 py-1 rounded-full uppercase">
                         {product.brand}
                       </span>
                     )}
+
                     {product.variantGroup && (
                       <span className="bg-purple-50 text-purple-700 text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1">
                         <Layers size={12} />
@@ -662,13 +859,16 @@ const ProductDetails = () => {
                   </div>
 
                   <p>
-                    <span className="font-semibold text-gray-800">Material:</span>{" "}
+                    <span className="font-semibold text-gray-800">
+                      Material:
+                    </span>{" "}
                     {product.material || "N/A"}
                   </p>
 
-                  {product.hsnCode ? (
+                  {product.hsnCode && (
                     <p className="flex items-center gap-1.5">
                       <Hash size={15} className="text-gray-500" />
+
                       <span className="font-semibold text-gray-800">
                         HSN Code:
                       </span>{" "}
@@ -676,40 +876,44 @@ const ProductDetails = () => {
                         {product.hsnCode}
                       </span>
                     </p>
-                  ) : null}
+                  )}
 
                   {(product.size || product.weight) && (
                     <div className="flex flex-wrap gap-4 pt-1 text-xs sm:text-sm text-gray-700">
                       {product.size && (
                         <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
-                          <Ruler size={14} className="text-gray-500" /> Size:{" "}
-                          {product.size}
+                          <Ruler size={14} className="text-gray-500" />
+                          Size: {product.size}
                         </span>
                       )}
+
                       {product.weight && (
                         <span className="flex items-center gap-1 bg-gray-100 px-2.5 py-1 rounded-md font-medium">
-                          <Scale size={14} className="text-gray-500" /> Weight:{" "}
-                          {product.weight}
+                          <Scale size={14} className="text-gray-500" />
+                          Weight: {product.weight}
                         </span>
                       )}
                     </div>
                   )}
 
-                  {/* LIVE QUANTITY-WISE BATTERY */}
+                  {/* STOCK */}
                   <div className="pt-2">
                     <p className="font-semibold text-gray-800 mb-2 text-sm">
                       Availability
                     </p>
+
                     <StockBattery
                       stock={liveRemaining}
                       capacity={batteryCapacity}
                     />
+
                     <div className="mt-1.5 space-y-0.5 text-xs">
                       {alreadyInCart > 0 && (
                         <p className="text-amber-600">
                           Already in cart: {alreadyInCart} units
                         </p>
                       )}
+
                       {quantity > 0 && maxStock > 0 && (
                         <p className="text-indigo-600 font-medium">
                           After adding {quantity}: {liveRemaining} units will remain
@@ -724,7 +928,9 @@ const ProductDetails = () => {
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Select Delivery Option
                   </h3>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* STANDARD */}
                     <button
                       type="button"
                       onClick={() => setSelectedDeliveryMethod("standard")}
@@ -743,17 +949,20 @@ const ProductDetails = () => {
                       >
                         <Truck size={18} />
                       </div>
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-semibold text-xs sm:text-sm text-gray-800">
                             Standard Delivery
                           </span>
+
                           <span className="text-xs font-bold text-indigo-700">
                             {backendDeliveryCharge === 0
                               ? "FREE"
                               : `₹${backendDeliveryCharge}`}
                           </span>
                         </div>
+
                         <p className="text-[11px] text-gray-500">
                           {product?.delivery?.time
                             ? `Estimated: ${product.delivery.time} Days`
@@ -762,6 +971,7 @@ const ProductDetails = () => {
                       </div>
                     </button>
 
+                    {/* EXPRESS */}
                     <button
                       type="button"
                       onClick={() => setSelectedDeliveryMethod("express")}
@@ -780,15 +990,18 @@ const ProductDetails = () => {
                       >
                         <Zap size={18} />
                       </div>
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <span className="font-semibold text-xs sm:text-sm text-gray-800">
                             Express Delivery
                           </span>
+
                           <span className="text-xs font-bold text-indigo-700">
                             ₹{backendDeliveryCharge + 100}
                           </span>
                         </div>
+
                         <p className="text-[11px] text-gray-500">
                           Faster Express Delivery
                         </p>
@@ -802,10 +1015,12 @@ const ProductDetails = () => {
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Select Payment Method
                   </h3>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                     {availablePaymentMethods.map((method) => {
                       const Icon = method.icon;
                       const isSelected = selectedPayment === method.id;
+
                       return (
                         <button
                           key={method.id}
@@ -827,6 +1042,7 @@ const ProductDetails = () => {
                             >
                               <Icon size={18} />
                             </div>
+
                             <div>
                               <p
                                 className={`text-xs sm:text-sm font-semibold ${
@@ -837,11 +1053,13 @@ const ProductDetails = () => {
                               >
                                 {method.label}
                               </p>
+
                               <p className="text-[10px] text-gray-400">
                                 {method.desc}
                               </p>
                             </div>
                           </div>
+
                           {isSelected && (
                             <div className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0">
                               <Check size={12} strokeWidth={3} />
@@ -853,11 +1071,12 @@ const ProductDetails = () => {
                   </div>
                 </div>
 
-                {/* QUANTITY WISE PRICING */}
+                {/* QUANTITY PRICING */}
                 <div className="mb-5 sm:mb-6">
                   <h3 className="font-semibold text-gray-800 mb-3 text-sm sm:text-base">
                     Quantity Wise Pricing
                   </h3>
+
                   <div
                     ref={priceScrollRef}
                     className="max-w-[320px] sm:max-w-[340px] overflow-x-auto pt-3 pb-4 price-scroll"
@@ -865,6 +1084,7 @@ const ProductDetails = () => {
                     <div className="flex gap-3 min-w-max px-1">
                       {pricingTiers.map((tier, index) => {
                         const isActive = baseUnitPrice === tier.price;
+
                         return (
                           <div
                             key={index}
@@ -878,13 +1098,17 @@ const ProductDetails = () => {
                             <p className="text-[10px] text-gray-500 mb-1">
                               {tier.minQty}+ units
                             </p>
+
                             <p
                               className={`text-sm font-bold leading-tight ${
-                                isActive ? "text-indigo-700" : "text-gray-800"
+                                isActive
+                                  ? "text-indigo-700"
+                                  : "text-gray-800"
                               }`}
                             >
                               ₹{tier.price}
                             </p>
+
                             <p className="text-[9px] text-gray-400 mt-1">
                               / unit
                             </p>
@@ -901,40 +1125,35 @@ const ProductDetails = () => {
                     <p className="text-sm font-medium text-gray-700">
                       Select Quantity
                     </p>
+
                     <span className="text-xs sm:text-sm font-bold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full">
                       {quantity} units
                     </span>
                   </div>
 
-                  <div className="mb-3 sm:mb-4">
-                    <input
-                      type="number"
-                      min="1"
-                      max={Math.max(1, maxStock)}
-                      value={quantity}
-                      disabled={isOutOfStock}
-                      onChange={(e) => handleQuantityChange(e.target.value)}
-                      className="w-full border-2 border-gray-200 focus:border-indigo-500 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-semibold text-center outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed"
-                      placeholder="Enter quantity"
-                    />
-                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max={Math.max(1, maxStock)}
+                    value={quantity}
+                    disabled={isOutOfStock}
+                    onChange={(e) => handleQuantityChange(e.target.value)}
+                    className="w-full border-2 border-gray-200 focus:border-indigo-500 rounded-xl px-3 py-2.5 sm:px-4 sm:py-3 text-base sm:text-lg font-semibold text-center outline-none transition disabled:bg-gray-100 disabled:cursor-not-allowed"
+                    placeholder="Enter quantity"
+                  />
 
                   {!isOutOfStock && (
                     <>
-                      <div className="mb-3 sm:mb-4">
-                        <input
-                          type="range"
-                          min="1"
-                          max={Math.max(1, maxStock)}
-                          value={quantity}
-                          onChange={(e) =>
-                            handleQuantityChange(e.target.value)
-                          }
-                          className="w-full h-2 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                        />
-                      </div>
+                      <input
+                        type="range"
+                        min="1"
+                        max={Math.max(1, maxStock)}
+                        value={quantity}
+                        onChange={(e) => handleQuantityChange(e.target.value)}
+                        className="w-full h-2 mt-3 bg-indigo-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                      />
 
-                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      <div className="flex flex-wrap gap-1.5 sm:gap-2 mt-3">
                         {quickQtys.map((q) => (
                           <button
                             key={q}
@@ -967,6 +1186,7 @@ const ProductDetails = () => {
                       <span>
                         Original (₹{originalUnitPrice} × {quantity})
                       </span>
+
                       <span className="line-through">
                         ₹{totalOriginalPrice.toLocaleString()}
                       </span>
@@ -978,6 +1198,7 @@ const ProductDetails = () => {
                       {hasDiscount ? "After discount" : "Subtotal"} (₹
                       {unitPrice} × {quantity})
                     </span>
+
                     <span className="font-medium">
                       ₹{totalPrice.toLocaleString()}
                     </span>
@@ -986,8 +1207,10 @@ const ProductDetails = () => {
                   {hasDiscount && totalSavings > 0 && (
                     <div className="flex justify-between items-center text-xs sm:text-sm text-emerald-700 font-semibold">
                       <span className="flex items-center gap-1">
-                        <Tag size={13} /> You save ({discountPercent}% OFF)
+                        <Tag size={13} />
+                        You save ({discountPercent}% OFF)
                       </span>
+
                       <span>− ₹{totalSavings.toLocaleString()}</span>
                     </div>
                   )}
@@ -995,8 +1218,10 @@ const ProductDetails = () => {
                   {hasGst && (
                     <div className="flex justify-between items-center text-xs sm:text-sm text-indigo-700">
                       <span className="flex items-center gap-1">
-                        <Percent size={13} /> GST ({gstPercent}%)
+                        <Percent size={13} />
+                        GST ({gstPercent}%)
                       </span>
+
                       <span className="font-medium">
                         + ₹{gstAmount.toLocaleString()}
                       </span>
@@ -1005,15 +1230,19 @@ const ProductDetails = () => {
 
                   <div className="flex justify-between items-center text-xs sm:text-sm text-gray-600">
                     <span>Delivery Charge</span>
+
                     <span className="font-medium">
-                      {deliveryCharge === 0 ? "FREE" : `+ ₹${deliveryCharge}`}
+                      {deliveryCharge === 0
+                        ? "FREE"
+                        : `+ ₹${deliveryCharge}`}
                     </span>
                   </div>
 
                   <div className="border-t border-indigo-200/60 pt-2 flex justify-between items-center">
                     <span className="text-gray-800 font-bold text-sm sm:text-base">
-                      Grand Total
+                      GrandTotal
                     </span>
+
                     <span className="text-xl sm:text-2xl font-extrabold text-indigo-700">
                       ₹{grandTotal.toLocaleString()}
                     </span>
@@ -1026,6 +1255,7 @@ const ProductDetails = () => {
                     <h3 className="font-semibold text-gray-800 mb-1.5 sm:mb-2 text-base sm:text-lg">
                       Description
                     </h3>
+
                     <p className="text-gray-600 leading-relaxed text-sm sm:text-base whitespace-pre-line">
                       {product.description}
                     </p>
@@ -1043,6 +1273,7 @@ const ProductDetails = () => {
                   <ShoppingCart size={18} />
                   {isOutOfStock ? "Out of Stock" : "Add to Cart"}
                 </button>
+
                 <button
                   onClick={() => navigate("/cart")}
                   className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white py-3 sm:py-3.5 md:py-4 rounded-xl font-semibold text-sm sm:text-base md:text-lg transition shadow-lg"
@@ -1053,6 +1284,293 @@ const ProductDetails = () => {
             </div>
           </div>
         </div>
+
+        {/* =====================================================
+            FULL SCREEN IMAGE VIEWER
+        ===================================================== */}
+        {viewerOpen && (
+          <div
+            className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-md flex flex-col"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                closeImageViewer();
+              }
+            }}
+            onWheel={(e) => {
+              e.preventDefault();
+
+              if (e.deltaY < 0) {
+                setZoom((prev) =>
+                  Math.min(MAX_ZOOM, +(prev + 0.2).toFixed(2))
+                );
+              } else {
+                setZoom((prev) => {
+                  const next = Math.max(
+                    MIN_ZOOM,
+                    +(prev - 0.2).toFixed(2)
+                  );
+
+                  if (next === 1) {
+                    setPan({ x: 0, y: 0 });
+                  }
+
+                  return next;
+                });
+              }
+            }}
+          >
+            {/* VIEWER HEADER */}
+            <div className="flex items-center justify-between px-3 sm:px-5 py-3 bg-black/50 text-white z-10">
+              <div className="flex items-center gap-2 min-w-0">
+                <Package size={18} className="text-indigo-400 flex-shrink-0" />
+
+                <span className="text-sm font-semibold truncate">
+                  {product.name}
+                </span>
+
+                <span className="text-xs text-gray-400 ml-2">
+                  {selectedImage + 1}/{imagesList.length}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={closeImageViewer}
+                className="p-2.5 bg-white/10 hover:bg-red-500 rounded-full transition text-white"
+                title="Close viewer (Esc)"
+              >
+                <X size={23} />
+              </button>
+            </div>
+
+            {/* IMAGE AREA */}
+            <div className="flex-1 relative overflow-hidden flex items-center justify-center select-none">
+
+              {/* PREVIOUS IMAGE */}
+              {imagesList.length > 1 && (
+                <button
+                  type="button"
+                  onClick={previousViewerImage}
+                  className="absolute left-2 sm:left-5 z-20 p-2 sm:p-3 bg-white/10 hover:bg-white/25 text-white rounded-full backdrop-blur-md transition"
+                  title="Previous image"
+                >
+                  <ChevronLeft size={28} />
+                </button>
+              )}
+
+              {/* VIEWER IMAGE */}
+              <img
+                src={imagesList[selectedImage]}
+                alt={`${product.name} - ${selectedImage + 1}`}
+                draggable={false}
+                onMouseDown={(e) => {
+                  if (zoom <= 1) return;
+
+                  e.preventDefault();
+                  setDragging(true);
+
+                  dragStartRef.current = {
+                    x: e.clientX,
+                    y: e.clientY,
+                  };
+
+                  panStartRef.current = {
+                    x: pan.x,
+                    y: pan.y,
+                  };
+                }}
+                onMouseMove={(e) => {
+                  if (!dragging) return;
+
+                  setPan({
+                    x:
+                      panStartRef.current.x +
+                      (e.clientX - dragStartRef.current.x),
+                    y:
+                      panStartRef.current.y +
+                      (e.clientY - dragStartRef.current.y),
+                  });
+                }}
+                onMouseUp={() => setDragging(false)}
+                onMouseLeave={() => setDragging(false)}
+                onTouchStart={(e) => {
+                  if (e.touches.length === 1 && zoom > 1) {
+                    dragStartRef.current = {
+                      x: e.touches[0].clientX,
+                      y: e.touches[0].clientY,
+                    };
+
+                    panStartRef.current = {
+                      x: pan.x,
+                      y: pan.y,
+                    };
+                  }
+
+                  if (e.touches.length === 2) {
+                    pinchStartRef.current = {
+                      distance: getTouchDistance(e.touches),
+                      zoom,
+                    };
+                  }
+                }}
+                onTouchMove={(e) => {
+                  // PINCH ZOOM
+                  if (e.touches.length === 2) {
+                    e.preventDefault();
+
+                    const currentDistance = getTouchDistance(e.touches);
+                    const initialDistance = pinchStartRef.current.distance;
+                    const initialZoom = pinchStartRef.current.zoom;
+
+                    if (initialDistance > 0) {
+                      const nextZoom =
+                        initialZoom *
+                        (currentDistance / initialDistance);
+
+                      setZoom(
+                        Math.min(
+                          MAX_ZOOM,
+                          Math.max(MIN_ZOOM, nextZoom)
+                        )
+                      );
+                    }
+                  }
+
+                  // DRAG WHEN ZOOMED
+                  if (e.touches.length === 1 && zoom > 1) {
+                    e.preventDefault();
+
+                    setPan({
+                      x:
+                        panStartRef.current.x +
+                        (e.touches[0].clientX -
+                          dragStartRef.current.x),
+                      y:
+                        panStartRef.current.y +
+                        (e.touches[0].clientY -
+                          dragStartRef.current.y),
+                    });
+                  }
+                }}
+                onTouchEnd={() => {
+                  if (zoom <= 1) {
+                    setPan({ x: 0, y: 0 });
+                  }
+                }}
+                className={`max-w-[95vw] max-h-[80vh] sm:max-h-[85vh] object-contain transition-transform duration-100 ${
+                  zoom > 1
+                    ? "cursor-grab active:cursor-grabbing"
+                    : "cursor-zoom-in"
+                }`}
+                style={{
+                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+                  touchAction: "none",
+                }}
+                onError={(e) => {
+                  e.target.src = "/no-image.png";
+                }}
+              />
+
+              {/* NEXT IMAGE */}
+              {imagesList.length > 1 && (
+                <button
+                  type="button"
+                  onClick={nextViewerImage}
+                  className="absolute right-2 sm:right-5 z-20 p-2 sm:p-3 bg-white/10 hover:bg-white/25 text-white rounded-full backdrop-blur-md transition"
+                  title="Next image"
+                >
+                  <ChevronRight size={28} />
+                </button>
+              )}
+
+              {/* ZOOM BADGE */}
+              <div className="absolute top-4 right-4 bg-black/60 text-white px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md">
+                {Math.round(zoom * 100)}%
+              </div>
+            </div>
+
+            {/* VIEWER CONTROLS */}
+            <div className="bg-black/70 border-t border-white/10 px-3 sm:px-5 py-3 sm:py-4">
+              <div className="flex items-center justify-center gap-2 sm:gap-4">
+
+                {/* ZOOM OUT */}
+                <button
+                  type="button"
+                  onClick={zoomOut}
+                  disabled={zoom <= MIN_ZOOM}
+                  className="p-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl transition"
+                  title="Zoom out"
+                >
+                  <ZoomOut size={20} />
+                </button>
+
+                {/* ZOOM VALUE */}
+                <span className="text-white text-sm font-semibold min-w-[55px] text-center">
+                  {Math.round(zoom * 100)}%
+                </span>
+
+                {/* ZOOM IN */}
+                <button
+                  type="button"
+                  onClick={zoomIn}
+                  disabled={zoom >= MAX_ZOOM}
+                  className="p-3 bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl transition"
+                  title="Zoom in"
+                >
+                  <ZoomIn size={20} />
+                </button>
+
+                {/* RESET */}
+                <button
+                  type="button"
+                  onClick={resetZoom}
+                  className="p-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl transition"
+                  title="Reset zoom"
+                >
+                  <RotateCcw size={20} />
+                </button>
+
+                {/* CLOSE */}
+                <button
+                  type="button"
+                  onClick={closeImageViewer}
+                  className="p-3 bg-red-500 hover:bg-red-600 text-white rounded-xl transition"
+                  title="Close image"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* VIEWER THUMBNAILS */}
+              {imagesList.length > 1 && (
+                <div className="flex justify-center gap-2 mt-3 overflow-x-auto pb-1">
+                  {imagesList.map((img, index) => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => changeViewerImage(index)}
+                      className={`flex-shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden border-2 transition ${
+                        selectedImage === index
+                          ? "border-indigo-500 opacity-100"
+                          : "border-white/20 opacity-50 hover:opacity-100"
+                      }`}
+                    >
+                      <img
+                        src={img}
+                        alt={`Thumbnail ${index + 1}`}
+                        className="w-full h-full object-contain bg-white"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-center text-[10px] sm:text-xs text-gray-400 mt-2">
+                Scroll to zoom • Drag to move • Pinch on mobile • ESC to close
+              </p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
