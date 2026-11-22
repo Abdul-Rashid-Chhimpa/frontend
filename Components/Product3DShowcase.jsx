@@ -1,646 +1,956 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
-import ProductCard from "./Card";
-import Nav from "./Nav";
-import RandomImg from "./RandomImg";
-import Footer from "./Footer";
-import OnboardingGuide from "./OnboardingGuide";
+import { useParams, useNavigate } from "react-router-dom";
 import {
-  ChevronLeft,
-  ChevronRight,
+  Rotate3d,
+  Maximize2,
+  X,
+  ZoomIn,
+  ZoomOut,
+  Play,
+  Pause,
   ShieldCheck,
-  Zap,
   Award,
   Wrench,
-  ArrowRight,
+  Factory,
+  ShoppingCart,
+  Zap,
+  ChevronLeft,
+  ChevronRight,
+  Sun,
+  Moon,
+  Share2,
+  Heart,
+  Layers,
   Sparkles,
-  ShoppingBag,
-  Rotate3d,
-  Building2,
-  CheckCircle2,
-  X,
+  Package,
+  Tag,
 } from "lucide-react";
+import Nav from "./Nav";
+import Footer from "./Footer";
+import { toast } from "react-hot-toast";
 
 const API_BASE = "https://backend-3-axez.onrender.com";
 
-const COLOR = {
-  INK: "#15181C",
-  MUTED: "#6B7280",
-  BORDER: "#E6E8EB",
-  SURFACE: "#FFFFFF",
-  BG_LIGHT: "#F8FAFC",
-  AMBER: "#F0A420",
-  AMBER_DARK: "#C97F0F",
-  STEEL: "#2B4A5E",
-  STEEL_DARK: "#17303E",
+const AMBER = "#F0A420";
+const STEEL = "#2B4A5E";
+
+const getSellingPrice = (product) => {
+  if (!product) return null;
+  const firstTier =
+    Array.isArray(product.pricing) && product.pricing.length > 0
+      ? product.pricing[0]?.price
+      : undefined;
+
+  for (const val of [
+    product.discountPrice,
+    product.sellingPrice,
+    firstTier,
+    product.price,
+    product.mrp,
+  ]) {
+    if (val !== undefined && val !== null && val !== "") {
+      const num = Number(val);
+      if (!Number.isNaN(num) && num >= 0) return num;
+    }
+  }
+  return null;
 };
 
-const defaultSlideData = [
-  {
-    _id: "1",
-    image: "01.jpeg",
-    tagline: "Heavy-Duty Series",
-    title: "Special Combination Plier",
-    specs: "8″ 205mm · Drop Forged · Induction Hardened",
-  },
-  {
-    _id: "2",
-    image: "02.jpeg",
-    tagline: "Ergonomic Comfort Grip",
-    title: "Precision Edge Cutters",
-    specs: "High-Leverage Design · Matt Polished",
-  },
-  {
-    _id: "3",
-    image: "03.jpg",
-    tagline: "Industrial Grade Tools",
-    title: "Professional Utility Sets",
-    specs: "Special Grade Steel · Long Service Life",
-  },
-  {
-    _id: "4",
-    image: "04.jpg",
-    tagline: "Built For Craftsmen",
-    title: "Multi-Purpose Hand Tools",
-    specs: "Tempered Steel · Maximum Control",
-  },
-  {
-    _id: "5",
-    image: "05.jpg",
-    tagline: "Next-Gen Performance",
-    title: "Pedwal Master Collection",
-    specs: "Tested & Certified · Premium Finish",
-  },
-];
-
-const companyHighlights = [
-  {
-    title: "Induction Hardened Edges",
-    desc: "Precision heat-treated cutting jaws for effortless wire & bolt cutting.",
-  },
-  {
-    title: "Anti-Rust Finish",
-    desc: "Satin & mirror-chrome coating built to resist workshop oil and corrosion.",
-  },
-  {
-    title: "Ergonomic Sleeve Grip",
-    desc: "Shock-absorbing insulated handles reduce hand fatigue during long shifts.",
-  },
-  {
-    title: "Strict Quality Testing",
-    desc: "Every batch undergoes hardness and load testing before dispatch.",
-  },
-];
-
-const getImageUrl = (img) => {
-  if (!img) return "";
-  if (img.startsWith("http") || img.startsWith("data:")) return img;
-  if (img.startsWith("/uploads/")) return `${API_BASE}${img}`;
-  return img;
+const getMrpPrice = (product) => {
+  if (!product) return null;
+  for (const val of [product.price, product.mrp]) {
+    if (val !== undefined && val !== null && val !== "") {
+      const num = Number(val);
+      if (!Number.isNaN(num) && num > 0) return num;
+    }
+  }
+  return null;
 };
 
-const handleImgError = (e) => {
-  e.currentTarget.onerror = null;
-  e.currentTarget.src = "https://placehold.co/600x450?text=Image+Not+Found";
-};
-
-const Home = () => {
+const Product3DShowcase = () => {
+  const { id } = useParams();
   const navigate = useNavigate();
-  const [slideData, setSlideData] = useState(defaultSlideData);
-  const [active, setActive] = useState(0);
-  const [paused, setPaused] = useState(false);
-  const [companyModalOpen, setCompanyModalOpen] = useState(false);
+
+  const [item, setItem] = useState(null);
+  const [relatedProducts, setRelatedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isDark, setIsDark] = useState(true);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+
+  // Interactive 3D / 360 States
+  const [selectedIdx, setSelectedIdx] = useState(0);
+  const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0 });
+  const [is360Mode, setIs360Mode] = useState(false);
+  const [rotationAngle, setRotationAngle] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [autoSpin, setAutoSpin] = useState(false);
+  const [fullScreenOpen, setFullScreenOpen] = useState(false);
+  const [zoom, setZoom] = useState(1);
+
+  const cardRef = useRef(null);
 
   useEffect(() => {
-    const fetchBanners = async () => {
+    let activeRequest = true;
+
+    const fetchProductDetails = async () => {
       try {
-        const { data } = await axios.get(`${API_BASE}/api/banners`, {
-          timeout: 60000,
-        });
+        setLoading(true);
+        setSelectedIdx(0);
+        setRotationAngle(0);
+        setIs360Mode(false);
+        setAutoSpin(false);
 
-        const list = Array.isArray(data) ? data : data?.banners;
+        const listRes = await axios.get(`${API_BASE}/api/products`);
+        const allProductsList = Array.isArray(listRes.data?.products)
+          ? listRes.data.products
+          : [];
 
-        if (Array.isArray(list) && list.length > 0) {
-          setSlideData(list);
-          setActive(0);
+        let productData = null;
+
+        if (id) {
+          productData =
+            allProductsList.find((p) => String(p._id) === String(id)) || null;
+
+          if (!productData) {
+            try {
+              const singleRes = await axios.get(`${API_BASE}/api/products/${id}`);
+              productData = singleRes.data?.product || null;
+            } catch {
+              // If direct ID lookup fails, fall back to first available product
+              productData = allProductsList[0] || null;
+            }
+          }
+        } else if (allProductsList.length > 0) {
+          // Prioritize a 3D/360-enabled product first when exploring without an ID
+          productData =
+            allProductsList.find(
+              (p) => p.is360Enabled || (Array.isArray(p.frames360) && p.frames360.length > 0)
+            ) || allProductsList[0];
         }
-      } catch (error) {
-        console.log("Using default showcase banners:", error.message);
+
+        if (!activeRequest) return;
+
+        if (productData) {
+          setItem(productData);
+
+          const others = allProductsList.filter(
+            (p) => String(p._id) !== String(productData._id)
+          );
+          const sameCategory = others.filter(
+            (p) =>
+              p.category &&
+              productData.category &&
+              p.category.toLowerCase() === productData.category.toLowerCase()
+          );
+
+          const relatedPool = sameCategory.length > 0 ? sameCategory : others;
+          setRelatedProducts(relatedPool.slice(0, 3));
+        } else {
+          setItem(null);
+          setRelatedProducts([]);
+        }
+      } catch (err) {
+        console.error("Failed to fetch product details:", err);
+        if (activeRequest) {
+          toast.error("Error loading product showcase.");
+          setItem(null);
+        }
+      } finally {
+        if (activeRequest) {
+          setLoading(false);
+        }
       }
     };
-    fetchBanners();
-  }, []);
 
-  useEffect(() => {
-    if (slideData.length <= 1 || paused) return;
-    const timer = setInterval(() => {
-      setActive((prev) => (prev + 1) % slideData.length);
-    }, 4800);
-    return () => clearInterval(timer);
-  }, [slideData.length, paused]);
-
-  useEffect(() => {
-    if (!companyModalOpen) return;
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setCompanyModalOpen(false);
-      }
+    fetchProductDetails();
+    return () => {
+      activeRequest = false;
     };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [companyModalOpen]);
+  }, [id]);
 
-  const goPrev = () => {
-    setActive((prev) => (prev - 1 + slideData.length) % slideData.length);
+  const allFrames = useMemo(() => {
+    if (Array.isArray(item?.frames360) && item.frames360.length > 0) {
+      return item.frames360;
+    }
+    if (Array.isArray(item?.images) && item.images.length > 0) {
+      return item.images;
+    }
+    return [
+      "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?auto=format&fit=crop&w=900&q=80",
+    ];
+  }, [item]);
+
+  // Auto-rotate 360 effect
+  useEffect(() => {
+    if (!autoSpin) return;
+    const interval = setInterval(() => {
+      setRotationAngle((prev) => (prev + 4) % 360);
+      if (allFrames.length > 1) {
+        setSelectedIdx((prev) => (prev + 1) % allFrames.length);
+      }
+    }, 80);
+    return () => clearInterval(interval);
+  }, [autoSpin, allFrames.length]);
+
+  const handleMouseMove = (e) => {
+    if (is360Mode || !cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({
+      rotateX: -y * 22,
+      rotateY: x * 22,
+    });
   };
 
-  const goNext = () => {
-    setActive((prev) => (prev + 1) % slideData.length);
+  const handleMouseLeave = () => {
+    setTilt({ rotateX: 0, rotateY: 0 });
+    setIsDragging(false);
   };
 
-  const current = slideData[active] || slideData[0];
+  const handleDragStart = (clientX) => {
+    setIsDragging(true);
+    setAutoSpin(false);
+    setStartX(clientX);
+  };
 
-  const handleBuyNow = () => {
-    if (current?.productId) {
-      navigate(`/product/${current.productId}`);
-    } else if (current?._id && current._id.length > 10) {
-      navigate(`/product/${current._id}`);
-    } else {
-      const el = document.getElementById("products-section");
-      if (el) el.scrollIntoView({ behavior: "smooth" });
+  const handleDragMove = (clientX) => {
+    if (!isDragging) return;
+    const delta = clientX - startX;
+    setStartX(clientX);
+
+    const newAngle = (rotationAngle + delta * 0.8 + 360) % 360;
+    setRotationAngle(newAngle);
+
+    if (allFrames.length > 1 && Math.abs(delta) > 6) {
+      const step = delta > 0 ? 1 : -1;
+      setSelectedIdx(
+        (prev) => (prev + step + allFrames.length) % allFrames.length
+      );
     }
   };
 
-  return (
-    <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
-      {/* ========== FIRST TIME USER GUIDE ========== */}
-      <OnboardingGuide />
+  const handleDragEnd = () => {
+    setIsDragging(false);
+  };
 
-      {/* ========== FIXED NAVBAR ========== */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#E6E8EB] shadow-sm">
-        <Nav />
-      </header>
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    toast.success("Product link copied to clipboard!");
+  };
 
-      {/* ========== SCROLLABLE CONTENT BELOW FIXED NAVBAR ========== */}
-      <div className="pt-16 sm:pt-20">
-        <RandomImg />
+  const handleAddToCart = () => {
+    toast.success(`${item?.name} added to cart successfully!`);
+  };
 
-        {/* ========== RUNNING MARQUEE ========== */}
-        <div
-          className="w-full overflow-hidden py-3.5 sm:py-4 border-y shadow-inner relative z-10"
-          style={{
-            background: COLOR.STEEL_DARK,
-            borderColor: "rgba(255,255,255,0.1)",
-          }}
+  const handleBuyNow = () => {
+    navigate("/cart");
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center font-bold text-lg">
+        Loading 3D & 360° Studio Showcase...
+      </div>
+    );
+  }
+
+  if (!item) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center gap-4 px-4 text-center">
+        <h2 className="text-2xl font-bold">Product Not Found</h2>
+        <p className="text-sm text-slate-400 max-w-md">
+          No products are currently available in the 3D showcase.
+        </p>
+        <button
+          type="button"
+          onClick={() => navigate("/")}
+          className="px-6 py-3 rounded-xl bg-amber-400 text-slate-950 font-bold cursor-pointer"
         >
-          <div className="flex w-max animate-ticker">
-            {[1, 2].map((groupKey) => (
-              <div
-                key={groupKey}
-                className="flex items-center whitespace-nowrap gap-6 sm:gap-10 px-4"
-              >
-                <span className="flex items-center gap-3 text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-white">
-                  <Sparkles size={18} style={{ color: COLOR.AMBER }} />
-                  Welcome to{" "}
-                  <span style={{ color: COLOR.AMBER }}>Pedwal Life Creation</span>
-                </span>
-                <span className="text-white/30">•</span>
-                <span className="text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-white">
-                  Engineered for Excellence
-                </span>
-                <span className="text-white/30">•</span>
-                <span className="text-sm sm:text-base md:text-lg font-bold uppercase tracking-wider text-white">
-                  Premium Industrial Grade Tools
-                </span>
-                <span className="text-white/30">•</span>
-              </div>
-            ))}
-          </div>
+          Back to Home
+        </button>
+      </div>
+    );
+  }
+
+  const sellingPrice = getSellingPrice(item);
+  const mrpPrice = getMrpPrice(item);
+  const hasDiscount =
+    sellingPrice !== null && mrpPrice !== null && mrpPrice > sellingPrice;
+  const savedAmount = hasDiscount ? Math.round(mrpPrice - sellingPrice) : 0;
+  const computedDiscountPct =
+    typeof item.discountPercent === "number" && item.discountPercent > 0
+      ? item.discountPercent
+      : hasDiscount
+      ? Math.round(((mrpPrice - sellingPrice) / mrpPrice) * 100)
+      : 0;
+
+  const stockCount = typeof item.stock === "number" ? item.stock : null;
+  const inStock = stockCount === null ? true : stockCount > 0;
+
+  return (
+    <div
+      className={`min-h-screen font-sans transition-colors duration-500 overflow-x-hidden ${
+        isDark ? "bg-[#0b0f17] text-slate-100" : "bg-[#F8FAFC] text-slate-900"
+      }`}
+    >
+      <Nav />
+
+      {/* ================= HEADER CONTROLS ================= */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex items-center justify-between">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-400/10 text-amber-400 border border-amber-400/20 flex items-center gap-1">
+            <Sparkles size={12} /> Immersive 3D & 360° Studio
+          </span>
+          {item.category && (
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10 text-slate-300">
+              {item.category}
+            </span>
+          )}
         </div>
 
-        {/* ========== HERO SHOWCASE ========== */}
-        <section className="relative w-full overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#FFF9F0] via-[#F8FAFC] to-[#F0F4F8] pointer-events-none" />
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setIsWishlisted(!isWishlisted)}
+            className={`p-2.5 rounded-xl border transition cursor-pointer ${
+              isWishlisted
+                ? "bg-red-500/20 border-red-500/40 text-red-400"
+                : isDark
+                ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+            title="Wishlist"
+          >
+            <Heart size={18} fill={isWishlisted ? "currentColor" : "none"} />
+          </button>
 
-          <div
-            className="absolute top-16 right-8 w-80 h-80 rounded-full blur-[110px] opacity-25 pointer-events-none"
-            style={{ background: COLOR.AMBER }}
-          />
-          <div
-            className="absolute bottom-20 left-6 w-64 h-64 rounded-full blur-[100px] opacity-15 pointer-events-none"
-            style={{ background: COLOR.STEEL }}
-          />
+          <button
+            type="button"
+            onClick={handleShare}
+            className={`p-2.5 rounded-xl border transition cursor-pointer ${
+              isDark
+                ? "bg-white/5 border-white/10 text-slate-300 hover:bg-white/10"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+            title="Share Product"
+          >
+            <Share2 size={18} />
+          </button>
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-20">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-              {/* ===== LEFT CONTENT ===== */}
-              <div className="lg:col-span-5 order-2 lg:order-1">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border shadow-sm mb-5">
-                  <span
-                    className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ background: COLOR.AMBER }}
-                  />
-                  <span
-                    className="text-xs font-semibold tracking-wide"
-                    style={{ color: COLOR.STEEL }}
-                  >
-                    {current?.tagline || "Premium Series"}
+          <button
+            type="button"
+            onClick={() => setIsDark(!isDark)}
+            className={`p-2.5 rounded-xl border transition cursor-pointer ${
+              isDark
+                ? "bg-white/5 border-white/10 text-amber-400 hover:bg-white/10"
+                : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+            }`}
+            title="Toggle Theme"
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+      </div>
+
+      {/* ================= HERO PRODUCT 3D & 360 SECTION ================= */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          {/* LEFT: 3D & 360 Interactive Stage */}
+          <div className="lg:col-span-7 flex flex-col gap-4">
+            <div
+              ref={cardRef}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              onMouseDown={(e) => is360Mode && handleDragStart(e.clientX)}
+              onMouseMoveCapture={(e) => is360Mode && handleDragMove(e.clientX)}
+              onMouseUp={handleDragEnd}
+              onTouchStart={(e) =>
+                is360Mode && handleDragStart(e.touches[0].clientX)
+              }
+              onTouchMove={(e) =>
+                is360Mode && handleDragMove(e.touches[0].clientX)
+              }
+              onTouchEnd={handleDragEnd}
+              className="relative h-[420px] sm:h-[500px] rounded-3xl bg-gradient-to-br from-slate-900 via-[#162736] to-slate-950 shadow-2xl overflow-hidden flex items-center justify-center select-none border border-slate-700/60 group"
+              style={{ perspective: "1200px" }}
+            >
+              <div
+                className="absolute w-80 h-80 rounded-full blur-3xl opacity-30 pointer-events-none transition-transform duration-500 group-hover:scale-125"
+                style={{ background: AMBER }}
+              />
+
+              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 flex-wrap">
+                <span
+                  className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider text-slate-950 shadow"
+                  style={{ background: AMBER }}
+                >
+                  {is360Mode ? "360° Interactive Spin" : "3D Hover View"}
+                </span>
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-white/10 text-white backdrop-blur-md border border-white/15">
+                  {Math.round(rotationAngle)}°
+                </span>
+                {Array.isArray(item.frames360) && item.frames360.length > 0 && (
+                  <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                    {item.frames360.length} 360° Frames
                   </span>
-                </div>
+                )}
+              </div>
 
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] mb-4">
-                  {current?.title || "Featured Tool"}
-                </h1>
-
-                <p
-                  className="text-sm sm:text-base max-w-md mb-6"
-                  style={{ color: COLOR.MUTED }}
+              <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIs360Mode(!is360Mode);
+                    setTilt({ rotateX: 0, rotateY: 0 });
+                  }}
+                  className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer shadow-lg ${
+                    is360Mode
+                      ? "bg-amber-400 text-slate-950"
+                      : "bg-white/15 text-white hover:bg-white/25 backdrop-blur-md"
+                  }`}
                 >
-                  {current?.specs ||
-                    "High quality industrial tools built for professionals"}
-                </p>
+                  <Rotate3d size={16} />
+                  {is360Mode ? "Exit 360°" : "360° View"}
+                </button>
 
-                {/* Feature pills */}
-                <div className="flex flex-wrap gap-2.5 mb-8">
-                  <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <Wrench size={13} />
-                    Drop Forged
-                  </div>
-                  <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <Zap size={13} />
-                    Hardened Edge
-                  </div>
-                  <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <ShieldCheck size={13} />
-                    Quality Assured
-                  </div>
-                </div>
-
-                {/* ACTION BUTTONS (Buy Now + Explore Product + Company Details Popup) */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    onClick={handleBuyNow}
-                    className="group px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg flex items-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
-                    style={{
-                      background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, ${COLOR.AMBER_DARK} 100%)`,
-                    }}
-                  >
-                    <ShoppingBag
-                      size={18}
-                      className="group-hover:scale-110 transition-transform"
-                    />
-                    <span>Buy Now</span>
-                    <ArrowRight
-                      size={16}
-                      className="group-hover:translate-x-1 transition-transform"
-                    />
-                  </button>
-
-                  <button
-                    onClick={() => navigate("/product-3d-showcase")}
-                    className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <Rotate3d size={17} style={{ color: COLOR.AMBER }} />
-                    <span>Explore Product</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setCompanyModalOpen(true)}
-                    className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <Building2 size={17} style={{ color: COLOR.STEEL }} />
-                    <span>Company Details</span>
-                  </button>
-                </div>
-
-                {/* Thumbnail strip */}
-                <div
-                  className="mt-10 pt-6 border-t flex flex-wrap items-center gap-2.5"
-                  style={{ borderColor: COLOR.BORDER }}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFullScreenOpen(true);
+                    setZoom(1);
+                  }}
+                  title="Full Screen 360° View"
+                  className="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 text-white backdrop-blur-md transition cursor-pointer"
                 >
-                  {slideData.map((item, idx) => (
-                    <button
-                      key={item._id || item.id || idx}
-                      onClick={() => setActive(idx)}
-                      aria-label={`Show slide ${idx + 1}`}
-                      className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
-                        active === idx
-                          ? "shadow-md scale-105 -translate-y-0.5"
-                          : "opacity-55 hover:opacity-100 hover:-translate-y-0.5"
-                      }`}
-                      style={{
-                        borderColor: active === idx ? COLOR.AMBER : COLOR.BORDER,
-                        width: "52px",
-                        height: "52px",
-                      }}
+                  <Maximize2 size={16} />
+                </button>
+              </div>
+
+              <div
+                onClick={() => !is360Mode && setFullScreenOpen(true)}
+                className={`relative z-10 w-[78%] h-[78%] flex items-center justify-center transition-transform ${
+                  isDragging
+                    ? "duration-0 cursor-grabbing"
+                    : "duration-200 ease-out cursor-zoom-in"
+                }`}
+                style={{
+                  transform: is360Mode
+                    ? `rotateY(${rotationAngle}deg) scale(1.04)`
+                    : `rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg) scale(1.03)`,
+                  transformStyle: "preserve-3d",
+                }}
+              >
+                <img
+                  src={allFrames[selectedIdx]}
+                  alt={item.name}
+                  draggable={false}
+                  className="max-h-full max-w-full object-contain rounded-2xl drop-shadow-[0_25px_35px_rgba(0,0,0,0.65)]"
+                />
+              </div>
+
+              <div className="absolute bottom-4 inset-x-4 z-20 flex items-center justify-between bg-black/55 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-white/10 text-white text-xs">
+                <span className="text-slate-300">
+                  {is360Mode
+                    ? "↔ Drag left or right to rotate 360°"
+                    : "✨ Move cursor for 3D tilt • Click image for Full 360°"}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIs360Mode(true);
+                    setAutoSpin(!autoSpin);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white/15 hover:bg-white/25 font-semibold transition cursor-pointer"
+                >
+                  {autoSpin ? <Pause size={14} /> : <Play size={14} />}
+                  {autoSpin ? "Pause" : "Auto Spin"}
+                </button>
+              </div>
+            </div>
+
+            {/* Thumbnail Strip */}
+            <div className="flex items-center gap-3 overflow-x-auto pb-1">
+              {allFrames.map((img, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setSelectedIdx(idx);
+                    setAutoSpin(false);
+                  }}
+                  className={`relative w-20 h-20 rounded-2xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                    selectedIdx === idx
+                      ? "border-amber-500 scale-105 shadow-md"
+                      : "border-transparent opacity-70 hover:opacity-100"
+                  }`}
+                >
+                  <img
+                    src={img}
+                    alt={`Angle ${idx + 1}`}
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* RIGHT: Product Details & Purchase Box */}
+          <div className="lg:col-span-5 space-y-6">
+            <div>
+              <div className="flex items-center gap-2 flex-wrap mb-3">
+                <span
+                  className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider"
+                  style={{
+                    background: isDark ? "rgba(240,164,32,0.15)" : "#FEF3C7",
+                    color: AMBER,
+                  }}
+                >
+                  {item.tagline || item.category || "Industrial Grade"}
+                </span>
+                {item.brand && (
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-white/5 border border-white/10 text-slate-300">
+                    {item.brand}
+                  </span>
+                )}
+              </div>
+
+              <h1
+                className={`text-3xl sm:text-4xl font-extrabold leading-tight ${
+                  isDark ? "text-white" : "text-slate-900"
+                }`}
+              >
+                {item.name}
+              </h1>
+            </div>
+
+            {/* Price Block */}
+            <div className="flex items-baseline gap-3 flex-wrap">
+              {sellingPrice !== null ? (
+                <span
+                  className={`text-3xl font-black ${
+                    isDark ? "text-amber-400" : "text-slate-900"
+                  }`}
+                >
+                  ₹{sellingPrice.toLocaleString("en-IN")}
+                </span>
+              ) : (
+                <span className="text-xl font-bold text-amber-400">
+                  Price on Request
+                </span>
+              )}
+
+              {hasDiscount && (
+                <>
+                  <span className="text-lg text-slate-400 line-through">
+                    ₹{mrpPrice.toLocaleString("en-IN")}
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-lg text-xs font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+                    SAVE ₹{savedAmount.toLocaleString("en-IN")}
+                    {computedDiscountPct > 0 ? ` (${computedDiscountPct}% OFF)` : ""}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Stock & Metadata Pills */}
+            <div className="flex items-center gap-2.5 flex-wrap text-xs">
+              <span
+                className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 border ${
+                  inStock
+                    ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                    : "bg-red-500/10 text-red-400 border-red-500/25"
+                }`}
+              >
+                <Package size={14} />
+                {inStock
+                  ? stockCount !== null
+                    ? `In Stock (${stockCount} units)`
+                    : "In Stock"
+                  : "Out of Stock"}
+              </span>
+
+              {item.material && (
+                <span className="px-3 py-1.5 rounded-xl font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5">
+                  <Wrench size={14} className="text-amber-400" />
+                  {item.material}
+                </span>
+              )}
+
+              {item.warranty && (
+                <span className="px-3 py-1.5 rounded-xl font-semibold bg-white/5 border border-white/10 text-slate-300 flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-amber-400" />
+                  {item.warranty}
+                </span>
+              )}
+            </div>
+
+            {/* Description */}
+            {item.description && (
+              <p
+                className={`leading-relaxed text-sm sm:text-base ${
+                  isDark ? "text-slate-300" : "text-slate-600"
+                }`}
+              >
+                {item.description}
+              </p>
+            )}
+
+            {/* Key Product Info Grid */}
+            <div
+              className={`grid grid-cols-2 gap-3 p-4 rounded-2xl border text-xs ${
+                isDark
+                  ? "border-white/10 bg-white/[0.03]"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <div>
+                <span className="text-slate-400 block">Brand</span>
+                <span className="font-bold">{item.brand || "Pedwal"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">Category</span>
+                <span className="font-bold">{item.category || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">Material</span>
+                <span className="font-bold">{item.material || "—"}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block">Warranty</span>
+                <span className="font-bold">{item.warranty || "—"}</span>
+              </div>
+            </div>
+
+            {/* Technical Specs Table */}
+            {Array.isArray(item.specs) &&
+              item.specs.filter((s) => s.label || s.value).length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <Layers size={14} /> Technical Specifications
+                  </h4>
+                  <div
+                    className={`rounded-2xl border overflow-hidden ${
+                      isDark
+                        ? "border-white/10 bg-white/5"
+                        : "border-slate-200 bg-white"
+                    }`}
+                  >
+                    {item.specs
+                      .filter((s) => s.label || s.value)
+                      .map((spec, i) => (
+                        <div
+                          key={i}
+                          className={`flex justify-between px-4 py-2.5 text-xs border-b last:border-0 ${
+                            isDark ? "border-white/5" : "border-slate-100"
+                          }`}
+                        >
+                          <span className="font-semibold text-slate-400">
+                            {spec.label}
+                          </span>
+                          <span
+                            className={`font-bold ${
+                              isDark ? "text-slate-200" : "text-slate-800"
+                            }`}
+                          >
+                            {spec.value}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              )}
+
+            {/* Tiered Pricing */}
+            {Array.isArray(item.pricing) && item.pricing.length > 1 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Tag size={14} /> Bulk / Quantity Pricing
+                </h4>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {item.pricing.map((tier, idx) => (
+                    <div
+                      key={idx}
+                      className="p-3 rounded-xl border border-white/10 bg-white/5 text-xs"
                     >
-                      <img
-                        src={getImageUrl(item.image)}
-                        alt={item.title}
-                        onError={handleImgError}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
+                      <div className="text-slate-400">Qty: {tier.quantity}+</div>
+                      <div className="font-extrabold text-amber-400 mt-0.5">
+                        ₹{Number(tier.price).toLocaleString("en-IN")}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
+            )}
 
-              {/* ===== RIGHT PRODUCT DISPLAY ===== */}
-              <div className="lg:col-span-7 order-1 lg:order-2 flex justify-center">
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={!inStock}
+                className="flex-1 py-3.5 px-6 rounded-2xl font-bold text-white flex items-center justify-center gap-2 shadow-lg hover:opacity-95 active:scale-98 transition cursor-pointer disabled:opacity-50"
+                style={{ background: STEEL }}
+              >
+                <ShoppingCart size={18} />
+                {inStock ? "Add to Cart" : "Out of Stock"}
+              </button>
+              <button
+                type="button"
+                onClick={handleBuyNow}
+                disabled={!inStock}
+                className="flex-1 py-3.5 px-6 rounded-2xl font-bold text-slate-950 flex items-center justify-center gap-2 shadow-lg hover:brightness-105 active:scale-98 transition cursor-pointer disabled:opacity-50"
+                style={{ background: AMBER }}
+              >
+                <Zap size={18} />
+                Buy Now
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ================= RELATED PRODUCTS SECTION ================= */}
+      {relatedProducts.length > 0 && (
+        <section
+          className={`max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 border-t ${
+            isDark ? "border-white/10" : "border-slate-200"
+          }`}
+        >
+          <h3 className="text-xl font-extrabold mb-6">
+            Related Tools & Equipment
+          </h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+            {relatedProducts.map((p) => {
+              const relPrice = getSellingPrice(p);
+              return (
                 <div
-                  onMouseEnter={() => setPaused(true)}
-                  onMouseLeave={() => setPaused(false)}
-                  className="relative w-full max-w-[360px] sm:max-w-[420px] md:max-w-[480px]"
+                  key={p._id}
+                  onClick={() => navigate(`/product-3d-showcase/${p._id}`)}
+                  className={`p-4 rounded-2xl border transition-all duration-300 cursor-pointer hover:-translate-y-1 ${
+                    isDark
+                      ? "bg-white/5 border-white/10 hover:border-amber-400/40"
+                      : "bg-white border-slate-200 shadow-sm"
+                  }`}
                 >
-                  <div
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[85%] rounded-full blur-[60px] opacity-40 pointer-events-none"
-                    style={{ background: "rgba(240, 164, 32, 0.35)" }}
-                  />
-
-                  <div
-                    className="relative aspect-[4/3.3] rounded-[2rem] bg-white border shadow-2xl overflow-hidden flex items-center justify-center p-5 sm:p-7"
-                    style={{ borderColor: COLOR.BORDER }}
-                  >
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{
-                        background:
-                          "radial-gradient(circle at 45% 35%, rgba(240,164,32,0.12), transparent 65%)",
-                      }}
-                    />
-
+                  <div className="h-40 rounded-xl overflow-hidden mb-3 bg-slate-900/40 flex items-center justify-center">
                     <img
-                      key={current?._id || current?.id || active}
-                      src={getImageUrl(current?.image)}
-                      alt={current?.title}
-                      onError={handleImgError}
-                      className="relative z-10 w-full h-full object-contain rounded-2xl animate-hero-fade"
+                      src={p.images?.[0] || p.frames360?.[0]}
+                      alt={p.name}
+                      className="h-full object-contain"
                     />
-
-                    <button
-                      onClick={goPrev}
-                      aria-label="Previous"
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
-                      style={{
-                        background: "rgba(255,255,255,0.92)",
-                        border: `1px solid ${COLOR.BORDER}`,
-                        color: COLOR.INK,
-                      }}
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-
-                    <button
-                      onClick={goNext}
-                      aria-label="Next"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
-                      style={{
-                        background: "rgba(255,255,255,0.92)",
-                        border: `1px solid ${COLOR.BORDER}`,
-                        color: COLOR.INK,
-                      }}
-                    >
-                      <ChevronRight size={20} />
-                    </button>
                   </div>
+                  <h4 className="font-bold text-sm line-clamp-1">{p.name}</h4>
+                  <p className="text-amber-400 font-black text-sm mt-1">
+                    {relPrice !== null
+                      ? `₹${relPrice.toLocaleString("en-IN")}`
+                      : "Price on Request"}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
-                  <div className="flex justify-center gap-2 mt-5 lg:hidden">
-                    {slideData.map((_, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActive(idx)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                          active === idx ? "w-6" : "w-1.5 bg-gray-300"
-                        }`}
-                        style={active === idx ? { background: COLOR.AMBER } : {}}
-                      />
-                    ))}
-                  </div>
+      {/* ================= ANIMATED COMPANY OVERVIEW SECTION ================= */}
+      <section
+        className={`py-16 mt-8 ${
+          isDark ? "bg-slate-900 text-white" : "bg-[#17303E] text-white"
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+            <div className="lg:col-span-6 space-y-5">
+              <span
+                className="px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-widest text-slate-950"
+                style={{ background: AMBER }}
+              >
+                About Pedwal Tools
+              </span>
+              <h2 className="text-3xl sm:text-4xl font-extrabold leading-tight">
+                Precision Forged for Professionals & Builders
+              </h2>
+              <p className="text-slate-300 leading-relaxed text-sm sm:text-base">
+                Pedwal Hand Tools combines high-grade metallurgy with ergonomic
+                engineering. Every wrench, plier, and socket undergoes multi-stage
+                heat treatment and torque testing to withstand India’s toughest
+                industrial and workshop conditions.
+              </p>
+
+              <div className="grid grid-cols-3 gap-4 pt-3">
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
+                    100%
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">Drop-Forged Alloy</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
+                    50K+
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">Tools Delivered</p>
+                </div>
+                <div className="p-4 rounded-2xl bg-white/5 border border-white/10">
+                  <p className="text-2xl sm:text-3xl font-black text-amber-400">
+                    ISO
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">Certified Quality</p>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* ========== FEATURE HIGHLIGHTS ========== */}
-        <section
-          className="w-full py-8 border-y"
-          style={{ background: COLOR.BG_LIGHT, borderColor: COLOR.BORDER }}
-        >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 text-center md:text-left">
+            <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 {
-                  icon: Wrench,
-                  title: "Drop Forged Steel",
-                  note: "Maximum strength structure",
+                  icon: <Factory size={22} />,
+                  title: "In-House Forging",
+                  desc: "Precision CNC machining and drop-forged steel for zero-slip grip.",
                 },
                 {
-                  icon: Zap,
-                  title: "Induction Hardened",
-                  note: "Precision cutting edges",
+                  icon: <ShieldCheck size={22} />,
+                  title: "Rust-Proof Coating",
+                  desc: "Triple-layer nickel-chrome plating protects against humidity and oil.",
                 },
                 {
-                  icon: Award,
-                  title: "Ergonomic Grip",
-                  note: "Slip-resistant comfort",
+                  icon: <Wrench size={22} />,
+                  title: "High-Torque Tested",
+                  desc: "Batch-tested above 1.5x international DIN torque standards.",
                 },
                 {
-                  icon: ShieldCheck,
-                  title: "Quality Guaranteed",
-                  note: "Built for long life",
+                  icon: <Award size={22} />,
+                  title: "Direct Warranty",
+                  desc: "Hassle-free replacement support across India for every tool.",
                 },
-              ].map(({ icon: Icon, title, note }) => (
+              ].map((feat, idx) => (
                 <div
-                  key={title}
-                  className="flex flex-col md:flex-row items-center gap-3"
+                  key={idx}
+                  className="p-6 rounded-3xl bg-white/5 border border-white/10 hover:-translate-y-1.5 transition"
                 >
                   <div
-                    className="p-3 rounded-xl shadow-sm text-white shrink-0"
-                    style={{ background: COLOR.STEEL }}
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center text-slate-950 mb-4"
+                    style={{ background: AMBER }}
                   >
-                    <Icon size={20} />
+                    {feat.icon}
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold">{title}</h4>
-                    <p className="text-xs text-gray-500">{note}</p>
-                  </div>
+                  <h3 className="font-bold text-lg text-white mb-1">
+                    {feat.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                    {feat.desc}
+                  </p>
                 </div>
               ))}
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ========== PRODUCTS ========== */}
-        <main
-          id="products-section"
-          className="scroll-mt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10"
-        >
-          <ProductCard />
-        </main>
-
-        <Footer />
-      </div>
-
-      {/* ========== COMPANY DETAILS POPUP MODAL ========== */}
-      {companyModalOpen && (
+      {/* ================= FULL-SCREEN 360° MODAL ================= */}
+      {fullScreenOpen && (
         <div
-          className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
-          onClick={() => setCompanyModalOpen(false)}
+          className="fixed inset-0 z-[9999] bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center p-4 select-none"
+          onMouseDown={(e) => handleDragStart(e.clientX)}
+          onMouseMove={(e) => handleDragMove(e.clientX)}
+          onMouseUp={handleDragEnd}
+          onTouchStart={(e) => handleDragStart(e.touches[0].clientX)}
+          onTouchMove={(e) => handleDragMove(e.touches[0].clientX)}
+          onTouchEnd={handleDragEnd}
         >
-          <div
-            className="relative w-full max-w-2xl rounded-3xl bg-white text-[#15181C] border border-[#E6E8EB] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Modal Header */}
-            <div
-              className="px-6 py-5 text-white flex items-center justify-between"
-              style={{ background: COLOR.STEEL_DARK }}
-            >
-              <div className="flex items-center gap-2.5">
-                <span
-                  className="p-2 rounded-xl text-slate-950"
-                  style={{ background: COLOR.AMBER }}
-                >
-                  <Building2 size={18} />
-                </span>
-                <div>
-                  <h3 className="text-lg font-extrabold leading-tight">
-                    Pedwal Life Creation
-                  </h3>
-                  <p className="text-xs text-slate-300">
-                    Company Overview & Manufacturing Standards
-                  </p>
-                </div>
+          <div className="absolute top-5 inset-x-6 flex items-center justify-between text-white z-20">
+            <div className="flex items-center gap-3">
+              <Rotate3d className="text-amber-400" size={24} />
+              <div>
+                <h4 className="font-bold text-sm sm:text-base">{item.name}</h4>
+                <p className="text-xs text-slate-400">
+                  Drag horizontally for 360° rotation • Use controls to zoom
+                </p>
               </div>
+            </div>
 
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => setCompanyModalOpen(false)}
-                aria-label="Close Company Details"
-                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition cursor-pointer"
+                onClick={() => setZoom((z) => Math.max(0.7, z - 0.25))}
+                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"
+              >
+                <ZoomOut size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setZoom((z) => Math.min(2.2, z + 0.25))}
+                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 transition cursor-pointer"
+              >
+                <ZoomIn size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setAutoSpin(!autoSpin)}
+                className="px-3.5 py-2 rounded-xl bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                {autoSpin ? <Pause size={15} /> : <Play size={15} />}
+                {autoSpin ? "Stop Spin" : "360° Auto"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFullScreenOpen(false);
+                  setAutoSpin(false);
+                }}
+                className="p-2.5 rounded-xl bg-red-500/80 hover:bg-red-500 text-white transition cursor-pointer"
               >
                 <X size={20} />
               </button>
             </div>
+          </div>
 
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto space-y-5">
-              <p className="text-sm text-[#6B7280] leading-relaxed">
-                From precision drop-forged pliers to high-torque industrial
-                wrenches, Pedwal Life Creation delivers certified hand tools
-                designed for workshops, technicians, and builders across India.
-              </p>
+          <div className="relative w-full max-w-4xl h-[70vh] flex items-center justify-center">
+            <img
+              src={allFrames[selectedIdx]}
+              alt="360 Full View"
+              draggable={false}
+              className="max-h-full max-w-full object-contain transition-transform duration-150 cursor-grab active:cursor-grabbing"
+              style={{
+                transform: `scale(${zoom}) rotateY(${rotationAngle}deg)`,
+              }}
+            />
+          </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
-                  >
-                    100%
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    Drop Forged Steel
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
-                  >
-                    DIN
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    Torque Certified
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
-                  >
-                    PAN
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    India Dispatch
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {companyHighlights.map((box, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB]"
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle2
-                        size={16}
-                        style={{ color: COLOR.AMBER_DARK }}
-                      />
-                      <h4 className="font-bold text-sm text-[#15181C]">
-                        {box.title}
-                      </h4>
-                    </div>
-                    <p className="text-xs text-[#6B7280] leading-relaxed">
-                      {box.desc}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 bg-[#F8FAFC] border-t border-[#E6E8EB] flex justify-end">
-              <button
-                type="button"
-                onClick={() => setCompanyModalOpen(false)}
-                className="px-5 py-2.5 rounded-xl font-bold text-sm text-white transition cursor-pointer"
-                style={{ background: COLOR.STEEL }}
-              >
-                Close
-              </button>
-            </div>
+          <div className="flex items-center gap-4 text-white text-xs bg-white/10 px-5 py-2.5 rounded-full">
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedIdx(
+                  (prev) => (prev - 1 + allFrames.length) % allFrames.length
+                )
+              }
+              className="hover:text-amber-400 cursor-pointer"
+            >
+              <ChevronLeft size={18} />
+            </button>
+            <span>
+              Angle {selectedIdx + 1} / {allFrames.length} (
+              {Math.round(rotationAngle)}°)
+            </span>
+            <button
+              type="button"
+              onClick={() =>
+                setSelectedIdx((prev) => (prev + 1) % allFrames.length)
+              }
+              className="hover:text-amber-400 cursor-pointer"
+            >
+              <ChevronRight size={18} />
+            </button>
           </div>
         </div>
       )}
 
-      <style>{`
-        @keyframes ticker {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-ticker {
-          animation: ticker 25s linear infinite;
-        }
-        .animate-ticker:hover {
-          animation-play-state: paused;
-        }
-
-        @keyframes heroFade {
-          0% { opacity: 0; transform: scale(0.94) translateY(10px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        .animate-hero-fade {
-          animation: heroFade 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-      `}</style>
+      <Footer />
     </div>
   );
 };
 
-export default Home;
+export default Product3DShowcase;
