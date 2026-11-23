@@ -96,12 +96,10 @@ const companyHighlights = [
   },
 ];
 
-const getCartCountFromStorage = () => {
+const getCartSnapshotFromStorage = () => {
   try {
+    let count = 0;
     const directCount = localStorage.getItem("cartCount");
-    if (directCount !== null && !Number.isNaN(Number(directCount))) {
-      return Math.max(0, Number(directCount));
-    }
 
     const rawCart =
       localStorage.getItem("cart") ||
@@ -110,48 +108,36 @@ const getCartCountFromStorage = () => {
     const parsed = JSON.parse(rawCart);
 
     if (Array.isArray(parsed)) {
-      return parsed.reduce((sum, item) => {
+      count = parsed.reduce((sum, item) => {
         const qty = Number(item?.quantity ?? item?.qty ?? 1);
         return sum + (Number.isNaN(qty) ? 1 : Math.max(1, qty));
       }, 0);
-    }
-
-    if (parsed && Array.isArray(parsed.items)) {
-      return parsed.items.reduce((sum, item) => {
+    } else if (parsed && Array.isArray(parsed.items)) {
+      count = parsed.items.reduce((sum, item) => {
         const qty = Number(item?.quantity ?? item?.qty ?? 1);
         return sum + (Number.isNaN(qty) ? 1 : Math.max(1, qty));
       }, 0);
+    } else if (directCount !== null && !Number.isNaN(Number(directCount))) {
+      count = Math.max(0, Number(directCount));
     }
-  } catch {
-    return 0;
-  }
-  return 0;
-};
 
-const getLatestCartImageFromStorage = () => {
-  try {
     const lastImg = localStorage.getItem("lastAddedCartImage");
-    if (lastImg) return lastImg;
-
-    const rawCart =
-      localStorage.getItem("cart") ||
-      localStorage.getItem("cartItems") ||
-      "[]";
-    const parsed = JSON.parse(rawCart);
-    const items = Array.isArray(parsed)
+    const itemsList = Array.isArray(parsed)
       ? parsed
       : Array.isArray(parsed?.items)
       ? parsed.items
       : [];
-    const lastItem = items[items.length - 1];
-    return (
+    const lastItem = itemsList[itemsList.length - 1];
+    const image =
+      lastImg ||
       lastItem?.image ||
       lastItem?.img ||
       lastItem?.thumbnail ||
-      defaultSlideData[0].image
-    );
+      defaultSlideData[0].image;
+
+    return { count, image };
   } catch {
-    return defaultSlideData[0].image;
+    return { count: 0, image: defaultSlideData[0].image };
   }
 };
 
@@ -213,15 +199,18 @@ const Home = () => {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
-  const [cartCount, setCartCount] = useState(() => getCartCountFromStorage());
-  const prevCartCountRef = useRef(cartCount);
+
+  const initialSnapshot = getCartSnapshotFromStorage();
+  const [cartCount, setCartCount] = useState(initialSnapshot.count);
+  const prevCartCountRef = useRef(initialSnapshot.count);
   const [flippingProduct, setFlippingProduct] = useState(null);
   const [cartHit, setCartHit] = useState(false);
 
   useEffect(() => {
     const triggerFlipToCart = (customImage) => {
-      const imgSrc = getImageUrl(customImage || getLatestCartImageFromStorage());
-      const id = Date.now();
+      const snap = getCartSnapshotFromStorage();
+      const imgSrc = getImageUrl(customImage || snap.image);
+      const id = Date.now() + Math.random();
       setFlippingProduct({ id, image: imgSrc });
       setCartHit(true);
 
@@ -235,23 +224,40 @@ const Home = () => {
     };
 
     const syncCartCount = (event) => {
-      const nextCount = getCartCountFromStorage();
+      const snap = getCartSnapshotFromStorage();
       const eventImage = event?.detail?.image;
-      if (nextCount > prevCartCountRef.current || event?.type === "productAddedToCart" || eventImage) {
+      const increased = snap.count > prevCartCountRef.current;
+
+      if (
+        increased ||
+        event?.type === "productAddedToCart" ||
+        Boolean(eventImage)
+      ) {
         triggerFlipToCart(eventImage);
       }
-      prevCartCountRef.current = nextCount;
-      setCartCount(nextCount);
+
+      prevCartCountRef.current = snap.count;
+      setCartCount(snap.count);
     };
 
+    syncCartCount();
     window.addEventListener("storage", syncCartCount);
     window.addEventListener("cartUpdated", syncCartCount);
     window.addEventListener("productAddedToCart", syncCartCount);
+
+    const handleDocClick = () => {
+      setTimeout(syncCartCount, 30);
+    };
+    document.addEventListener("click", handleDocClick);
+
+    const pollInterval = setInterval(syncCartCount, 350);
 
     return () => {
       window.removeEventListener("storage", syncCartCount);
       window.removeEventListener("cartUpdated", syncCartCount);
       window.removeEventListener("productAddedToCart", syncCartCount);
+      document.removeEventListener("click", handleDocClick);
+      clearInterval(pollInterval);
     };
   }, []);
 
@@ -669,12 +675,12 @@ const Home = () => {
             aria-label={`Open shopping cart (${cartCount} items)`}
           >
             <span
-              className={`-mt-3 w-[56px] h-[56px] rounded-full flex items-center justify-center relative cart-orbit-wrap ${
+              className={`-mt-1 mb-1 w-[54px] h-[54px] rounded-full flex items-center justify-center relative cart-orbit-wrap ${
                 cartHit ? "cart-button-hit" : ""
               }`}
             >
               <span className="cart-orbit-ring" aria-hidden="true" />
-              <span className="w-[48px] h-[48px] rounded-full flex items-center justify-center bg-[#F0A420] text-[#15181C] relative z-10 shadow-md">
+              <span className="w-[46px] h-[46px] rounded-full flex items-center justify-center bg-[#F0A420] text-[#15181C] relative z-10 shadow-md">
                 <ShoppingCart size={21} strokeWidth={2.3} />
               </span>
               {cartCount > 0 && (
@@ -901,9 +907,9 @@ const Home = () => {
         }
 
         @keyframes cartButtonHit {
-          0% { transform: translateY(-12px) scale(1); }
-          40% { transform: translateY(-16px) scale(1.12); }
-          100% { transform: translateY(-12px) scale(1); }
+          0% { transform: translateY(-4px) scale(1); }
+          40% { transform: translateY(-7px) scale(1.12); }
+          100% { transform: translateY(-4px) scale(1); }
         }
         .cart-button-hit {
           animation: cartButtonHit 0.55s cubic-bezier(0.22, 1, 0.36, 1);
@@ -924,7 +930,7 @@ const Home = () => {
           }
           100% {
             left: 50%;
-            top: calc(100% - 44px);
+            top: calc(100% - 38px);
             opacity: 0;
             transform: translate(-50%, -50%) scale(0.35) rotateY(360deg) rotateZ(12deg);
           }
