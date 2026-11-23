@@ -225,7 +225,7 @@ const Home = () => {
 
   const launchProductFlipAnimation = (customImage, sourceEl) => {
     const now = performance.now();
-    if (now - lastAnimTimestampRef.current < 180) return;
+    if (now - lastAnimTimestampRef.current < 260) return;
     lastAnimTimestampRef.current = now;
 
     const targetEl = cartBtnRef.current;
@@ -246,18 +246,18 @@ const Home = () => {
     if (!imgSrc) return;
 
     const startW = startRect?.width
-      ? Math.min(Math.max(startRect.width * 0.45, 56), 92)
-      : 68;
+      ? Math.min(Math.max(startRect.width * 0.52, 68), 108)
+      : 82;
     const startH = startRect?.height
-      ? Math.min(Math.max(startRect.height * 0.45, 56), 92)
-      : 68;
+      ? Math.min(Math.max(startRect.height * 0.52, 68), 108)
+      : 82;
 
     const startX = startRect
       ? startRect.left + startRect.width / 2 - startW / 2
       : window.innerWidth / 2 - startW / 2;
     const startY = startRect
       ? startRect.top + startRect.height / 2 - startH / 2
-      : window.innerHeight * 0.48 - startH / 2;
+      : window.innerHeight * 0.45 - startH / 2;
 
     const endX = targetRect.left + targetRect.width / 2 - startW / 2;
     const endY = targetRect.top + targetRect.height / 2 - startH / 2;
@@ -272,11 +272,11 @@ const Home = () => {
       top: ${startY}px;
       width: ${startW}px;
       height: ${startH}px;
-      border-radius: 16px;
+      border-radius: 20px;
       overflow: hidden;
       background: #FFFFFF;
-      border: 2px solid #F0A420;
-      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.25);
+      border: 3px solid #F0A420;
+      box-shadow: 0 18px 36px rgba(15, 23, 42, 0.32);
       pointer-events: none;
       z-index: 99999;
       will-change: transform, opacity;
@@ -285,7 +285,7 @@ const Home = () => {
 
     const img = document.createElement("img");
     img.src = imgSrc;
-    img.alt = "";
+    img.alt = "Adding product to cart";
     img.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
     flyer.appendChild(img);
     document.body.appendChild(flyer);
@@ -293,23 +293,30 @@ const Home = () => {
     const anim = flyer.animate(
       [
         {
-          transform: "perspective(700px) translate3d(0px, 0px, 0px) rotateY(0deg) scale(1)",
+          transform: "perspective(800px) translate3d(0px, 0px, 0px) rotateY(0deg) scale(1.06)",
           opacity: 1,
         },
         {
-          transform: `perspective(700px) translate3d(${deltaX * 0.48}px, ${
-            deltaY * 0.35 - 38
-          }px, 0px) rotateY(180deg) scale(0.82)`,
+          transform: `perspective(800px) translate3d(${deltaX * 0.25}px, ${
+            deltaY * 0.18 - 28
+          }px, 0px) rotateY(95deg) scale(1)`,
           opacity: 1,
-          offset: 0.48,
+          offset: 0.28,
         },
         {
-          transform: `perspective(700px) translate3d(${deltaX}px, ${deltaY}px, 0px) rotateY(360deg) scale(0.28)`,
-          opacity: 0.15,
+          transform: `perspective(800px) translate3d(${deltaX * 0.62}px, ${
+            deltaY * 0.56 - 44
+          }px, 0px) rotateY(210deg) scale(0.84)`,
+          opacity: 1,
+          offset: 0.64,
+        },
+        {
+          transform: `perspective(800px) translate3d(${deltaX}px, ${deltaY}px, 0px) rotateY(360deg) scale(0.32)`,
+          opacity: 0.2,
         },
       ],
       {
-        duration: 620,
+        duration: 1150,
         easing: "cubic-bezier(0.22, 1, 0.36, 1)",
         fill: "forwards",
       }
@@ -318,7 +325,7 @@ const Home = () => {
     anim.onfinish = () => {
       flyer.remove();
       setCartHit(true);
-      setTimeout(() => setCartHit(false), 450);
+      setTimeout(() => setCartHit(false), 500);
     };
   };
 
@@ -449,7 +456,7 @@ const Home = () => {
       </header>
 
       {/* ========== SCROLLABLE CONTENT BELOW FIXED NAVBAR ========== */}
-      <div className="pt-16 sm:pt-20 pb-[72px] md:pb-0">
+      <div className="pt-16 sm:pt-20 pb-[76px] md:pb-0">
         <RandomImg />
 
         {/* ========== RUNNING MARQUEE ========== */}
@@ -736,13 +743,13 @@ const Home = () => {
         </ScrollReveal>
       </div>
 
-      {/* ========== MOBILE BOTTOM NAVIGATION (MATCHING REFERENCE LAYOUT) ========== */}
+      {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 inset-x-0 z-[100] bg-white border-t border-[#E6E8EB] shadow-[0_-4px_20px_rgba(15,23,42,0.07)]"
+        className="md:hidden fixed bottom-0 inset-x-0 z-[100] rounded-t-[26px] bg-white border-t-2 border-[#F0A420]/60 shadow-[0_-8px_24px_rgba(15,23,42,0.09)]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="max-w-xl mx-auto h-[66px] px-2 grid grid-cols-5 items-center">
+        <div className="max-w-xl mx-auto h-[68px] px-2 grid grid-cols-5 items-center">
           {/* Home */}
           <button
             type="button"
@@ -803,7 +810,7 @@ const Home = () => {
             <span className="text-[11px] leading-none">Explore</span>
           </button>
 
-          {/* Center Raised Squircle Cart Button */}
+          {/* Center Raised Rounded Cart Button */}
           <button
             type="button"
             onClick={() => navigate("/cart")}
@@ -812,18 +819,18 @@ const Home = () => {
           >
             <span
               ref={cartBtnRef}
-              className={`-mt-6 mb-1 w-[56px] h-[56px] rounded-[18px] flex items-center justify-center relative cart-orbit-wrap shadow-[0_6px_18px_rgba(240,164,32,0.38)] ${
+              className={`-mt-8 mb-0.5 w-[60px] h-[60px] rounded-full flex items-center justify-center relative cart-orbit-wrap shadow-[0_8px_22px_rgba(240,164,32,0.42)] ${
                 cartHit ? "cart-button-hit" : ""
               }`}
             >
               <span className="cart-orbit-ring" aria-hidden="true" />
-              <span className="w-[50px] h-[50px] rounded-[15px] flex items-center justify-center bg-[#F0A420] text-[#15181C] relative z-10">
+              <span className="w-[52px] h-[52px] rounded-full flex items-center justify-center bg-[#F0A420] text-[#15181C] relative z-10">
                 <ShoppingCart size={22} strokeWidth={2.3} />
               </span>
               {cartCount > 0 && (
                 <span
                   key={cartCount}
-                  className="cart-count-pop absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 rounded-full bg-[#17303E] text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white shadow z-20"
+                  className="cart-count-pop absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-[#17303E] text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white shadow z-20"
                 >
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>
@@ -1045,7 +1052,7 @@ const Home = () => {
         .cart-orbit-ring {
           position: absolute;
           inset: -2px;
-          border-radius: 19px;
+          border-radius: 9999px;
           padding: 2.5px;
           background: conic-gradient(
             from 0deg,
