@@ -598,21 +598,18 @@ const Home = () => {
             className="flex flex-col items-center justify-center h-full active:scale-95 transition"
             aria-label={`Open shopping cart (${cartCount} items)`}
           >
-            <span className="-mt-5 w-[52px] h-[52px] rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/25 relative cart-linear-ring">
-              <span className="w-full h-full rounded-[13px] flex items-center justify-center bg-[#F0A420] text-[#15181C]">
+            <span className="-mt-3 w-[54px] h-[54px] rounded-full flex items-center justify-center relative cart-linear-ring">
+              <span className="w-full h-full rounded-full flex items-center justify-center bg-[#F0A420] text-[#15181C]">
                 <ShoppingCart size={21} strokeWidth={2.3} />
               </span>
               {cartCount > 0 && (
                 <span
                   key={cartCount}
-                  className="cart-count-pop absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 rounded-full bg-[#17303E] text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white shadow"
+                  className="cart-count-pop absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 rounded-full bg-[#17303E] text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white shadow z-10"
                 >
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>
               )}
-            </span>
-            <span className="text-[10px] font-bold text-[#15181C] mt-0.5">
-              {cartCount > 0 ? `Cart (${cartCount})` : "Cart"}
             </span>
           </button>
 
@@ -788,10 +785,24 @@ const Home = () => {
           100% { background-position: 0% 50%; }
         }
         .cart-linear-ring {
-          padding: 3px;
-          background: linear-gradient(90deg, #F0A420, #EF4444, #2B4A5E, #10B981, #F0A420);
+          padding: 3.5px;
+          border-radius: 9999px;
+          background: linear-gradient(90deg, #F0A420, #FF5E3A, #2B4A5E, #10B981, #F0A420);
           background-size: 300% 100%;
-          animation: linearBorderSlide 2.6s linear infinite;
+          animation: linearBorderSlide 2.4s linear infinite;
+          box-shadow: 0 8px 20px -4px rgba(240, 164, 32, 0.45);
+        }
+        .cart-linear-ring::before {
+          content: "";
+          position: absolute;
+          inset: -4px;
+          border-radius: 9999px;
+          background: linear-gradient(90deg, #F0A420, #FF5E3A, #2B4A5E, #10B981, #F0A420);
+          background-size: 300% 100%;
+          animation: linearBorderSlide 2.4s linear infinite;
+          filter: blur(6px);
+          opacity: 0.72;
+          z-index: -1;
         }
 
         @keyframes cartBadgePop {
