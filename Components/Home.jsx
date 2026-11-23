@@ -153,6 +153,20 @@ const handleImgError = (e) => {
   e.currentTarget.src = "https://placehold.co/600x450?text=Image+Not+Found";
 };
 
+const findClickedProductCard = (target) => {
+  let node = target;
+  while (node && node !== document.body) {
+    if (node.querySelector && node.querySelector("img")) {
+      const rect = node.getBoundingClientRect();
+      if (rect.width >= 110 && rect.height >= 120 && rect.width <= 520) {
+        return node;
+      }
+    }
+    node = node.parentElement;
+  }
+  return null;
+};
+
 const ScrollReveal = ({ children, className = "", delay = 0 }) => {
   const ref = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -199,30 +213,116 @@ const Home = () => {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [activeBottomTab, setActiveBottomTab] = useState("home");
 
   const initialSnapshot = getCartSnapshotFromStorage();
   const [cartCount, setCartCount] = useState(initialSnapshot.count);
   const prevCartCountRef = useRef(initialSnapshot.count);
-  const [flippingProduct, setFlippingProduct] = useState(null);
+  const lastClickedCardRef = useRef(null);
+  const cartBtnRef = useRef(null);
+  const lastAnimTimestampRef = useRef(0);
   const [cartHit, setCartHit] = useState(false);
 
-  useEffect(() => {
-    const triggerFlipToCart = (customImage) => {
-      const snap = getCartSnapshotFromStorage();
-      const imgSrc = getImageUrl(customImage || snap.image);
-      const id = Date.now() + Math.random();
-      setFlippingProduct({ id, image: imgSrc });
+  const launchProductFlipAnimation = (customImage, sourceEl) => {
+    const now = performance.now();
+    if (now - lastAnimTimestampRef.current < 180) return;
+    lastAnimTimestampRef.current = now;
+
+    const targetEl = cartBtnRef.current;
+    if (!targetEl) return;
+
+    const targetRect = targetEl.getBoundingClientRect();
+    if (!targetRect.width || !targetRect.height) return;
+
+    const cardEl = sourceEl || lastClickedCardRef.current;
+    const cardImg = cardEl?.querySelector?.("img");
+    const startRect = (cardImg || cardEl)?.getBoundingClientRect?.();
+
+    const imgSrc =
+      cardImg?.currentSrc ||
+      cardImg?.src ||
+      getImageUrl(customImage || getCartSnapshotFromStorage().image);
+
+    if (!imgSrc) return;
+
+    const startW = startRect?.width
+      ? Math.min(Math.max(startRect.width * 0.45, 56), 92)
+      : 68;
+    const startH = startRect?.height
+      ? Math.min(Math.max(startRect.height * 0.45, 56), 92)
+      : 68;
+
+    const startX = startRect
+      ? startRect.left + startRect.width / 2 - startW / 2
+      : window.innerWidth / 2 - startW / 2;
+    const startY = startRect
+      ? startRect.top + startRect.height / 2 - startH / 2
+      : window.innerHeight * 0.48 - startH / 2;
+
+    const endX = targetRect.left + targetRect.width / 2 - startW / 2;
+    const endY = targetRect.top + targetRect.height / 2 - startH / 2;
+
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+
+    const flyer = document.createElement("div");
+    flyer.style.cssText = `
+      position: fixed;
+      left: ${startX}px;
+      top: ${startY}px;
+      width: ${startW}px;
+      height: ${startH}px;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #FFFFFF;
+      border: 2px solid #F0A420;
+      box-shadow: 0 14px 30px rgba(15, 23, 42, 0.25);
+      pointer-events: none;
+      z-index: 99999;
+      will-change: transform, opacity;
+      transform-origin: center center;
+    `;
+
+    const img = document.createElement("img");
+    img.src = imgSrc;
+    img.alt = "";
+    img.style.cssText = "width:100%;height:100%;object-fit:cover;display:block;";
+    flyer.appendChild(img);
+    document.body.appendChild(flyer);
+
+    const anim = flyer.animate(
+      [
+        {
+          transform: "perspective(700px) translate3d(0px, 0px, 0px) rotateY(0deg) scale(1)",
+          opacity: 1,
+        },
+        {
+          transform: `perspective(700px) translate3d(${deltaX * 0.48}px, ${
+            deltaY * 0.35 - 38
+          }px, 0px) rotateY(180deg) scale(0.82)`,
+          opacity: 1,
+          offset: 0.48,
+        },
+        {
+          transform: `perspective(700px) translate3d(${deltaX}px, ${deltaY}px, 0px) rotateY(360deg) scale(0.28)`,
+          opacity: 0.15,
+        },
+      ],
+      {
+        duration: 620,
+        easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+        fill: "forwards",
+      }
+    );
+
+    anim.onfinish = () => {
+      flyer.remove();
       setCartHit(true);
-
-      setTimeout(() => {
-        setCartHit(false);
-      }, 650);
-
-      setTimeout(() => {
-        setFlippingProduct((curr) => (curr?.id === id ? null : curr));
-      }, 820);
+      setTimeout(() => setCartHit(false), 450);
     };
+  };
 
+  useEffect(() => {
     const syncCartCount = (event) => {
       const snap = getCartSnapshotFromStorage();
       const eventImage = event?.detail?.image;
@@ -233,30 +333,47 @@ const Home = () => {
         event?.type === "productAddedToCart" ||
         Boolean(eventImage)
       ) {
-        triggerFlipToCart(eventImage);
+        launchProductFlipAnimation(eventImage, lastClickedCardRef.current);
       }
 
       prevCartCountRef.current = snap.count;
       setCartCount(snap.count);
     };
 
+    const handleCaptureClick = (e) => {
+      const btn = e.target?.closest?.("button, a, [role='button']");
+      if (!btn) return;
+      const label = (
+        btn.innerText ||
+        btn.getAttribute("aria-label") ||
+        ""
+      ).toLowerCase();
+
+      if (
+        label.includes("cart") ||
+        label.includes("add") ||
+        label.includes("bag")
+      ) {
+        const card = findClickedProductCard(btn);
+        if (card) {
+          lastClickedCardRef.current = card;
+        }
+      }
+    };
+
     syncCartCount();
     window.addEventListener("storage", syncCartCount);
     window.addEventListener("cartUpdated", syncCartCount);
     window.addEventListener("productAddedToCart", syncCartCount);
+    document.addEventListener("click", handleCaptureClick, true);
 
-    const handleDocClick = () => {
-      setTimeout(syncCartCount, 30);
-    };
-    document.addEventListener("click", handleDocClick);
-
-    const pollInterval = setInterval(syncCartCount, 350);
+    const pollInterval = setInterval(syncCartCount, 120);
 
     return () => {
       window.removeEventListener("storage", syncCartCount);
       window.removeEventListener("cartUpdated", syncCartCount);
       window.removeEventListener("productAddedToCart", syncCartCount);
-      document.removeEventListener("click", handleDocClick);
+      document.removeEventListener("click", handleCaptureClick, true);
       clearInterval(pollInterval);
     };
   }, []);
@@ -619,74 +736,94 @@ const Home = () => {
         </ScrollReveal>
       </div>
 
-      {/* ========== PRODUCT FLIP-TO-CART ANIMATION ========== */}
-      {flippingProduct && (
-        <div
-          key={flippingProduct.id}
-          aria-hidden="true"
-          className="md:hidden fixed z-[110] pointer-events-none cart-product-flip"
-        >
-          <div className="w-14 h-14 rounded-2xl overflow-hidden bg-white border-2 border-[#F0A420] shadow-2xl">
-            <img
-              src={flippingProduct.image}
-              alt=""
-              onError={handleImgError}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        </div>
-      )}
-
-      {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
+      {/* ========== MOBILE BOTTOM NAVIGATION (MATCHING REFERENCE LAYOUT) ========== */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 inset-x-0 z-[100] rounded-t-3xl mobile-nav-top-anim bg-white/95 backdrop-blur-xl shadow-[0_-8px_25px_rgba(15,23,42,0.08)]"
+        className="md:hidden fixed bottom-0 inset-x-0 z-[100] bg-white border-t border-[#E6E8EB] shadow-[0_-4px_20px_rgba(15,23,42,0.07)]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
-        <div className="max-w-xl mx-auto h-[68px] px-2 grid grid-cols-5 items-center">
+        <div className="max-w-xl mx-auto h-[66px] px-2 grid grid-cols-5 items-center">
+          {/* Home */}
           <button
             type="button"
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-            className="flex flex-col items-center justify-center gap-1 h-full text-[#2B4A5E] active:scale-95 transition"
+            onClick={() => {
+              setActiveBottomTab("home");
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }}
+            className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
+              activeBottomTab === "home"
+                ? "text-[#15181C] font-bold"
+                : "text-[#6B7280] font-medium"
+            }`}
             aria-label="Home"
           >
-            <HomeIcon size={20} strokeWidth={2.2} />
-            <span className="text-[10px] font-semibold">Home</span>
+            <span
+              className={`px-4 py-1 rounded-full flex items-center justify-center transition-colors ${
+                activeBottomTab === "home"
+                  ? "bg-[#F0A420]/20 text-[#15181C]"
+                  : "bg-transparent"
+              }`}
+            >
+              <HomeIcon
+                size={20}
+                strokeWidth={activeBottomTab === "home" ? 2.4 : 2}
+              />
+            </span>
+            <span className="text-[11px] leading-none">Home</span>
           </button>
 
+          {/* Explore */}
           <button
             type="button"
-            onClick={() =>
+            onClick={() => {
+              setActiveBottomTab("explore");
               document
                 .getElementById("products-section")
-                ?.scrollIntoView({ behavior: "smooth" })
-            }
-            className="flex flex-col items-center justify-center gap-1 h-full text-[#6B7280] active:scale-95 transition"
+                ?.scrollIntoView({ behavior: "smooth" });
+            }}
+            className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
+              activeBottomTab === "explore"
+                ? "text-[#15181C] font-bold"
+                : "text-[#6B7280] font-medium"
+            }`}
             aria-label="Explore products"
           >
-            <Search size={20} strokeWidth={2} />
-            <span className="text-[10px] font-medium">Explore</span>
+            <span
+              className={`px-4 py-1 rounded-full flex items-center justify-center transition-colors ${
+                activeBottomTab === "explore"
+                  ? "bg-[#F0A420]/20 text-[#15181C]"
+                  : "bg-transparent"
+              }`}
+            >
+              <Search
+                size={20}
+                strokeWidth={activeBottomTab === "explore" ? 2.4 : 2}
+              />
+            </span>
+            <span className="text-[11px] leading-none">Explore</span>
           </button>
 
+          {/* Center Raised Squircle Cart Button */}
           <button
             type="button"
             onClick={() => navigate("/cart")}
-            className="flex flex-col items-center justify-center h-full active:scale-95 transition"
+            className="flex items-center justify-center h-full active:scale-95 transition"
             aria-label={`Open shopping cart (${cartCount} items)`}
           >
             <span
-              className={`-mt-1 mb-1 w-[54px] h-[54px] rounded-full flex items-center justify-center relative cart-orbit-wrap ${
+              ref={cartBtnRef}
+              className={`-mt-6 mb-1 w-[56px] h-[56px] rounded-[18px] flex items-center justify-center relative cart-orbit-wrap shadow-[0_6px_18px_rgba(240,164,32,0.38)] ${
                 cartHit ? "cart-button-hit" : ""
               }`}
             >
               <span className="cart-orbit-ring" aria-hidden="true" />
-              <span className="w-[46px] h-[46px] rounded-full flex items-center justify-center bg-[#F0A420] text-[#15181C] relative z-10 shadow-md">
-                <ShoppingCart size={21} strokeWidth={2.3} />
+              <span className="w-[50px] h-[50px] rounded-[15px] flex items-center justify-center bg-[#F0A420] text-[#15181C] relative z-10">
+                <ShoppingCart size={22} strokeWidth={2.3} />
               </span>
               {cartCount > 0 && (
                 <span
                   key={cartCount}
-                  className="cart-count-pop absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 rounded-full bg-[#17303E] text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white shadow z-20"
+                  className="cart-count-pop absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 rounded-full bg-[#17303E] text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white shadow z-20"
                 >
                   {cartCount > 99 ? "99+" : cartCount}
                 </span>
@@ -694,24 +831,62 @@ const Home = () => {
             </span>
           </button>
 
+          {/* Orders */}
           <button
             type="button"
-            onClick={() => navigate("/orders")}
-            className="flex flex-col items-center justify-center gap-1 h-full text-[#6B7280] active:scale-95 transition"
+            onClick={() => {
+              setActiveBottomTab("orders");
+              navigate("/orders");
+            }}
+            className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
+              activeBottomTab === "orders"
+                ? "text-[#15181C] font-bold"
+                : "text-[#6B7280] font-medium"
+            }`}
             aria-label="My orders"
           >
-            <ClipboardList size={20} strokeWidth={2} />
-            <span className="text-[10px] font-medium">Orders</span>
+            <span
+              className={`px-4 py-1 rounded-full flex items-center justify-center transition-colors ${
+                activeBottomTab === "orders"
+                  ? "bg-[#F0A420]/20 text-[#15181C]"
+                  : "bg-transparent"
+              }`}
+            >
+              <ClipboardList
+                size={20}
+                strokeWidth={activeBottomTab === "orders" ? 2.4 : 2}
+              />
+            </span>
+            <span className="text-[11px] leading-none">Orders</span>
           </button>
 
+          {/* Profile */}
           <button
             type="button"
-            onClick={() => navigate("/profile")}
-            className="flex flex-col items-center justify-center gap-1 h-full text-[#6B7280] active:scale-95 transition"
+            onClick={() => {
+              setActiveBottomTab("profile");
+              navigate("/profile");
+            }}
+            className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
+              activeBottomTab === "profile"
+                ? "text-[#15181C] font-bold"
+                : "text-[#6B7280] font-medium"
+            }`}
             aria-label="Profile"
           >
-            <UserRound size={20} strokeWidth={2} />
-            <span className="text-[10px] font-medium">Profile</span>
+            <span
+              className={`px-4 py-1 rounded-full flex items-center justify-center transition-colors ${
+                activeBottomTab === "profile"
+                  ? "bg-[#F0A420]/20 text-[#15181C]"
+                  : "bg-transparent"
+              }`}
+            >
+              <UserRound
+                size={20}
+                strokeWidth={activeBottomTab === "profile" ? 2.4 : 2}
+              />
+            </span>
+            <span className="text-[11px] leading-none">Profile</span>
           </button>
         </div>
       </nav>
@@ -860,22 +1035,6 @@ const Home = () => {
           animation: heroFade 0.45s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        @keyframes topBorderPulse {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .mobile-nav-top-anim {
-          border-top: 2px solid transparent;
-          background-image:
-            linear-gradient(rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.96)),
-            linear-gradient(90deg, #F0A420, #3B82F6, #10B981, #F0A420);
-          background-origin: padding-box, border-box;
-          background-clip: padding-box, border-box;
-          background-size: 100% 100%, 240% 100%;
-          animation: topBorderPulse 3.2s linear infinite;
-        }
-
         @keyframes cartOrbitSpin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
@@ -886,7 +1045,7 @@ const Home = () => {
         .cart-orbit-ring {
           position: absolute;
           inset: -2px;
-          border-radius: 9999px;
+          border-radius: 19px;
           padding: 2.5px;
           background: conic-gradient(
             from 0deg,
@@ -907,37 +1066,12 @@ const Home = () => {
         }
 
         @keyframes cartButtonHit {
-          0% { transform: translateY(-4px) scale(1); }
-          40% { transform: translateY(-7px) scale(1.12); }
-          100% { transform: translateY(-4px) scale(1); }
+          0% { transform: scale(1); }
+          40% { transform: scale(1.13); }
+          100% { transform: scale(1); }
         }
         .cart-button-hit {
-          animation: cartButtonHit 0.55s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
-        @keyframes productFlipToCart {
-          0% {
-            left: 50%;
-            top: 52%;
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1) rotateY(0deg) rotateZ(0deg);
-          }
-          50% {
-            left: 52%;
-            top: 74%;
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(0.85) rotateY(180deg) rotateZ(-12deg);
-          }
-          100% {
-            left: 50%;
-            top: calc(100% - 38px);
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0.35) rotateY(360deg) rotateZ(12deg);
-          }
-        }
-        .cart-product-flip {
-          perspective: 700px;
-          animation: productFlipToCart 0.78s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          animation: cartButtonHit 0.45s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
         @keyframes cartBadgePop {
