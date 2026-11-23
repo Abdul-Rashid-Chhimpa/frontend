@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import ProductCard from "./Card";
@@ -7,8 +7,6 @@ import RandomImg from "./RandomImg";
 import Footer from "./Footer";
 import OnboardingGuide from "./OnboardingGuide";
 import {
-  ChevronLeft,
-  ChevronRight,
   ShieldCheck,
   Zap,
   Award,
@@ -110,6 +108,46 @@ const handleImgError = (e) => {
   e.currentTarget.src = "https://placehold.co/600x450?text=Image+Not+Found";
 };
 
+const ScrollReveal = ({ children, className = "", delay = 0 }) => {
+  const ref = useRef(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    if (typeof IntersectionObserver === "undefined") {
+      setVisible(true);
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.unobserve(entry.target);
+        }
+      },
+      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={`transition-all duration-700 ease-out transform ${
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
+      } ${className}`}
+    >
+      {children}
+    </div>
+  );
+};
+
 const Home = () => {
   const navigate = useNavigate();
   const [slideData, setSlideData] = useState(defaultSlideData);
@@ -155,14 +193,6 @@ const Home = () => {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [companyModalOpen]);
-
-  const goPrev = () => {
-    setActive((prev) => (prev - 1 + slideData.length) % slideData.length);
-  };
-
-  const goNext = () => {
-    setActive((prev) => (prev + 1) % slideData.length);
-  };
 
   const current = slideData[active] || slideData[0];
 
@@ -374,12 +404,12 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* ===== RIGHT PRODUCT DISPLAY ===== */}
+              {/* ===== RIGHT PRODUCT DISPLAY (FULL WIDTH & HEIGHT, NO ARROWS) ===== */}
               <div className="lg:col-span-7 order-1 lg:order-2 flex justify-center">
                 <div
                   onMouseEnter={() => setPaused(true)}
                   onMouseLeave={() => setPaused(false)}
-                  className="relative w-full max-w-[360px] sm:max-w-[420px] md:max-w-[480px]"
+                  className="relative w-full max-w-[380px] sm:max-w-[440px] md:max-w-[500px]"
                 >
                   <div
                     className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[85%] rounded-full blur-[60px] opacity-40 pointer-events-none"
@@ -387,52 +417,16 @@ const Home = () => {
                   />
 
                   <div
-                    className="relative aspect-[4/3.3] rounded-[2rem] bg-white border shadow-2xl overflow-hidden flex items-center justify-center p-5 sm:p-7"
+                    className="relative w-full aspect-[4/3.3] rounded-[2rem] bg-white border shadow-2xl overflow-hidden"
                     style={{ borderColor: COLOR.BORDER }}
                   >
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{
-                        background:
-                          "radial-gradient(circle at 45% 35%, rgba(240,164,32,0.12), transparent 65%)",
-                      }}
-                    />
-
                     <img
                       key={current?._id || current?.id || active}
                       src={getImageUrl(current?.image)}
                       alt={current?.title}
                       onError={handleImgError}
-                      className="relative z-10 w-full h-full object-contain rounded-2xl animate-hero-fade"
+                      className="w-full h-full object-cover animate-hero-fade"
                     />
-
-                    <button
-                      type="button"
-                      onClick={goPrev}
-                      aria-label="Previous"
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
-                      style={{
-                        background: "rgba(255,255,255,0.92)",
-                        border: `1px solid ${COLOR.BORDER}`,
-                        color: COLOR.INK,
-                      }}
-                    >
-                      <ChevronLeft size={20} />
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={goNext}
-                      aria-label="Next"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full flex items-center justify-center shadow-lg backdrop-blur-md z-20 transition-all hover:scale-110 active:scale-95"
-                      style={{
-                        background: "rgba(255,255,255,0.92)",
-                        border: `1px solid ${COLOR.BORDER}`,
-                        color: COLOR.INK,
-                      }}
-                    >
-                      <ChevronRight size={20} />
-                    </button>
                   </div>
 
                   <div className="flex justify-center gap-2 mt-5 lg:hidden">
@@ -455,63 +449,68 @@ const Home = () => {
         </section>
 
         {/* ========== FEATURE HIGHLIGHTS ========== */}
-        <section
-          className="w-full py-8 border-y"
-          style={{ background: COLOR.BG_LIGHT, borderColor: COLOR.BORDER }}
-        >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 text-center md:text-left">
-              {[
-                {
-                  icon: Wrench,
-                  title: "Drop Forged Steel",
-                  note: "Maximum strength structure",
-                },
-                {
-                  icon: Zap,
-                  title: "Induction Hardened",
-                  note: "Precision cutting edges",
-                },
-                {
-                  icon: Award,
-                  title: "Ergonomic Grip",
-                  note: "Slip-resistant comfort",
-                },
-                {
-                  icon: ShieldCheck,
-                  title: "Quality Guaranteed",
-                  note: "Built for long life",
-                },
-              ].map(({ icon: Icon, title, note }) => (
-                <div
-                  key={title}
-                  className="flex flex-col md:flex-row items-center gap-3"
-                >
-                  <div
-                    className="p-3 rounded-xl shadow-sm text-white shrink-0"
-                    style={{ background: COLOR.STEEL }}
-                  >
-                    <Icon size={20} />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold">{title}</h4>
-                    <p className="text-xs text-gray-500">{note}</p>
-                  </div>
-                </div>
-              ))}
+        <ScrollReveal>
+          <section
+            className="w-full py-8 border-y"
+            style={{ background: COLOR.BG_LIGHT, borderColor: COLOR.BORDER }}
+          >
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 text-center md:text-left">
+                {[
+                  {
+                    icon: Wrench,
+                    title: "Drop Forged Steel",
+                    note: "Maximum strength structure",
+                  },
+                  {
+                    icon: Zap,
+                    title: "Induction Hardened",
+                    note: "Precision cutting edges",
+                  },
+                  {
+                    icon: Award,
+                    title: "Ergonomic Grip",
+                    note: "Slip-resistant comfort",
+                  },
+                  {
+                    icon: ShieldCheck,
+                    title: "Quality Guaranteed",
+                    note: "Built for long life",
+                  },
+                ].map(({ icon: Icon, title, note }, idx) => (
+                  <ScrollReveal key={title} delay={idx * 90}>
+                    <div className="flex flex-col md:flex-row items-center gap-3">
+                      <div
+                        className="p-3 rounded-xl shadow-sm text-white shrink-0"
+                        style={{ background: COLOR.STEEL }}
+                      >
+                        <Icon size={20} />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold">{title}</h4>
+                        <p className="text-xs text-gray-500">{note}</p>
+                      </div>
+                    </div>
+                  </ScrollReveal>
+                ))}
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </ScrollReveal>
 
         {/* ========== PRODUCTS ========== */}
-        <main
-          id="products-section"
-          className="scroll-mt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10"
-        >
-          <ProductCard />
-        </main>
+        <ScrollReveal delay={80}>
+          <main
+            id="products-section"
+            className="scroll-mt-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10"
+          >
+            <ProductCard />
+          </main>
+        </ScrollReveal>
 
-        <Footer />
+        <ScrollReveal delay={100}>
+          <Footer />
+        </ScrollReveal>
       </div>
 
       {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
@@ -533,7 +532,11 @@ const Home = () => {
 
           <button
             type="button"
-            onClick={() => document.getElementById("products-section")?.scrollIntoView({ behavior: "smooth" })}
+            onClick={() =>
+              document
+                .getElementById("products-section")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
             className="flex flex-col items-center justify-center gap-1 h-full text-[#6B7280] active:scale-95 transition"
             aria-label="Explore products"
           >
@@ -550,7 +553,9 @@ const Home = () => {
             <span className="-mt-5 w-12 h-12 rounded-2xl flex items-center justify-center bg-[#F0A420] text-[#15181C] shadow-lg shadow-amber-500/25 border-4 border-white relative">
               <ShoppingCart size={21} strokeWidth={2.3} />
             </span>
-            <span className="text-[10px] font-bold text-[#15181C] mt-0.5">Cart</span>
+            <span className="text-[10px] font-bold text-[#15181C] mt-0.5">
+              Cart
+            </span>
           </button>
 
           <button
@@ -712,11 +717,11 @@ const Home = () => {
         }
 
         @keyframes heroFade {
-          0% { opacity: 0; transform: scale(0.94) translateY(10px); }
-          100% { opacity: 1; transform: scale(1) translateY(0); }
+          0% { opacity: 0; transform: scale(0.96); }
+          100% { opacity: 1; transform: scale(1); }
         }
         .animate-hero-fade {
-          animation: heroFade 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+          animation: heroFade 0.45s cubic-bezier(0.22, 1, 0.36, 1);
         }
       `}</style>
     </div>
