@@ -1073,15 +1073,6 @@ const Card = () => {
                               </p>
                             )}
 
-                            {inCartQty > 0 && (
-                              <p
-                                className="mt-1 text-[10px] text-center"
-                                style={{ color: MUTED }}
-                              >
-                                Cart me: {inCartQty} / {product.stock}
-                              </p>
-                            )}
-
                             {product.variantGroup &&
                               products.filter(
                                 (p) =>
