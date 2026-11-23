@@ -96,6 +96,38 @@ const companyHighlights = [
   },
 ];
 
+const getCartCountFromStorage = () => {
+  try {
+    const directCount = localStorage.getItem("cartCount");
+    if (directCount !== null && !Number.isNaN(Number(directCount))) {
+      return Math.max(0, Number(directCount));
+    }
+
+    const rawCart =
+      localStorage.getItem("cart") ||
+      localStorage.getItem("cartItems") ||
+      "[]";
+    const parsed = JSON.parse(rawCart);
+
+    if (Array.isArray(parsed)) {
+      return parsed.reduce((sum, item) => {
+        const qty = Number(item?.quantity ?? item?.qty ?? 1);
+        return sum + (Number.isNaN(qty) ? 1 : Math.max(1, qty));
+      }, 0);
+    }
+
+    if (parsed && Array.isArray(parsed.items)) {
+      return parsed.items.reduce((sum, item) => {
+        const qty = Number(item?.quantity ?? item?.qty ?? 1);
+        return sum + (Number.isNaN(qty) ? 1 : Math.max(1, qty));
+      }, 0);
+    }
+  } catch {
+    return 0;
+  }
+  return 0;
+};
+
 const getImageUrl = (img) => {
   if (!img) return "";
   if (img.startsWith("http") || img.startsWith("data:")) return img;
@@ -154,6 +186,22 @@ const Home = () => {
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
+  const [cartCount, setCartCount] = useState(() => getCartCountFromStorage());
+
+  useEffect(() => {
+    const syncCartCount = () => {
+      setCartCount(getCartCountFromStorage());
+    };
+
+    syncCartCount();
+    window.addEventListener("storage", syncCartCount);
+    window.addEventListener("cartUpdated", syncCartCount);
+
+    return () => {
+      window.removeEventListener("storage", syncCartCount);
+      window.removeEventListener("cartUpdated", syncCartCount);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchBanners = async () => {
@@ -548,13 +596,27 @@ const Home = () => {
             type="button"
             onClick={() => navigate("/cart")}
             className="flex flex-col items-center justify-center h-full active:scale-95 transition"
-            aria-label="Open shopping cart"
+            aria-label={`Open shopping cart (${cartCount} items)`}
           >
-            <span className="-mt-5 w-12 h-12 rounded-2xl flex items-center justify-center bg-[#F0A420] text-[#15181C] shadow-lg shadow-amber-500/25 border-4 border-white relative">
-              <ShoppingCart size={21} strokeWidth={2.3} />
+            <span
+              className={`-mt-5 w-[52px] h-[52px] rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/25 relative ${
+                cartCount > 0 ? "cart-gradient-ring" : "border-4 border-white"
+              }`}
+            >
+              <span className="w-full h-full rounded-[13px] flex items-center justify-center bg-[#F0A420] text-[#15181C]">
+                <ShoppingCart size={21} strokeWidth={2.3} />
+              </span>
+              {cartCount > 0 && (
+                <span
+                  key={cartCount}
+                  className="cart-count-pop absolute -top-1.5 -right-1.5 min-w-[20px] h-[20px] px-1 rounded-full bg-[#17303E] text-white text-[10px] font-extrabold flex items-center justify-center border-2 border-white shadow"
+                >
+                  {cartCount > 99 ? "99+" : cartCount}
+                </span>
+              )}
             </span>
             <span className="text-[10px] font-bold text-[#15181C] mt-0.5">
-              Cart
+              {cartCount > 0 ? `Cart (${cartCount})` : "Cart"}
             </span>
           </button>
 
@@ -722,6 +784,27 @@ const Home = () => {
         }
         .animate-hero-fade {
           animation: heroFade 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        @keyframes cartBorderSweep {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        .cart-gradient-ring {
+          padding: 3px;
+          background: linear-gradient(120deg, #F0A420, #FF5E3A, #2B4A5E, #10B981, #F0A420);
+          background-size: 300% 300%;
+          animation: cartBorderSweep 2.4s ease infinite;
+        }
+
+        @keyframes cartBadgePop {
+          0% { transform: scale(0.6); }
+          70% { transform: scale(1.18); }
+          100% { transform: scale(1); }
+        }
+        .cart-count-pop {
+          animation: cartBadgePop 0.3s ease-out;
         }
       `}</style>
     </div>
