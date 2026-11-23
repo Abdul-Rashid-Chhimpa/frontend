@@ -269,7 +269,7 @@ const Home = () => {
       <OnboardingGuide />
 
       {/* ========== FIXED NAVBAR ========== */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#E6E8EB] shadow-sm">
+      <header className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#E6E8EB] shadow-sm hide-mobile-nav-cart">
         <Nav />
       </header>
 
@@ -598,11 +598,7 @@ const Home = () => {
             className="flex flex-col items-center justify-center h-full active:scale-95 transition"
             aria-label={`Open shopping cart (${cartCount} items)`}
           >
-            <span
-              className={`-mt-5 w-[52px] h-[52px] rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/25 relative ${
-                cartCount > 0 ? "cart-gradient-ring" : "border-4 border-white"
-              }`}
-            >
+            <span className="-mt-5 w-[52px] h-[52px] rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/25 relative cart-linear-ring">
               <span className="w-full h-full rounded-[13px] flex items-center justify-center bg-[#F0A420] text-[#15181C]">
                 <ShoppingCart size={21} strokeWidth={2.3} />
               </span>
@@ -786,16 +782,16 @@ const Home = () => {
           animation: heroFade 0.45s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
-        @keyframes cartBorderSweep {
+        @keyframes linearBorderSlide {
           0% { background-position: 0% 50%; }
           50% { background-position: 100% 50%; }
           100% { background-position: 0% 50%; }
         }
-        .cart-gradient-ring {
+        .cart-linear-ring {
           padding: 3px;
-          background: linear-gradient(120deg, #F0A420, #FF5E3A, #2B4A5E, #10B981, #F0A420);
-          background-size: 300% 300%;
-          animation: cartBorderSweep 2.4s ease infinite;
+          background: linear-gradient(90deg, #F0A420, #EF4444, #2B4A5E, #10B981, #F0A420);
+          background-size: 300% 100%;
+          animation: linearBorderSlide 2.6s linear infinite;
         }
 
         @keyframes cartBadgePop {
@@ -805,6 +801,15 @@ const Home = () => {
         }
         .cart-count-pop {
           animation: cartBadgePop 0.3s ease-out;
+        }
+
+        @media (max-width: 767px) {
+          .hide-mobile-nav-cart a[href*="cart"],
+          .hide-mobile-nav-cart button[aria-label*="cart" i],
+          .hide-mobile-nav-cart button[aria-label*="bag" i],
+          .hide-mobile-nav-cart [data-testid*="cart" i] {
+            display: none !important;
+          }
         }
       `}</style>
     </div>
