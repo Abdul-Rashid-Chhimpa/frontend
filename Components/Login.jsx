@@ -1,10 +1,33 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
 import toast from "react-hot-toast";
 
+const API_BASE = "https://backend-3-axez.onrender.com";
+
+export const isUserAuthenticated = () => {
+  const token = localStorage.getItem("token");
+  const expiry = Number(localStorage.getItem("tokenExpiry") || 0);
+  if (!token) return false;
+  if (expiry && Date.now() >= expiry) return false;
+  return true;
+};
+
+export const redirectGuestToLogin = (navigate, targetPath) => {
+  const nextPath =
+    targetPath ||
+    window.location.pathname + window.location.search + window.location.hash;
+  if (nextPath && !nextPath.startsWith("/login")) {
+    sessionStorage.setItem("redirectAfterLogin", nextPath);
+  }
+  toast("Please log in to continue with this action.", { icon: "🔒" });
+  navigate("/login", { state: { from: nextPath } });
+};
+
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -20,25 +43,32 @@ const Login = () => {
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotStep, setForgotStep] = useState(1);
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    const expiry = Number(localStorage.getItem("tokenExpiry") || 0);
-    let user = null;
+  const resolveDestination = (userRole) => {
+    if (userRole === "admin") return "/adminsidebar";
+    const stateFrom = location.state?.from;
+    const savedRedirect = sessionStorage.getItem("redirectAfterLogin");
+    const dest =
+      (typeof stateFrom === "string" && stateFrom) ||
+      (savedRedirect && !savedRedirect.startsWith("/login") ? savedRedirect : "/");
+    sessionStorage.removeItem("redirectAfterLogin");
+    return dest;
+  };
 
+  useEffect(() => {
+    if (location.state?.from && !location.state.from.startsWith("/login")) {
+      sessionStorage.setItem("redirectAfterLogin", location.state.from);
+    }
+
+    let user = null;
     try {
       user = JSON.parse(localStorage.getItem("user") || "null");
     } catch {
       user = null;
     }
 
-    const isTokenValid = Boolean(token) && (!expiry || Date.now() < expiry);
-
-    if (isTokenValid && user) {
-      if (user.role === "admin") {
-        navigate("/adminsidebar", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
+    if (isUserAuthenticated() && user) {
+      navigate(resolveDestination(user.role), { replace: true });
+      return;
     }
 
     const savedEmail = localStorage.getItem("rememberedEmail");
@@ -46,6 +76,56 @@ const Login = () => {
       setEmail(savedEmail);
       setRememberMe(true);
     }
+  }, [navigate, location.state]);
+
+  // Redirect unauthenticated users to /login when an action (e.g., Add to Cart) occurs
+  useEffect(() => {
+    const handleGuestAction = (event) => {
+      if (isUserAuthenticated()) return;
+      const requestedPath = event?.detail?.redirectTo;
+      redirectGuestToLogin(navigate, requestedPath);
+    };
+
+    const handleCaptureActionClick = (e) => {
+      if (isUserAuthenticated()) return;
+      const interactive = e.target?.closest?.("button, a, [role='button']");
+      if (!interactive) return;
+
+      const text = (
+        interactive.innerText ||
+        interactive.getAttribute("aria-label") ||
+        interactive.getAttribute("href") ||
+        ""
+      ).toLowerCase();
+
+      const isProtectedAction =
+        interactive.dataset?.requireAuth === "true" ||
+        text.includes("add to cart") ||
+        text.includes("cart") ||
+        text.includes("checkout") ||
+        text.includes("buy now") ||
+        text.includes("order") ||
+        text.includes("profile");
+
+      if (isProtectedAction) {
+        e.preventDefault();
+        e.stopPropagation();
+        const href = interactive.getAttribute("href");
+        const target =
+          href && href.startsWith("/") ? href : window.location.pathname;
+        redirectGuestToLogin(navigate, target);
+      }
+    };
+
+    window.addEventListener("authRequired", handleGuestAction);
+    window.addEventListener("guestActionBlocked", handleGuestAction);
+    document.addEventListener("click", handleCaptureActionClick, true);
+
+    return () => {
+      window.removeEventListener("authRequired", handleGuestAction);
+      window.removeEventListener("guestActionBlocked", handleGuestAction);
+      document.removeEventListener("click", handleCaptureActionClick, true);
+    };
   }, [navigate]);
 
   const loginHandler = async (e) => {
@@ -63,13 +143,10 @@ const Login = () => {
 
     try {
       setLoading(true);
-      const { data } = await axios.post(
-        "https://backend-3-axez.onrender.com/api/auth/login",
-        {
-          email: email.trim(),
-          password,
-        }
-      );
+      const { data } = await axios.post(`${API_BASE}/api/auth/login`, {
+        email: email.trim(),
+        password,
+      });
 
       if (!data.success) {
         toast.error(data.message || "Login failed");
@@ -97,12 +174,7 @@ const Login = () => {
       }
 
       toast.success(`Welcome back, ${data.user.name || "User"}!`);
-
-      if (data.user.role === "admin") {
-        navigate("/adminsidebar", { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
+      navigate(resolveDestination(data.user.role), { replace: true });
     } catch (error) {
       console.log("Login Error →", error);
       const errorMsg =
@@ -130,7 +202,7 @@ const Login = () => {
     try {
       setForgotLoading(true);
       const { data } = await axios.post(
-        "https://backend-3-axez.onrender.com/api/auth/forgot-password",
+        `${API_BASE}/api/auth/forgot-password`,
         { email: forgotEmail.trim() },
         { timeout: 20000 }
       );
@@ -166,41 +238,77 @@ const Login = () => {
 
   return (
     <div className="min-h-screen w-full flex bg-[#090d16] text-slate-100 relative overflow-hidden font-sans selection:bg-indigo-500 selection:text-white">
-      {/* Dynamic Background Gradients */}
-      <div className="absolute top-0 -left-40 w-96 h-96 bg-indigo-600/30 rounded-full blur-[128px] pointer-events-none" />
-      <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[140px] pointer-events-none" />
+      {/* Subtle Animated Background Orbs & Grid */}
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 opacity-[0.04] pointer-events-none login-grid-drift"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(148,163,184,0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(148,163,184,0.35) 1px, transparent 1px)",
+          backgroundSize: "48px 48px",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -top-28 -left-36 w-96 h-96 bg-indigo-600/25 rounded-full blur-[128px] pointer-events-none login-orb-slow"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute -bottom-32 -right-24 w-[480px] h-[480px] bg-purple-600/20 rounded-full blur-[140px] pointer-events-none login-orb-reverse"
+      />
+      <div
+        aria-hidden="true"
+        className="absolute top-1/3 left-1/2 w-64 h-64 bg-amber-500/10 rounded-full blur-[110px] pointer-events-none login-orb-pulse"
+      />
 
       {/* Left Visual Panel */}
-      <div className="hidden lg:flex lg:w-1/2 relative z-10 p-16 flex-col justify-between border-r border-slate-800/50 bg-slate-900/20 backdrop-blur-2xl">
-        <div className="flex items-center gap-3">
-          <img
-            src="/pedwallogo.png"
-            alt="Pedwal Logo"
-            className="h-10 w-auto object-contain drop-shadow-md"
-          />
-          <span className="text-xl font-bold tracking-tight text-white">
-            Pedwal
-          </span>
+      <div className="hidden lg:flex lg:w-1/2 relative z-10 p-16 flex-col justify-between border-r border-slate-800/50 bg-slate-900/25 backdrop-blur-2xl">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-slate-900/80 border border-indigo-400/20 shadow-inner">
+              <img
+                src="/pedwallogo.png"
+                alt="Pedwal Logo"
+                className="h-8 w-auto object-contain mix-blend-lighten"
+              />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-white">
+              Pedwal
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => navigate("/")}
+            className="text-xs font-medium text-slate-400 hover:text-indigo-300 transition-colors cursor-pointer"
+          >
+            ← Continue browsing
+          </button>
         </div>
 
         <div className="max-w-md space-y-6">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-semibold tracking-wide uppercase">
-            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
+            <span className="w-2 h-2 rounded-full bg-indigo-400 animate-ping" />
             E-Commerce Reimagined
           </div>
           <h1 className="text-5xl font-extrabold text-white tracking-tight leading-[1.15]">
             Experience shop precision.
           </h1>
           <p className="text-slate-400 text-base leading-relaxed">
-            Access your curated catalog, monitor ongoing orders, and manage your account with our updated workflow system.
+            Browse freely as a guest, then sign in anytime to add items to your
+            cart, track orders, and manage your account seamlessly.
           </p>
         </div>
 
         <div className="flex items-center justify-between text-xs text-slate-500 border-t border-slate-800/60 pt-6">
           <span>© {new Date().getFullYear()} Pedwal Inc.</span>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-slate-400 transition-colors">Privacy</a>
-            <a href="#" className="hover:text-slate-400 transition-colors">Terms</a>
+            <a href="#" className="hover:text-slate-400 transition-colors">
+              Privacy
+            </a>
+            <a href="#" className="hover:text-slate-400 transition-colors">
+              Terms
+            </a>
           </div>
         </div>
       </div>
@@ -210,21 +318,43 @@ const Login = () => {
         <div className="w-full max-w-md">
           {/* Mobile Header */}
           <div className="lg:hidden flex flex-col items-center mb-8">
-            <img src="/pedwallogo.png" alt="Logo" className="h-12 mb-3" />
-            <span className="text-2xl font-bold text-white tracking-tight">Pedwal</span>
+            <div className="p-2.5 rounded-2xl bg-slate-900/80 border border-indigo-400/20 mb-3 shadow-lg">
+              <img
+                src="/pedwallogo.png"
+                alt="Logo"
+                className="h-10 w-auto object-contain mix-blend-lighten"
+              />
+            </div>
+            <span className="text-2xl font-bold text-white tracking-tight">
+              Pedwal
+            </span>
           </div>
 
-          <div className="bg-slate-900/60 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-8 sm:p-10 shadow-2xl shadow-indigo-950/50">
+          <div className="bg-slate-900/65 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-8 sm:p-10 shadow-2xl shadow-indigo-950/50">
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-white tracking-tight">Welcome back</h2>
-              <p className="text-slate-400 text-sm mt-1">Please enter your details to sign in.</p>
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                Welcome back
+              </h2>
+              <p className="text-slate-400 text-sm mt-1">
+                Sign in to save items to your cart and place orders.
+              </p>
             </div>
 
             {/* Lockout Warning Banner */}
             {lockoutError && (
               <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs flex items-start gap-3">
-                <svg className="w-5 h-5 shrink-0 text-red-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                <svg
+                  className="w-5 h-5 shrink-0 text-red-400 mt-0.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
                 </svg>
                 <div className="leading-relaxed font-medium">{lockoutError}</div>
               </div>
@@ -266,13 +396,38 @@ const Login = () => {
                     className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
                   >
                     {showPassword ? (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"
+                        />
                       </svg>
                     ) : (
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                        />
                       </svg>
                     )}
                   </button>
@@ -308,8 +463,20 @@ const Login = () => {
                 {loading ? (
                   <span className="flex items-center justify-center gap-2 text-sm">
                     <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                        fill="none"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     Signing in...
                   </span>
@@ -341,8 +508,18 @@ const Login = () => {
               onClick={closeForgotModal}
               className="absolute top-4 right-4 text-slate-400 hover:text-white transition-colors cursor-pointer"
             >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="h-5 w-5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
 
@@ -350,13 +527,26 @@ const Login = () => {
               <>
                 <div className="mb-6">
                   <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center justify-center mb-4 text-indigo-400">
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                      />
                     </svg>
                   </div>
-                  <h3 className="text-xl font-bold text-white">Reset password</h3>
+                  <h3 className="text-xl font-bold text-white">
+                    Reset password
+                  </h3>
                   <p className="text-slate-400 text-xs mt-1">
-                    Enter the email address associated with your account and we will send you instructions to reset your password.
+                    Enter the email address associated with your account and we
+                    will send you instructions to reset your password.
                   </p>
                 </div>
 
@@ -386,14 +576,29 @@ const Login = () => {
             ) : (
               <div className="text-center py-2">
                 <div className="w-12 h-12 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-4 text-emerald-400">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  <svg
+                    className="h-6 w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 13l4 4L19 7"
+                    />
                   </svg>
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Check your email</h3>
+                <h3 className="text-xl font-bold text-white mb-2">
+                  Check your email
+                </h3>
                 <p className="text-slate-400 text-xs mb-6 leading-relaxed">
-                  We've sent a password reset link to<br />
-                  <span className="text-slate-200 font-medium">{forgotEmail}</span>
+                  We've sent a password reset link to
+                  <br />
+                  <span className="text-slate-200 font-medium">
+                    {forgotEmail}
+                  </span>
                 </p>
                 <button
                   onClick={closeForgotModal}
@@ -406,6 +611,40 @@ const Login = () => {
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes orbDriftSlow {
+          0%, 100% { transform: translate3d(0px, 0px, 0px) scale(1); }
+          50% { transform: translate3d(28px, -22px, 0px) scale(1.06); }
+        }
+        .login-orb-slow {
+          animation: orbDriftSlow 9s ease-in-out infinite;
+        }
+
+        @keyframes orbDriftReverse {
+          0%, 100% { transform: translate3d(0px, 0px, 0px) scale(1); }
+          50% { transform: translate3d(-26px, 20px, 0px) scale(1.05); }
+        }
+        .login-orb-reverse {
+          animation: orbDriftReverse 11s ease-in-out infinite;
+        }
+
+        @keyframes orbPulseSoft {
+          0%, 100% { opacity: 0.45; transform: scale(0.95); }
+          50% { opacity: 0.85; transform: scale(1.08); }
+        }
+        .login-orb-pulse {
+          animation: orbPulseSoft 7s ease-in-out infinite;
+        }
+
+        @keyframes gridShift {
+          0% { background-position: 0px 0px; }
+          100% { background-position: 48px 48px; }
+        }
+        .login-grid-drift {
+          animation: gridShift 18s linear infinite;
+        }
+      `}</style>
     </div>
   );
 };
