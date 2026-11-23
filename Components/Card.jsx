@@ -117,7 +117,14 @@ const StarRating = ({ rating = 0, size = 12 }) => {
 // COMPONENT
 // ======================================================
 const Card = () => {
-  const { addToCart } = useContext(CartContext);
+  // --- CART CONTEXT ---
+  const cartCtx = useContext(CartContext);
+  const { addToCart } = cartCtx;
+
+  // Cart items context se (naam alag ho to dono try kiye hain)
+  const contextCart = cartCtx.cartItems || cartCtx.cart;
+  const hasCartData = Array.isArray(contextCart);
+
   const navigate = useNavigate();
   const categoryScrollRef = useRef(null);
   const productsScrollRef = useRef(null);
@@ -133,6 +140,13 @@ const Card = () => {
   const [sortBy, setSortBy] = useState("featured");
   const [visibleProducts, setVisibleProducts] = useState(12);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
+
+  // Agar context cart expose nahi karta to local counter fallback
+  const [localAdded, setLocalAdded] = useState({});
+  // Kis product par "max stock" message dikhana hai
+  const [limitMsgId, setLimitMsgId] = useState(null);
+  // Fast clicks ke liye ref counter (state update se pehle bhi sahi count rahe)
+  const pendingAddsRef = useRef({});
 
   // --- FETCH PRODUCTS ---
   const fetchProducts = async () => {
@@ -176,6 +190,11 @@ const Card = () => {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Context cart badalne par fast-click counter reset (cart ab sach batata hai)
+  useEffect(() => {
+    pendingAddsRef.current = {};
+  }, [contextCart]);
 
   const categories = [
     ...new Set(
@@ -325,6 +344,53 @@ const Card = () => {
     { label: "On offer", value: offersCount },
     { label: "In stock", value: inStockCount },
   ];
+
+  // ======================================================
+  // CART HELPERS (STOCK LIMIT)
+  // ======================================================
+
+  // Is product ki kitni quantity cart me hai
+  const getCartQty = (productId) => {
+    if (hasCartData) {
+      const item = contextCart.find(
+        (i) => (i._id || i.id || i.productId) === productId
+      );
+      const fromCart = Number(item?.quantity || item?.qty || 0);
+      // Fast clicks ke liye pending adds bhi jodo
+      return fromCart + (pendingAddsRef.current[productId] || 0);
+    }
+    return localAdded[productId] || 0;
+  };
+
+  // Safe add to cart (stock se zyada nahi jayega)
+  const handleAddToCart = (product, finalPrice) => {
+    const stock = Number(product.stock) || 0;
+    const inCart = getCartQty(product._id);
+
+    if (stock <= 0) return;
+
+    if (inCart >= stock) {
+      setLimitMsgId(product._id);
+      setTimeout(() => setLimitMsgId(null), 2500);
+      return;
+    }
+
+    addToCart({
+      ...product,
+      quantity: 1,
+      price: finalPrice,
+    });
+
+    if (hasCartData) {
+      pendingAddsRef.current[product._id] =
+        (pendingAddsRef.current[product._id] || 0) + 1;
+    } else {
+      setLocalAdded((prev) => ({
+        ...prev,
+        [product._id]: (prev[product._id] || 0) + 1,
+      }));
+    }
+  };
 
   // Go to product details
   const goToProduct = (product) => {
@@ -840,6 +906,10 @@ const Card = () => {
                     const inStock = product.stock > 0;
                     const rating = getRating(product);
 
+                    // Stock limit logic
+                    const inCartQty = getCartQty(product._id);
+                    const limitReached = inStock && inCartQty >= Number(product.stock);
+
                     return (
                       <div
                         key={product._id}
@@ -978,25 +1048,39 @@ const Card = () => {
                               </button>
 
                               <button
-                                disabled={product.stock === 0}
+                                disabled={!inStock || limitReached}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  addToCart({
-                                    ...product,
-                                    quantity: 1,
-                                    price: finalPrice,
-                                  });
+                                  handleAddToCart(product, finalPrice);
                                 }}
                                 className="rounded-lg py-2 text-[11px] sm:text-xs font-bold transition disabled:cursor-not-allowed hover:opacity-90 active:scale-95"
                                 style={
-                                  product.stock === 0
+                                  !inStock || limitReached
                                     ? { background: "#F1F2EF", color: MUTED }
                                     : { background: AMBER, color: "#1A1200" }
                                 }
                               >
-                                Add to cart
+                                {limitReached ? "Max in cart" : "Add to cart"}
                               </button>
                             </div>
+
+                            {limitMsgId === product._id && (
+                              <p
+                                className="mt-1.5 text-[10px] font-semibold text-center"
+                                style={{ color: "#B4302F" }}
+                              >
+                                Sirf {product.stock} item available hain
+                              </p>
+                            )}
+
+                            {inCartQty > 0 && (
+                              <p
+                                className="mt-1 text-[10px] text-center"
+                                style={{ color: MUTED }}
+                              >
+                                Cart me: {inCartQty} / {product.stock}
+                              </p>
+                            )}
 
                             {product.variantGroup &&
                               products.filter(
