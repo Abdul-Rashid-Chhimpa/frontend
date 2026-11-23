@@ -6,20 +6,29 @@ import toast from "react-hot-toast";
 const API_BASE = "https://backend-3-axez.onrender.com";
 
 export const isUserAuthenticated = () => {
-  const token = localStorage.getItem("token");
-  const expiry = Number(localStorage.getItem("tokenExpiry") || 0);
-  if (!token) return false;
-  if (expiry && Date.now() >= expiry) return false;
-  return true;
+  try {
+    const token = localStorage.getItem("token");
+    const expiry = Number(localStorage.getItem("tokenExpiry") || 0);
+    if (!token) return false;
+    if (expiry && Date.now() >= expiry) return false;
+    return true;
+  } catch {
+    return false;
+  }
 };
 
 export const redirectGuestToLogin = (navigate, targetPath) => {
+  const currentPath = window.location.pathname || "/";
+  if (currentPath.startsWith("/login")) return;
+
   const nextPath =
     targetPath ||
-    window.location.pathname + window.location.search + window.location.hash;
+    currentPath + window.location.search + window.location.hash;
+
   if (nextPath && !nextPath.startsWith("/login")) {
     sessionStorage.setItem("redirectAfterLogin", nextPath);
   }
+
   toast("Please log in to continue with this action.", { icon: "🔒" });
   navigate("/login", { state: { from: nextPath } });
 };
@@ -88,20 +97,28 @@ const Login = () => {
     }
   }, [navigate, location.state]);
 
-  // Redirect unauthenticated users to /login when an action (e.g., Add to Cart) occurs
+  // Redirect unauthenticated users to /login when a protected action occurs on non-login pages
   useEffect(() => {
     const handleGuestAction = (event) => {
+      if (window.location.pathname.startsWith("/login")) return;
       if (isUserAuthenticated()) return;
       const requestedPath = event?.detail?.redirectTo;
       redirectGuestToLogin(navigate, requestedPath);
     };
 
     const handleCaptureActionClick = (e) => {
+      if (window.location.pathname.startsWith("/login")) return;
       if (isUserAuthenticated()) return;
+
       const interactive = e.target?.closest?.("button, a, [role='button']");
       if (!interactive) return;
 
-      if (interactive.dataset?.skipAuth === "true") return;
+      if (
+        interactive.dataset?.skipAuth === "true" ||
+        interactive.closest("form")
+      ) {
+        return;
+      }
 
       const text = (
         interactive.innerText ||
@@ -165,7 +182,6 @@ const Login = () => {
         return;
       }
 
-      // --- SAVE TOKEN, USER, USERID & EXACT 1-HOUR EXPIRY ---
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
@@ -278,7 +294,7 @@ const Login = () => {
         <div className="flex items-center justify-between">
           <div className="p-2 rounded-xl bg-slate-900/80 border border-indigo-400/20 shadow-inner">
             <img
-              src="/logowithqoute.png"
+              src="/pedwallogo.png"
               alt="Logo"
               className="h-8 w-auto object-contain mix-blend-lighten"
             />
@@ -666,4 +682,3 @@ const Login = () => {
 };
 
 export default Login;
-
