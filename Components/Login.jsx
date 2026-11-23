@@ -267,7 +267,7 @@ const Login = () => {
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-xl bg-slate-900/80 border border-indigo-400/20 shadow-inner">
               <img
-                src="/pedwallogo.png"
+                src="/logowithqoute.png"
                 alt="Pedwal Logo"
                 className="h-8 w-auto object-contain mix-blend-lighten"
               />
@@ -650,3 +650,4 @@ const Login = () => {
 };
 
 export default Login;
+
