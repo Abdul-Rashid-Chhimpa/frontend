@@ -37,6 +37,11 @@ const COLOR = {
   AMBER_DARK: "#C97F0F",
   STEEL: "#2B4A5E",
   STEEL_DARK: "#17303E",
+  // Hero (dark) colors
+  HERO_BG: "#15181C",
+  HERO_PANEL: "#1B2026",
+  HERO_LINE: "#2E363D",
+  HERO_TEXT_SOFT: "#AEBBC4",
 };
 
 const defaultSlideData = [
@@ -425,6 +430,7 @@ const Home = () => {
   }, [companyModalOpen]);
 
   const current = slideData[active] || slideData[0];
+  const currentImageUrl = getImageUrl(current?.image);
 
   const handleBuyNow = () => {
     if (current?.productId) {
@@ -492,187 +498,165 @@ const Home = () => {
           </div>
         </div>
 
-        {/* ========== HERO SHOWCASE ========== */}
-        <section className="relative w-full overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#FFF9F0] via-[#F8FAFC] to-[#F0F4F8] pointer-events-none" />
+        {/* ========== HERO SHOWCASE (RESPONSIVE, FULL-SIZE IMAGE PANEL) ========== */}
+        <section
+          className="relative w-full overflow-hidden"
+          style={{ background: COLOR.HERO_BG }}
+        >
+          <div className="flex flex-col lg:flex-row lg:min-h-[560px]">
+            {/* ===== IMAGE PANEL: full width + full height, image never cropped ===== */}
+            <div
+              className="order-1 lg:order-2 lg:w-[56%] flex flex-col"
+              onMouseEnter={() => setPaused(true)}
+              onMouseLeave={() => setPaused(false)}
+            >
+              <div
+                className="relative w-full aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:flex-1 lg:min-h-[420px] overflow-hidden"
+                style={{ background: COLOR.HERO_PANEL }}
+              >
+                {/* Blurred copy fills empty space so the card always looks full */}
+                <img
+                  key={`bg-${current?._id || current?.id || active}`}
+                  src={currentImageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  onError={handleImgError}
+                  className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-50"
+                />
 
-          <div
-            className="absolute top-16 right-8 w-80 h-80 rounded-full blur-[110px] opacity-25 pointer-events-none"
-            style={{ background: COLOR.AMBER }}
-          />
-          <div
-            className="absolute bottom-20 left-6 w-64 h-64 rounded-full blur-[100px] opacity-15 pointer-events-none"
-            style={{ background: COLOR.STEEL }}
-          />
-
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-20">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
-              {/* ===== LEFT CONTENT ===== */}
-              <div className="lg:col-span-5 order-2 lg:order-1">
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border shadow-sm mb-5">
-                  <span
-                    className="w-2 h-2 rounded-full animate-pulse"
-                    style={{ background: COLOR.AMBER }}
-                  />
-                  <span
-                    className="text-xs font-semibold tracking-wide"
-                    style={{ color: COLOR.STEEL }}
-                  >
-                    {current?.tagline || "Premium Series"}
-                  </span>
-                </div>
-
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.15] mb-4">
-                  {current?.title || "Featured Tool"}
-                </h1>
-
-                <p
-                  className="text-sm sm:text-base max-w-md mb-6"
-                  style={{ color: COLOR.MUTED }}
-                >
-                  {current?.specs ||
-                    "High quality industrial tools built for professionals"}
-                </p>
-
-                {/* Feature pills */}
-                <div className="flex flex-wrap gap-2.5 mb-8">
-                  <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <Wrench size={13} />
-                    Drop Forged
-                  </div>
-                  <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <Zap size={13} />
-                    Hardened Edge
-                  </div>
-                  <div
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white border text-xs font-medium"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <ShieldCheck size={13} />
-                    Quality Assured
-                  </div>
-                </div>
-
-                {/* ACTION BUTTONS */}
-                <div className="flex flex-wrap items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={handleBuyNow}
-                    className="group px-7 py-3.5 rounded-2xl font-bold text-sm text-white shadow-lg flex items-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
-                    style={{
-                      background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, ${COLOR.AMBER_DARK} 100%)`,
-                    }}
-                  >
-                    <ShoppingBag
-                      size={18}
-                      className="group-hover:scale-110 transition-transform"
-                    />
-                    <span>Buy Now</span>
-                    <ArrowRight
-                      size={16}
-                      className="group-hover:translate-x-1 transition-transform"
-                    />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={handleExplore3DProduct}
-                    className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <Rotate3d size={17} style={{ color: COLOR.AMBER }} />
-                    <span>Explore Product</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setCompanyModalOpen(true)}
-                    className="px-5 py-3.5 rounded-2xl font-bold text-sm border bg-white flex items-center gap-2 transition-all duration-300 hover:-translate-y-1 shadow-sm cursor-pointer"
-                    style={{ borderColor: COLOR.BORDER, color: COLOR.STEEL }}
-                  >
-                    <Building2 size={17} style={{ color: COLOR.STEEL }} />
-                    <span>Company Details</span>
-                  </button>
-                </div>
-
-                {/* Thumbnail strip */}
-                <div
-                  className="mt-10 pt-6 border-t flex flex-wrap items-center gap-2.5"
-                  style={{ borderColor: COLOR.BORDER }}
-                >
-                  {slideData.map((item, idx) => (
-                    <button
-                      key={item._id || item.id || idx}
-                      type="button"
-                      onClick={() => setActive(idx)}
-                      aria-label={`Show slide ${idx + 1}`}
-                      className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
-                        active === idx
-                          ? "shadow-md scale-105 -translate-y-0.5"
-                          : "opacity-55 hover:opacity-100 hover:-translate-y-0.5"
-                      }`}
-                      style={{
-                        borderColor: active === idx ? COLOR.AMBER : COLOR.BORDER,
-                        width: "52px",
-                        height: "52px",
-                      }}
-                    >
-                      <img
-                        src={getImageUrl(item.image)}
-                        alt={item.title}
-                        onError={handleImgError}
-                        className="w-full h-full object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
+                {/* Main image: object-contain = complete image visible, nothing cut */}
+                <img
+                  key={current?._id || current?.id || active}
+                  src={currentImageUrl}
+                  alt={current?.title}
+                  onError={handleImgError}
+                  className="absolute inset-0 w-full h-full object-contain p-3 sm:p-5 animate-hero-fade"
+                />
               </div>
 
-              {/* ===== RIGHT PRODUCT DISPLAY (FULL WIDTH & HEIGHT, NO ARROWS) ===== */}
-              <div className="lg:col-span-7 order-1 lg:order-2 flex justify-center">
-                <div
-                  onMouseEnter={() => setPaused(true)}
-                  onMouseLeave={() => setPaused(false)}
-                  className="relative w-full max-w-[380px] sm:max-w-[440px] md:max-w-[500px]"
-                >
-                  <div
-                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[85%] h-[85%] rounded-full blur-[60px] opacity-40 pointer-events-none"
-                    style={{ background: "rgba(240, 164, 32, 0.35)" }}
-                  />
-
-                  <div
-                    className="relative w-full aspect-[4/3.3] rounded-[2rem] bg-white border shadow-2xl overflow-hidden"
-                    style={{ borderColor: COLOR.BORDER }}
+              {/* Thumbnail bar */}
+              <div
+                className="flex items-center gap-2.5 px-4 sm:px-6 py-3 overflow-x-auto border-t"
+                style={{
+                  background: COLOR.HERO_PANEL,
+                  borderColor: COLOR.HERO_LINE,
+                }}
+              >
+                {slideData.map((item, idx) => (
+                  <button
+                    key={item._id || item.id || idx}
+                    type="button"
+                    onClick={() => setActive(idx)}
+                    aria-label={`Show slide ${idx + 1}`}
+                    className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
+                      active === idx
+                        ? "shadow-md scale-105"
+                        : "opacity-60 hover:opacity-100"
+                    }`}
+                    style={{
+                      borderColor:
+                        active === idx ? COLOR.AMBER : "rgba(255,255,255,0.3)",
+                      width: "52px",
+                      height: "52px",
+                    }}
                   >
                     <img
-                      key={current?._id || current?.id || active}
-                      src={getImageUrl(current?.image)}
-                      alt={current?.title}
+                      src={getImageUrl(item.image)}
+                      alt={item.title}
                       onError={handleImgError}
-                      className="w-full h-full object-cover animate-hero-fade"
+                      className="w-full h-full object-contain"
                     />
-                  </div>
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                  <div className="flex justify-center gap-2 mt-5 lg:hidden">
-                    {slideData.map((_, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => setActive(idx)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
-                          active === idx ? "w-6" : "w-1.5 bg-gray-300"
-                        }`}
-                        style={active === idx ? { background: COLOR.AMBER } : {}}
-                      />
-                    ))}
+            {/* ===== TEXT CONTENT ===== */}
+            <div className="order-2 lg:order-1 lg:w-[44%] flex flex-col justify-center items-start gap-4 px-5 sm:px-10 lg:pl-16 xl:pl-28 lg:pr-10 py-8 sm:py-10 lg:py-14">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/70">
+                <span
+                  className="w-2 h-2 rounded-full animate-pulse"
+                  style={{ background: COLOR.AMBER }}
+                />
+                <span className="text-xs font-semibold tracking-wide text-white">
+                  {current?.tagline || "Premium Series"}
+                </span>
+              </div>
+
+              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.1] text-white">
+                {current?.title || "Featured Tool"}
+              </h1>
+
+              <p
+                className="text-sm sm:text-base max-w-md"
+                style={{ color: COLOR.HERO_TEXT_SOFT }}
+              >
+                {current?.specs ||
+                  "High quality industrial tools built for professionals"}
+              </p>
+
+              {/* Feature pills */}
+              <div className="flex flex-wrap gap-2.5">
+                {[
+                  { icon: Wrench, label: "Drop Forged" },
+                  { icon: Zap, label: "Hardened Edge" },
+                  { icon: ShieldCheck, label: "Quality Assured" },
+                ].map(({ icon: Icon, label }) => (
+                  <div
+                    key={label}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold text-white"
+                    style={{
+                      background: "rgba(255,255,255,0.1)",
+                      borderColor: "rgba(255,255,255,0.25)",
+                    }}
+                  >
+                    <Icon size={13} style={{ color: COLOR.AMBER }} />
+                    {label}
                   </div>
-                </div>
+                ))}
+              </div>
+
+              {/* ACTION BUTTONS */}
+              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2">
+                <button
+                  type="button"
+                  onClick={handleBuyNow}
+                  className="group px-7 py-3.5 rounded-2xl font-bold text-sm shadow-lg flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
+                  style={{
+                    background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, #E08E10 100%)`,
+                    color: "#1A1200",
+                  }}
+                >
+                  <ShoppingBag
+                    size={18}
+                    className="group-hover:scale-110 transition-transform"
+                  />
+                  <span>Buy Now</span>
+                  <ArrowRight
+                    size={16}
+                    className="group-hover:translate-x-1 transition-transform"
+                  />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExplore3DProduct}
+                  className="px-5 py-3.5 rounded-2xl font-bold text-sm border flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 cursor-pointer text-white"
+                  style={{ borderColor: "rgba(255,255,255,0.45)" }}
+                >
+                  <Rotate3d size={17} style={{ color: COLOR.AMBER }} />
+                  <span>Explore Product</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setCompanyModalOpen(true)}
+                  className="px-5 py-3.5 rounded-2xl font-bold text-sm border flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 cursor-pointer text-white"
+                  style={{ borderColor: "rgba(255,255,255,0.45)" }}
+                >
+                  <Building2 size={17} style={{ color: COLOR.AMBER }} />
+                  <span>Company Details</span>
+                </button>
               </div>
             </div>
           </div>
@@ -681,11 +665,14 @@ const Home = () => {
         {/* ========== FEATURE HIGHLIGHTS ========== */}
         <ScrollReveal>
           <section
-            className="w-full py-8 border-y"
-            style={{ background: COLOR.BG_LIGHT, borderColor: COLOR.BORDER }}
+            className="w-full py-6 sm:py-7 border-b"
+            style={{
+              background: COLOR.HERO_PANEL,
+              borderColor: COLOR.HERO_LINE,
+            }}
           >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6 text-center md:text-left">
+            <div className="max-w-7xl mx-auto px-5 sm:px-6 lg:px-8">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-5 sm:gap-6">
                 {[
                   {
                     icon: Wrench,
@@ -709,17 +696,26 @@ const Home = () => {
                   },
                 ].map(({ icon: Icon, title, note }, idx) => (
                   <ScrollReveal key={title} delay={idx * 90}>
-                    <div className="flex flex-col md:flex-row items-center gap-3">
-                      <div
-                        className="p-3 rounded-xl shadow-sm text-white shrink-0"
-                        style={{ background: COLOR.STEEL }}
+                    <div
+                      className="pl-3 border-l-[3px]"
+                      style={{ borderColor: COLOR.AMBER }}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <Icon
+                          size={14}
+                          style={{ color: COLOR.AMBER }}
+                          className="shrink-0"
+                        />
+                        <h4 className="text-sm font-semibold text-white">
+                          {title}
+                        </h4>
+                      </div>
+                      <p
+                        className="text-xs mt-0.5"
+                        style={{ color: COLOR.HERO_TEXT_SOFT }}
                       >
-                        <Icon size={20} />
-                      </div>
-                      <div>
-                        <h4 className="text-sm font-bold">{title}</h4>
-                        <p className="text-xs text-gray-500">{note}</p>
-                      </div>
+                        {note}
+                      </p>
                     </div>
                   </ScrollReveal>
                 ))}
@@ -1035,7 +1031,7 @@ const Home = () => {
         }
 
         @keyframes heroFade {
-          0% { opacity: 0; transform: scale(0.96); }
+          0% { opacity: 0; transform: scale(0.97); }
           100% { opacity: 1; transform: scale(1); }
         }
         .animate-hero-fade {
