@@ -63,16 +63,6 @@ const Login = () => {
     return dest;
   };
 
-  const handleSkipNow = (e) => {
-    e.preventDefault();
-    const target = sessionStorage.getItem("redirectAfterLogin");
-    const dest =
-      target && !target.startsWith("/login") && !target.includes("cart")
-        ? target
-        : "/";
-    navigate(dest);
-  };
-
   useEffect(() => {
     if (location.state?.from && !location.state.from.startsWith("/login")) {
       sessionStorage.setItem("redirectAfterLogin", location.state.from);
@@ -111,12 +101,7 @@ const Login = () => {
       if (isUserAuthenticated()) return;
 
       const interactive = e.target?.closest?.("button, a, [role='button']");
-      if (!interactive) return;
-
-      if (
-        interactive.dataset?.skipAuth === "true" ||
-        interactive.closest("form")
-      ) {
+      if (!interactive || interactive.closest("form")) {
         return;
       }
 
@@ -182,6 +167,7 @@ const Login = () => {
         return;
       }
 
+      // --- SAVE TOKEN, USER, USERID & EXACT 1-HOUR EXPIRY ---
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
@@ -291,7 +277,7 @@ const Login = () => {
 
       {/* Left Visual Panel */}
       <div className="hidden lg:flex lg:w-1/2 relative z-10 p-16 flex-col justify-between border-r border-slate-800/50 bg-slate-900/25 backdrop-blur-2xl">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <div className="p-2 rounded-xl bg-slate-900/80 border border-indigo-400/20 shadow-inner">
             <img
               src="/pedwallogo.png"
@@ -299,15 +285,6 @@ const Login = () => {
               className="h-8 w-auto object-contain mix-blend-lighten"
             />
           </div>
-
-          <a
-            href="/"
-            data-skip-auth="true"
-            onClick={handleSkipNow}
-            className="text-xs font-semibold text-indigo-300 hover:text-indigo-200 underline underline-offset-4 transition-colors"
-          >
-            Skip now
-          </a>
         </div>
 
         <div className="max-w-md space-y-6">
@@ -352,24 +329,13 @@ const Login = () => {
           </div>
 
           <div className="bg-slate-900/65 backdrop-blur-xl border border-slate-800/80 rounded-2xl p-8 sm:p-10 shadow-2xl shadow-indigo-950/50">
-            <div className="flex items-start justify-between gap-3 mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-white tracking-tight">
-                  Welcome back
-                </h2>
-                <p className="text-slate-400 text-sm mt-1">
-                  Sign in to save items to your cart and place orders.
-                </p>
-              </div>
-
-              <a
-                href="/"
-                data-skip-auth="true"
-                onClick={handleSkipNow}
-                className="shrink-0 text-xs font-semibold text-indigo-300 hover:text-indigo-200 underline underline-offset-4 transition-colors mt-1"
-              >
-                Skip now
-              </a>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-white tracking-tight">
+                Welcome back
+              </h2>
+              <p className="text-slate-400 text-sm mt-1">
+                Sign in to save items to your cart and place orders.
+              </p>
             </div>
 
             {/* Lockout Warning Banner */}
