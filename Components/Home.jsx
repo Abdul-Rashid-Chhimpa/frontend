@@ -1,11 +1,19 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 import ProductCard from "./Card";
 import Nav from "./Nav";
 import RandomImg from "./RandomImg";
 import Footer from "./Footer";
 import OnboardingGuide from "./OnboardingGuide";
+import { requireLogin } from "../Components/auth";
 import {
   ShieldCheck,
   Zap,
@@ -25,6 +33,8 @@ import {
   UserRound,
 } from "lucide-react";
 
+gsap.registerPlugin(ScrollTrigger);
+
 const API_BASE = "https://backend-3-axez.onrender.com";
 
 const COLOR = {
@@ -43,6 +53,8 @@ const COLOR = {
   HERO_LINE: "#2E363D",
   HERO_TEXT_SOFT: "#AEBBC4",
 };
+
+const SLIDE_DURATION = 4.8; // seconds
 
 const defaultSlideData = [
   {
@@ -100,6 +112,19 @@ const companyHighlights = [
     desc: "Every batch undergoes hardness and load testing before dispatch.",
   },
 ];
+
+const craftIcons = [Zap, ShieldCheck, Award, Wrench];
+
+// ======================================================
+// HELPERS
+// ======================================================
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+
+const canHover = () =>
+  typeof window !== "undefined" &&
+  Boolean(window.matchMedia?.("(hover: hover) and (pointer: fine)").matches);
 
 const getCartSnapshotFromStorage = () => {
   try {
@@ -172,46 +197,198 @@ const findClickedProductCard = (target) => {
   return null;
 };
 
+// Word-by-word mask reveal (animated by GSAP via ".split-word")
+const SplitWords = ({ text }) => (
+  <>
+    {String(text || "")
+      .split(" ")
+      .map((word, i) => (
+        <span
+          key={`${word}-${i}`}
+          className="inline-block overflow-hidden align-bottom pb-[0.1em] mr-[0.25em]"
+        >
+          <span className="split-word inline-block will-change-transform">
+            {word}
+          </span>
+        </span>
+      ))}
+  </>
+);
+
+// ======================================================
+// SCROLL REVEAL (GSAP)
+// ======================================================
 const ScrollReveal = ({ children, className = "", delay = 0 }) => {
   const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current;
-    if (!el) return;
+    if (!el || prefersReducedMotion()) return;
 
-    if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.unobserve(entry.target);
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        el,
+        { autoAlpha: 0, y: 44 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.9,
+          delay: delay / 1000,
+          ease: "power3.out",
+          clearProps: "transform",
+          scrollTrigger: { trigger: el, start: "top 90%", once: true },
         }
-      },
-      { threshold: 0.12, rootMargin: "0px 0px -40px 0px" }
-    );
+      );
+    }, el);
 
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
+    return () => ctx.revert();
+  }, [delay]);
 
   return (
-    <div
-      ref={ref}
-      style={{ transitionDelay: `${delay}ms` }}
-      className={`transition-all duration-700 ease-out transform ${
-        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
-      } ${className}`}
-    >
+    <div ref={ref} className={className}>
       {children}
     </div>
   );
 };
 
+// ======================================================
+// CRAFTSMANSHIP SECTION (new)
+// ======================================================
+const Craftsmanship = () => {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    if (prefersReducedMotion()) return;
+
+    const ctx = gsap.context(() => {
+      const trigger = { trigger: ".craft-title", start: "top 88%", once: true };
+
+      gsap.fromTo(
+        ".craft-title .split-word",
+        { yPercent: 110 },
+        {
+          yPercent: 0,
+          duration: 0.8,
+          stagger: 0.06,
+          ease: "power3.out",
+          scrollTrigger: trigger,
+        }
+      );
+      gsap.fromTo(
+        ".craft-line",
+        { scaleX: 0 },
+        {
+          scaleX: 1,
+          transformOrigin: "left center",
+          duration: 0.9,
+          ease: "power3.out",
+          scrollTrigger: trigger,
+        }
+      );
+      gsap.fromTo(
+        ".craft-sub",
+        { autoAlpha: 0, y: 16 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.7,
+          delay: 0.25,
+          scrollTrigger: trigger,
+        }
+      );
+      gsap.fromTo(
+        ".craft-card",
+        { autoAlpha: 0, y: 56 },
+        {
+          autoAlpha: 1,
+          y: 0,
+          duration: 0.85,
+          stagger: 0.12,
+          ease: "power3.out",
+          clearProps: "transform",
+          scrollTrigger: { trigger: ".craft-grid", start: "top 88%", once: true },
+        }
+      );
+    }, ref);
+
+    return () => ctx.revert();
+  }, []);
+
+  return (
+    <section
+      ref={ref}
+      className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-14 sm:pt-16"
+    >
+      <h2
+        className="craft-title text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight"
+        style={{ color: COLOR.INK }}
+        aria-label="Craftsmanship you can feel"
+      >
+        <SplitWords text="Craftsmanship you can feel" />
+      </h2>
+      <div
+        className="craft-line w-12 h-1 rounded-full mt-3 mb-3"
+        style={{ background: COLOR.AMBER }}
+      />
+      <p
+        className="craft-sub text-sm sm:text-base max-w-xl"
+        style={{ color: COLOR.MUTED }}
+      >
+        Every Pedwal tool is built to take daily workshop pressure and keep
+        performing.
+      </p>
+
+      <div className="craft-grid grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+        {companyHighlights.map((item, idx) => {
+          const Icon = craftIcons[idx % craftIcons.length];
+          return (
+            <div
+              key={item.title}
+              className="craft-card group relative rounded-2xl bg-white border p-5 overflow-hidden transition-all duration-300 hover:-translate-y-1.5 hover:shadow-xl"
+              style={{ borderColor: COLOR.BORDER }}
+            >
+              <span
+                className="absolute -top-2 right-3 text-6xl font-black select-none pointer-events-none"
+                style={{ color: "rgba(43,74,94,0.07)" }}
+              >
+                {String(idx + 1).padStart(2, "0")}
+              </span>
+
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center text-white mb-4 transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110"
+                style={{ background: COLOR.STEEL }}
+              >
+                <Icon size={20} />
+              </div>
+
+              <h3
+                className="font-bold text-sm sm:text-base"
+                style={{ color: COLOR.INK }}
+              >
+                {item.title}
+              </h3>
+              <p
+                className="text-xs sm:text-sm mt-1.5 leading-relaxed"
+                style={{ color: COLOR.MUTED }}
+              >
+                {item.desc}
+              </p>
+
+              <span
+                className="absolute left-0 bottom-0 h-1 w-full origin-left scale-x-0 transition-transform duration-500 group-hover:scale-x-100"
+                style={{ background: COLOR.AMBER }}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+};
+
+// ======================================================
+// HOME
+// ======================================================
 const Home = () => {
   const navigate = useNavigate();
   const [slideData, setSlideData] = useState(defaultSlideData);
@@ -228,6 +405,23 @@ const Home = () => {
   const lastAnimTimestampRef = useRef(0);
   const [cartHit, setCartHit] = useState(false);
 
+  // GSAP refs
+  const rootRef = useRef(null);
+  const heroRef = useRef(null);
+  const progressRef = useRef(null);
+  const progressTweenRef = useRef(null);
+  const pausedRef = useRef(false);
+  const firstSlideRef = useRef(true);
+  const marqueeRef = useRef(null);
+  const marqueeTweenRef = useRef(null);
+  const modalOverlayRef = useRef(null);
+  const modalCardRef = useRef(null);
+
+  pausedRef.current = paused;
+
+  // ------------------------------------------------------
+  // CART FLY ANIMATION (unchanged)
+  // ------------------------------------------------------
   const launchProductFlipAnimation = (customImage, sourceEl) => {
     const now = performance.now();
     if (now - lastAnimTimestampRef.current < 260) return;
@@ -390,6 +584,9 @@ const Home = () => {
     };
   }, []);
 
+  // ------------------------------------------------------
+  // FETCH BANNERS
+  // ------------------------------------------------------
   useEffect(() => {
     const fetchBanners = async () => {
       try {
@@ -410,29 +607,334 @@ const Home = () => {
     fetchBanners();
   }, []);
 
-  useEffect(() => {
-    if (slideData.length <= 1 || paused) return;
-    const timer = setInterval(() => {
-      setActive((prev) => (prev + 1) % slideData.length);
-    }, 4800);
-    return () => clearInterval(timer);
-  }, [slideData.length, paused]);
+  // ------------------------------------------------------
+  // GSAP: HERO INTRO TIMELINE + PARALLAX + FLOATING ORBS
+  // ------------------------------------------------------
+  useLayoutEffect(() => {
+    if (prefersReducedMotion()) return;
 
+    const isDesktop = window.innerWidth >= 1024;
+
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+      tl.fromTo(
+        ".hero-img-panel",
+        { clipPath: isDesktop ? "inset(0 0 0 100%)" : "inset(0 0 100% 0)" },
+        {
+          clipPath: "inset(0 0 0% 0%)",
+          duration: 1.2,
+          ease: "power4.inOut",
+        },
+        0
+      )
+        .fromTo(
+          ".hero-img-inner",
+          { scale: 1.18 },
+          { scale: 1, duration: 1.6 },
+          0
+        )
+        .fromTo(
+          ".hero-pill",
+          { y: 22, autoAlpha: 0 },
+          { y: 0, autoAlpha: 1, duration: 0.6 },
+          0.25
+        )
+        .fromTo(
+          ".hero-title .split-word",
+          { yPercent: 110 },
+          { yPercent: 0, duration: 0.85, stagger: 0.07 },
+          0.35
+        )
+        .fromTo(
+          ".hero-specs",
+          { y: 18, autoAlpha: 0 },
+          { y: 0, autoAlpha: 1, duration: 0.6 },
+          0.6
+        )
+        .fromTo(
+          ".hero-chip",
+          { y: 18, autoAlpha: 0, scale: 0.9 },
+          { y: 0, autoAlpha: 1, scale: 1, duration: 0.5, stagger: 0.08 },
+          0.7
+        )
+        .fromTo(
+          ".hero-btn",
+          { y: 24, autoAlpha: 0 },
+          { y: 0, autoAlpha: 1, duration: 0.6, stagger: 0.1 },
+          0.85
+        )
+        .fromTo(
+          ".hero-thumbs",
+          { y: 24, autoAlpha: 0 },
+          { y: 0, autoAlpha: 1, duration: 0.6 },
+          1.0
+        );
+
+      // Floating glow orbs behind text
+      gsap.to(".hero-orb-a", {
+        x: 50,
+        y: -34,
+        duration: 6,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+      });
+      gsap.to(".hero-orb-b", {
+        x: -40,
+        y: 30,
+        duration: 7.5,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
+      });
+
+      // Parallax on image while scrolling past hero
+      gsap.fromTo(
+        ".hero-img-parallax",
+        { yPercent: -4 },
+        {
+          yPercent: 4,
+          ease: "none",
+          scrollTrigger: {
+            trigger: heroRef.current,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: true,
+          },
+        }
+      );
+    }, heroRef);
+
+    // Layout can shift after fonts/images/API load
+    const refreshTimer = setTimeout(() => ScrollTrigger.refresh(), 1500);
+
+    return () => {
+      clearTimeout(refreshTimer);
+      ctx.revert();
+    };
+  }, []);
+
+  // ------------------------------------------------------
+  // GSAP: SLIDE CHANGE (image + text)
+  // ------------------------------------------------------
+  useEffect(() => {
+    if (firstSlideRef.current) {
+      firstSlideRef.current = false;
+      return;
+    }
+    if (prefersReducedMotion()) return;
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        ".hero-main-img",
+        { autoAlpha: 0, scale: 1.07, filter: "blur(10px)" },
+        {
+          autoAlpha: 1,
+          scale: 1,
+          filter: "blur(0px)",
+          duration: 0.9,
+          ease: "power3.out",
+          clearProps: "filter",
+        }
+      );
+      gsap.fromTo(
+        ".hero-tagline",
+        { y: 12, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, duration: 0.5, ease: "power2.out" }
+      );
+      gsap.fromTo(
+        ".hero-title .split-word",
+        { yPercent: 110 },
+        { yPercent: 0, duration: 0.75, stagger: 0.06, ease: "power3.out" }
+      );
+      gsap.fromTo(
+        ".hero-specs",
+        { y: 14, autoAlpha: 0 },
+        { y: 0, autoAlpha: 1, duration: 0.55, delay: 0.15, ease: "power2.out" }
+      );
+    }, heroRef);
+
+    return () => ctx.revert();
+  }, [active]);
+
+  // ------------------------------------------------------
+  // GSAP: AUTOPLAY WITH PROGRESS BAR (replaces setInterval)
+  // ------------------------------------------------------
+  useEffect(() => {
+    const bar = progressRef.current;
+    if (!bar || slideData.length <= 1) return;
+
+    const tween = gsap.fromTo(
+      bar,
+      { scaleX: 0 },
+      {
+        scaleX: 1,
+        duration: SLIDE_DURATION,
+        ease: "none",
+        transformOrigin: "left center",
+        onComplete: () => setActive((prev) => (prev + 1) % slideData.length),
+      }
+    );
+
+    progressTweenRef.current = tween;
+    if (pausedRef.current) tween.pause();
+
+    return () => {
+      tween.kill();
+    };
+  }, [active, slideData.length]);
+
+  useEffect(() => {
+    progressTweenRef.current?.paused(paused);
+  }, [paused]);
+
+  // ------------------------------------------------------
+  // GSAP: MARQUEE (smooth slow-down on hover)
+  // ------------------------------------------------------
+  useEffect(() => {
+    const el = marqueeRef.current;
+    if (!el || prefersReducedMotion()) return;
+
+    const tween = gsap.to(el, {
+      xPercent: -50,
+      duration: 25,
+      ease: "none",
+      repeat: -1,
+    });
+    marqueeTweenRef.current = tween;
+
+    return () => {
+      tween.kill();
+      gsap.set(el, { clearProps: "transform" });
+    };
+  }, []);
+
+  const slowMarquee = () =>
+    marqueeTweenRef.current &&
+    gsap.to(marqueeTweenRef.current, { timeScale: 0.15, duration: 0.5 });
+  const resumeMarquee = () =>
+    marqueeTweenRef.current &&
+    gsap.to(marqueeTweenRef.current, { timeScale: 1, duration: 0.5 });
+
+  // ------------------------------------------------------
+  // GSAP: MOBILE BOTTOM NAV ENTRANCE
+  // ------------------------------------------------------
+  useLayoutEffect(() => {
+    if (prefersReducedMotion()) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        ".bottom-nav",
+        { yPercent: 100 },
+        {
+          yPercent: 0,
+          duration: 0.8,
+          delay: 0.8,
+          ease: "power3.out",
+          clearProps: "transform",
+        }
+      );
+    }, rootRef);
+    return () => ctx.revert();
+  }, []);
+
+  // ------------------------------------------------------
+  // GSAP: COMPANY MODAL OPEN ANIMATION
+  // ------------------------------------------------------
   useEffect(() => {
     if (!companyModalOpen) return;
+
     const onKeyDown = (e) => {
-      if (e.key === "Escape") {
-        setCompanyModalOpen(false);
-      }
+      if (e.key === "Escape") setCompanyModalOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+
+    let ctx;
+    if (!prefersReducedMotion() && modalOverlayRef.current) {
+      ctx = gsap.context(() => {
+        gsap.fromTo(
+          modalOverlayRef.current,
+          { autoAlpha: 0 },
+          { autoAlpha: 1, duration: 0.25 }
+        );
+        gsap.fromTo(
+          modalCardRef.current,
+          { y: 50, scale: 0.94, autoAlpha: 0 },
+          {
+            y: 0,
+            scale: 1,
+            autoAlpha: 1,
+            duration: 0.55,
+            ease: "back.out(1.4)",
+          }
+        );
+        gsap.fromTo(
+          ".modal-stat",
+          { y: 18, autoAlpha: 0 },
+          {
+            y: 0,
+            autoAlpha: 1,
+            duration: 0.45,
+            stagger: 0.08,
+            delay: 0.3,
+            ease: "power2.out",
+          }
+        );
+        gsap.fromTo(
+          ".modal-item",
+          { y: 18, autoAlpha: 0 },
+          {
+            y: 0,
+            autoAlpha: 1,
+            duration: 0.45,
+            stagger: 0.07,
+            delay: 0.45,
+            ease: "power2.out",
+          }
+        );
+      }, modalOverlayRef);
+    }
+
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      ctx?.revert();
+    };
   }, [companyModalOpen]);
 
+  // ------------------------------------------------------
+  // MAGNETIC HOVER FOR PRIMARY BUTTON
+  // ------------------------------------------------------
+  const handleMagnetMove = (e) => {
+    if (!canHover() || prefersReducedMotion()) return;
+    const btn = e.currentTarget;
+    const rect = btn.getBoundingClientRect();
+    const dx = e.clientX - (rect.left + rect.width / 2);
+    const dy = e.clientY - (rect.top + rect.height / 2);
+    gsap.to(btn, {
+      x: dx * 0.22,
+      y: dy * 0.32,
+      duration: 0.3,
+      ease: "power2.out",
+    });
+  };
+  const handleMagnetLeave = (e) => {
+    gsap.to(e.currentTarget, {
+      x: 0,
+      y: 0,
+      duration: 0.7,
+      ease: "elastic.out(1, 0.4)",
+    });
+  };
+
+  // ------------------------------------------------------
+  // ACTIONS (guest browsing allowed, login only on action)
+  // ------------------------------------------------------
   const current = slideData[active] || slideData[0];
   const currentImageUrl = getImageUrl(current?.image);
 
   const handleBuyNow = () => {
+    if (!requireLogin(navigate, "Please login to buy this product")) return;
+
     if (current?.productId) {
       navigate(`/product/${current.productId}`);
     } else if (current?._id && current._id.length > 10) {
@@ -451,8 +953,28 @@ const Home = () => {
     }
   };
 
+  const goToCart = () => {
+    if (!requireLogin(navigate, "Please login to view your cart")) return;
+    navigate("/cart");
+  };
+
+  const goToOrders = () => {
+    if (!requireLogin(navigate, "Please login to view your orders")) return;
+    setActiveBottomTab("orders");
+    navigate("/orders");
+  };
+
+  const goToProfile = () => {
+    if (!requireLogin(navigate, "Please login to view your profile")) return;
+    setActiveBottomTab("profile");
+    navigate("/profile");
+  };
+
   return (
-    <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
+    <div
+      ref={rootRef}
+      className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden"
+    >
       {/* ========== FIRST TIME USER GUIDE ========== */}
       <OnboardingGuide />
 
@@ -472,8 +994,10 @@ const Home = () => {
             background: COLOR.STEEL_DARK,
             borderColor: "rgba(255,255,255,0.1)",
           }}
+          onMouseEnter={slowMarquee}
+          onMouseLeave={resumeMarquee}
         >
-          <div className="flex w-max animate-ticker">
+          <div ref={marqueeRef} className="flex w-max">
             {[1, 2].map((groupKey) => (
               <div
                 key={groupKey}
@@ -498,49 +1022,59 @@ const Home = () => {
           </div>
         </div>
 
-        {/* ========== HERO SHOWCASE (RESPONSIVE, FULL-SIZE IMAGE PANEL) ========== */}
+        {/* ========== HERO SHOWCASE ========== */}
         <section
+          ref={heroRef}
           className="relative w-full overflow-hidden"
           style={{ background: COLOR.HERO_BG }}
         >
           <div className="flex flex-col lg:flex-row lg:min-h-[560px]">
             {/* ===== IMAGE PANEL: full width + full height, image never cropped ===== */}
             <div
-              className="order-1 lg:order-2 lg:w-[56%] flex flex-col"
+              className="hero-img-panel order-1 lg:order-2 lg:w-[56%] flex flex-col"
               onMouseEnter={() => setPaused(true)}
               onMouseLeave={() => setPaused(false)}
             >
               <div
-                className="relative w-full aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:flex-1 lg:min-h-[420px] overflow-hidden"
+                className="hero-img-inner relative w-full aspect-[4/3] sm:aspect-[16/10] lg:aspect-auto lg:flex-1 lg:min-h-[420px] overflow-hidden"
                 style={{ background: COLOR.HERO_PANEL }}
               >
-                {/* Blurred copy fills empty space so the card always looks full */}
-                <img
-                  key={`bg-${current?._id || current?.id || active}`}
-                  src={currentImageUrl}
-                  alt=""
-                  aria-hidden="true"
-                  onError={handleImgError}
-                  className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-50"
-                />
+                {/* Parallax layer (slightly taller than the panel) */}
+                <div className="hero-img-parallax absolute inset-x-0 -top-[6%] -bottom-[6%]">
+                  {/* Blurred copy fills empty space so the card always looks full */}
+                  <img
+                    key={`bg-${current?._id || current?.id || active}`}
+                    src={currentImageUrl}
+                    alt=""
+                    aria-hidden="true"
+                    onError={handleImgError}
+                    className="absolute inset-0 w-full h-full object-cover blur-2xl scale-110 opacity-50"
+                  />
 
-                {/* Main image: object-contain = complete image visible, nothing cut */}
-                <img
-                  key={current?._id || current?.id || active}
-                  src={currentImageUrl}
-                  alt={current?.title}
-                  onError={handleImgError}
-                  className="absolute inset-0 w-full h-full object-contain p-3 sm:p-5 animate-hero-fade"
+                  {/* Main image: object-contain = complete image visible, nothing cut */}
+                  <img
+                    key={current?._id || current?.id || active}
+                    src={currentImageUrl}
+                    alt={current?.title}
+                    onError={handleImgError}
+                    className="hero-main-img absolute inset-0 w-full h-full object-contain p-3 sm:p-5"
+                  />
+                </div>
+              </div>
+
+              {/* Autoplay progress bar */}
+              <div className="relative h-[3px] w-full bg-white/10">
+                <div
+                  ref={progressRef}
+                  className="absolute inset-0 origin-left"
+                  style={{ background: COLOR.AMBER, transform: "scaleX(0)" }}
                 />
               </div>
 
               {/* Thumbnail bar */}
               <div
-                className="flex items-center gap-2.5 px-4 sm:px-6 py-3 overflow-x-auto border-t"
-                style={{
-                  background: COLOR.HERO_PANEL,
-                  borderColor: COLOR.HERO_LINE,
-                }}
+                className="hero-thumbs flex items-center gap-2.5 px-4 sm:px-6 py-3 overflow-x-auto"
+                style={{ background: COLOR.HERO_PANEL }}
               >
                 {slideData.map((item, idx) => (
                   <button
@@ -551,7 +1085,7 @@ const Home = () => {
                     className={`relative rounded-xl overflow-hidden transition-all duration-300 border-2 shrink-0 bg-white ${
                       active === idx
                         ? "shadow-md scale-105"
-                        : "opacity-60 hover:opacity-100"
+                        : "opacity-60 hover:opacity-100 hover:-translate-y-0.5"
                     }`}
                     style={{
                       borderColor:
@@ -572,91 +1106,115 @@ const Home = () => {
             </div>
 
             {/* ===== TEXT CONTENT ===== */}
-            <div className="order-2 lg:order-1 lg:w-[44%] flex flex-col justify-center items-start gap-4 px-5 sm:px-10 lg:pl-16 xl:pl-28 lg:pr-10 py-8 sm:py-10 lg:py-14">
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/70">
-                <span
-                  className="w-2 h-2 rounded-full animate-pulse"
-                  style={{ background: COLOR.AMBER }}
-                />
-                <span className="text-xs font-semibold tracking-wide text-white">
-                  {current?.tagline || "Premium Series"}
-                </span>
-              </div>
+            <div className="order-2 lg:order-1 lg:w-[44%] relative overflow-hidden flex">
+              {/* Floating glow orbs */}
+              <div
+                className="hero-orb-a absolute -top-10 -left-10 w-64 h-64 rounded-full blur-[100px] opacity-25 pointer-events-none"
+                style={{ background: COLOR.AMBER }}
+              />
+              <div
+                className="hero-orb-b absolute bottom-0 right-0 w-56 h-56 rounded-full blur-[100px] opacity-30 pointer-events-none"
+                style={{ background: COLOR.STEEL }}
+              />
 
-              <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.1] text-white">
-                {current?.title || "Featured Tool"}
-              </h1>
+              <div className="relative z-10 w-full flex flex-col justify-center items-start gap-4 px-5 sm:px-10 lg:pl-16 xl:pl-28 lg:pr-10 py-8 sm:py-10 lg:py-14">
+                <div className="hero-pill hero-tagline inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/70">
+                  <span
+                    className="w-2 h-2 rounded-full animate-pulse"
+                    style={{ background: COLOR.AMBER }}
+                  />
+                  <span className="text-xs font-semibold tracking-wide text-white">
+                    {current?.tagline || "Premium Series"}
+                  </span>
+                </div>
 
-              <p
-                className="text-sm sm:text-base max-w-md"
-                style={{ color: COLOR.HERO_TEXT_SOFT }}
-              >
-                {current?.specs ||
-                  "High quality industrial tools built for professionals"}
-              </p>
+                <h1
+                  key={current?.title}
+                  className="hero-title text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight leading-[1.1] text-white"
+                  aria-label={current?.title || "Featured Tool"}
+                >
+                  <SplitWords text={current?.title || "Featured Tool"} />
+                </h1>
 
-              {/* Feature pills */}
-              <div className="flex flex-wrap gap-2.5">
-                {[
-                  { icon: Wrench, label: "Drop Forged" },
-                  { icon: Zap, label: "Hardened Edge" },
-                  { icon: ShieldCheck, label: "Quality Assured" },
-                ].map(({ icon: Icon, label }) => (
-                  <div
-                    key={label}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold text-white"
-                    style={{
-                      background: "rgba(255,255,255,0.1)",
-                      borderColor: "rgba(255,255,255,0.25)",
-                    }}
-                  >
-                    <Icon size={13} style={{ color: COLOR.AMBER }} />
-                    {label}
+                <p
+                  className="hero-specs text-sm sm:text-base max-w-md"
+                  style={{ color: COLOR.HERO_TEXT_SOFT }}
+                >
+                  {current?.specs ||
+                    "High quality industrial tools built for professionals"}
+                </p>
+
+                {/* Feature pills */}
+                <div className="flex flex-wrap gap-2.5">
+                  {[
+                    { icon: Wrench, label: "Drop Forged" },
+                    { icon: Zap, label: "Hardened Edge" },
+                    { icon: ShieldCheck, label: "Quality Assured" },
+                  ].map(({ icon: Icon, label }) => (
+                    <div
+                      key={label}
+                      className="hero-chip inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-semibold text-white"
+                      style={{
+                        background: "rgba(255,255,255,0.1)",
+                        borderColor: "rgba(255,255,255,0.25)",
+                      }}
+                    >
+                      <Icon size={13} style={{ color: COLOR.AMBER }} />
+                      {label}
+                    </div>
+                  ))}
+                </div>
+
+                {/* ACTION BUTTONS */}
+                <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2">
+                  <div className="hero-btn">
+                    <button
+                      type="button"
+                      onClick={handleBuyNow}
+                      onMouseMove={handleMagnetMove}
+                      onMouseLeave={handleMagnetLeave}
+                      className="group w-full px-7 py-3.5 rounded-2xl font-bold text-sm shadow-lg flex items-center justify-center gap-2.5 transition-shadow duration-300 hover:shadow-[0_12px_30px_rgba(240,164,32,0.45)] active:scale-[0.98] cursor-pointer"
+                      style={{
+                        background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, #E08E10 100%)`,
+                        color: "#1A1200",
+                      }}
+                    >
+                      <ShoppingBag
+                        size={18}
+                        className="group-hover:scale-110 transition-transform"
+                      />
+                      <span>Buy Now</span>
+                      <ArrowRight
+                        size={16}
+                        className="group-hover:translate-x-1 transition-transform"
+                      />
+                    </button>
                   </div>
-                ))}
-              </div>
 
-              {/* ACTION BUTTONS */}
-              <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-3 w-full sm:w-auto mt-2">
-                <button
-                  type="button"
-                  onClick={handleBuyNow}
-                  className="group px-7 py-3.5 rounded-2xl font-bold text-sm shadow-lg flex items-center justify-center gap-2.5 transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] cursor-pointer"
-                  style={{
-                    background: `linear-gradient(135deg, ${COLOR.AMBER} 0%, #E08E10 100%)`,
-                    color: "#1A1200",
-                  }}
-                >
-                  <ShoppingBag
-                    size={18}
-                    className="group-hover:scale-110 transition-transform"
-                  />
-                  <span>Buy Now</span>
-                  <ArrowRight
-                    size={16}
-                    className="group-hover:translate-x-1 transition-transform"
-                  />
-                </button>
+                  <div className="hero-btn">
+                    <button
+                      type="button"
+                      onClick={handleExplore3DProduct}
+                      className="w-full px-5 py-3.5 rounded-2xl font-bold text-sm border flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 cursor-pointer text-white"
+                      style={{ borderColor: "rgba(255,255,255,0.45)" }}
+                    >
+                      <Rotate3d size={17} style={{ color: COLOR.AMBER }} />
+                      <span>Explore Product</span>
+                    </button>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={handleExplore3DProduct}
-                  className="px-5 py-3.5 rounded-2xl font-bold text-sm border flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 cursor-pointer text-white"
-                  style={{ borderColor: "rgba(255,255,255,0.45)" }}
-                >
-                  <Rotate3d size={17} style={{ color: COLOR.AMBER }} />
-                  <span>Explore Product</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setCompanyModalOpen(true)}
-                  className="px-5 py-3.5 rounded-2xl font-bold text-sm border flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 cursor-pointer text-white"
-                  style={{ borderColor: "rgba(255,255,255,0.45)" }}
-                >
-                  <Building2 size={17} style={{ color: COLOR.AMBER }} />
-                  <span>Company Details</span>
-                </button>
+                  <div className="hero-btn">
+                    <button
+                      type="button"
+                      onClick={() => setCompanyModalOpen(true)}
+                      className="w-full px-5 py-3.5 rounded-2xl font-bold text-sm border flex items-center justify-center gap-2 transition-all duration-300 hover:-translate-y-1 hover:bg-white/10 cursor-pointer text-white"
+                      style={{ borderColor: "rgba(255,255,255,0.45)" }}
+                    >
+                      <Building2 size={17} style={{ color: COLOR.AMBER }} />
+                      <span>Company Details</span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -724,6 +1282,9 @@ const Home = () => {
           </section>
         </ScrollReveal>
 
+        {/* ========== CRAFTSMANSHIP (NEW) ========== */}
+        <Craftsmanship />
+
         {/* ========== PRODUCTS ========== */}
         <ScrollReveal delay={80}>
           <main
@@ -742,7 +1303,7 @@ const Home = () => {
       {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 inset-x-0 z-[100] rounded-t-[26px] bg-white border-t-2 border-[#F0A420]/60 shadow-[0_-8px_24px_rgba(15,23,42,0.09)]"
+        className="bottom-nav md:hidden fixed bottom-0 inset-x-0 z-[100] rounded-t-[26px] bg-white border-t-2 border-[#F0A420]/60 shadow-[0_-8px_24px_rgba(15,23,42,0.09)]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="max-w-xl mx-auto h-[68px] px-2 grid grid-cols-5 items-center">
@@ -809,7 +1370,7 @@ const Home = () => {
           {/* Center Raised Rounded Cart Button */}
           <button
             type="button"
-            onClick={() => navigate("/cart")}
+            onClick={goToCart}
             className="flex items-center justify-center h-full active:scale-95 transition"
             aria-label={`Open shopping cart (${cartCount} items)`}
           >
@@ -837,10 +1398,7 @@ const Home = () => {
           {/* Orders */}
           <button
             type="button"
-            onClick={() => {
-              setActiveBottomTab("orders");
-              navigate("/orders");
-            }}
+            onClick={goToOrders}
             className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
               activeBottomTab === "orders"
                 ? "text-[#15181C] font-bold"
@@ -866,10 +1424,7 @@ const Home = () => {
           {/* Profile */}
           <button
             type="button"
-            onClick={() => {
-              setActiveBottomTab("profile");
-              navigate("/profile");
-            }}
+            onClick={goToProfile}
             className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
               activeBottomTab === "profile"
                 ? "text-[#15181C] font-bold"
@@ -897,10 +1452,12 @@ const Home = () => {
       {/* ========== COMPANY DETAILS POPUP MODAL ========== */}
       {companyModalOpen && (
         <div
+          ref={modalOverlayRef}
           className="fixed inset-0 z-[9999] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={() => setCompanyModalOpen(false)}
         >
           <div
+            ref={modalCardRef}
             className="relative w-full max-w-2xl rounded-3xl bg-white text-[#15181C] border border-[#E6E8EB] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
@@ -945,46 +1502,31 @@ const Home = () => {
               </p>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
+                {[
+                  { big: "100%", small: "Drop Forged Steel" },
+                  { big: "DIN", small: "Torque Certified" },
+                  { big: "PAN", small: "India Dispatch" },
+                ].map((s) => (
+                  <div
+                    key={s.big}
+                    className="modal-stat p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center"
                   >
-                    100%
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    Drop Forged Steel
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
-                  >
-                    DIN
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    Torque Certified
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
-                  >
-                    PAN
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    India Dispatch
-                  </p>
-                </div>
+                    <p
+                      className="text-xl sm:text-2xl font-black"
+                      style={{ color: COLOR.AMBER_DARK }}
+                    >
+                      {s.big}
+                    </p>
+                    <p className="text-xs text-[#6B7280] mt-0.5">{s.small}</p>
+                  </div>
+                ))}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {companyHighlights.map((box, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB]"
+                    className="modal-item p-4 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB]"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <CheckCircle2
@@ -1019,25 +1561,6 @@ const Home = () => {
       )}
 
       <style>{`
-        @keyframes ticker {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-        .animate-ticker {
-          animation: ticker 25s linear infinite;
-        }
-        .animate-ticker:hover {
-          animation-play-state: paused;
-        }
-
-        @keyframes heroFade {
-          0% { opacity: 0; transform: scale(0.97); }
-          100% { opacity: 1; transform: scale(1); }
-        }
-        .animate-hero-fade {
-          animation: heroFade 0.45s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-
         @keyframes cartOrbitSpin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
@@ -1084,6 +1607,10 @@ const Home = () => {
         }
         .cart-count-pop {
           animation: cartBadgePop 0.3s ease-out;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .cart-orbit-ring { animation: none; }
         }
 
         @media (max-width: 767px) {
