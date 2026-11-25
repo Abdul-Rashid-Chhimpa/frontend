@@ -352,7 +352,7 @@ const Card = () => {
         setPlaceholderIndex((prev) => (prev + 1) % suggestions.length);
         setIsSliding(false);
       }, 850);
-    }, 5200);
+    }, 4200);
 
     return () => {
       clearInterval(interval);
