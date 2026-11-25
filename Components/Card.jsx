@@ -206,7 +206,7 @@ const ImageSlider = ({ images, alt, interval = 3000 }) => {
               alt={`${alt || "Product"} ${i + 1}`}
               loading={i === 0 ? "eager" : "lazy"}
               draggable={false}
-              className="w-full h-full object-contain p-2.5 sm:p-3 group-hover:scale-105 transition duration-500 select-none"
+              className="w-full h-full object-contain p-1 sm:p-1.5 bg-white group-hover:scale-105 transition duration-500 select-none"
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = "https://placehold.co/400x400?text=No+Image";
@@ -536,7 +536,7 @@ const Card = () => {
       }}
     >
       <div
-        className="relative h-32 sm:h-36 overflow-hidden shimmer"
+        className="relative aspect-square overflow-hidden shimmer"
         style={{ background: "rgba(230, 232, 235, 0.6)" }}
       />
       <div className="p-2.5 sm:p-3">
@@ -1046,8 +1046,8 @@ const Card = () => {
                       >
                         {/* Image (auto slider) */}
                         <div
-                          className="relative h-28 sm:h-32 md:h-36 overflow-hidden"
-                          style={{ background: "#F1F2EF" }}
+                          className="relative aspect-square overflow-hidden border-b"
+                          style={{ background: "#FFFFFF", borderColor: BORDER }}
                         >
                           <ImageSlider
                             images={productImages}
@@ -1119,9 +1119,12 @@ const Card = () => {
                           </div>
 
                           <div>
-                            <div className="flex justify-between items-end mt-2">
+                            <div
+                              className="flex justify-between items-end mt-2.5 pt-2 border-t"
+                              style={{ borderColor: BORDER }}
+                            >
                               <div>
-                                <p className="text-[8px]" style={{ color: MUTED }}>
+                                <p className="text-[9px] uppercase tracking-wide" style={{ color: MUTED }}>
                                   Price
                                 </p>
                                 {hasDiscount ? (
@@ -1146,7 +1149,7 @@ const Card = () => {
                                 )}
                               </div>
                               <div className="text-right">
-                                <p className="text-[8px]" style={{ color: MUTED }}>
+                                <p className="text-[9px] uppercase tracking-wide" style={{ color: MUTED }}>
                                   Stock
                                 </p>
                                 <h4 className="font-bold text-sm" style={{ color: "#1D7A43" }}>
