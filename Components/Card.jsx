@@ -309,7 +309,7 @@ const Card = () => {
     pendingAddsRef.current = {};
   }, [contextCart]);
 
-  // ========== ANIMATED PLACEHOLDER LOGIC ==========
+  // ========== BLINKIT-STYLE VERTICAL PLACEHOLDER ==========
   const suggestions = useMemo(() => {
     if (!products.length) return ["Search product, brand ya material..."];
 
@@ -321,7 +321,7 @@ const Card = () => {
 
     const unique = [...new Set(names)];
 
-    // Random shuffle
+    // Shuffle suggestions so products appear in a varied order
     for (let i = unique.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [unique[i], unique[j]] = [unique[j], unique[i]];
@@ -330,26 +330,34 @@ const Card = () => {
     return unique.length > 0 ? unique : ["Search product, brand ya material..."];
   }, [products]);
 
-  // Reset index when suggestions change
+  // Reset ticker when product suggestions change
   useEffect(() => {
     setPlaceholderIndex(0);
     setIsSliding(false);
   }, [suggestions]);
 
-  // Auto cycle with bottom → top slide
+  // Smooth bottom-to-top ticker (pauses while the user is typing)
   useEffect(() => {
-    if (search || suggestions.length <= 1) return;
+    if (search || suggestions.length <= 1) {
+      setIsSliding(false);
+      return undefined;
+    }
+
+    let slideTimeout;
 
     const interval = setInterval(() => {
       setIsSliding(true);
 
-      setTimeout(() => {
+      slideTimeout = setTimeout(() => {
         setPlaceholderIndex((prev) => (prev + 1) % suggestions.length);
         setIsSliding(false);
-      }, 320);
-    }, 2600);
+      }, 420);
+    }, 2400);
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(slideTimeout);
+    };
   }, [suggestions, search]);
 
   const categories = [
@@ -961,7 +969,7 @@ const Card = () => {
                     style={{ color: MUTED }}
                   >
                     <div
-                      className="transition-transform duration-500 ease-in-out"
+                      className="transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
                       style={{
                         transform: isSliding ? "translateY(-100%)" : "translateY(0)",
                       }}
