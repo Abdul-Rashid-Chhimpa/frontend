@@ -41,14 +41,24 @@ const getImageUrl = (img) => {
   return img;
 };
 
-const getProductImage = (product) => {
-  const first = Array.isArray(product.images) ? product.images[0] : null;
-  const raw =
-    (typeof first === "string" ? first : first?.url) ||
-    product.image ||
-    product.imageUrl ||
-    "";
-  return getImageUrl(raw);
+// Product ki SAARI images (duplicate hata kar). Ek bhi nahi ho to fallback.
+const getProductImages = (product) => {
+  const list = [];
+
+  if (Array.isArray(product.images)) {
+    product.images.forEach((img) => {
+      const raw = typeof img === "string" ? img : img?.url;
+      if (raw) list.push(getImageUrl(raw));
+    });
+  }
+
+  if (list.length === 0) {
+    const single = product.image || product.imageUrl || "";
+    if (single) list.push(getImageUrl(single));
+  }
+
+  const unique = [...new Set(list)];
+  return unique.length > 0 ? unique : ["/no-image.png"];
 };
 
 // ======================================================
@@ -108,6 +118,119 @@ const StarRating = ({ rating = 0, size = 12 }) => {
         <span className="ml-1 text-[10px] font-semibold" style={{ color: MUTED }}>
           {value.toFixed(1)}
         </span>
+      )}
+    </div>
+  );
+};
+
+// ======================================================
+// IMAGE SLIDER (Blinkit style auto slide, left -> right)
+// - 1 se zyada image ho to apne aap ek-ek karke slide hoti hai
+// - Desktop: mouse upar aaye to ruk jaati hai
+// - Mobile/Tablet: swipe kar sakte ho, touch par ruk jaati hai
+// - Neeche dots dikhte hain
+// ======================================================
+const ImageSlider = ({ images, alt, interval = 3000 }) => {
+  const [index, setIndex] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const touchStartX = useRef(null);
+  const swiped = useRef(false);
+  const count = images.length;
+
+  // Images badlein to pehli image se start
+  useEffect(() => {
+    setIndex(0);
+  }, [count]);
+
+  // Auto slide
+  useEffect(() => {
+    if (count <= 1 || paused) return undefined;
+
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotion) return undefined;
+
+    const timer = setInterval(() => {
+      setIndex((i) => (i + 1) % count);
+    }, interval);
+
+    return () => clearInterval(timer);
+  }, [count, paused, interval]);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    swiped.current = false;
+    setPaused(true);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current !== null && count > 1) {
+      const diff = e.changedTouches[0].clientX - touchStartX.current;
+      if (Math.abs(diff) > 40) {
+        swiped.current = true;
+        setIndex((i) => (diff < 0 ? (i + 1) % count : (i - 1 + count) % count));
+      }
+    }
+    touchStartX.current = null;
+    setPaused(false);
+  };
+
+  // Swipe ke baad card ka click (product page open) rok do
+  const handleClickCapture = (e) => {
+    if (swiped.current) {
+      e.stopPropagation();
+      swiped.current = false;
+    }
+  };
+
+  return (
+    <div
+      className="absolute inset-0 overflow-hidden"
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onClickCapture={handleClickCapture}
+    >
+      {/* Track */}
+      <div
+        className="flex h-full transition-transform duration-700 ease-in-out"
+        style={{ transform: `translateX(-${index * 100}%)` }}
+      >
+        {images.map((src, i) => (
+          <div key={`${src}-${i}`} className="w-full h-full flex-shrink-0">
+            <img
+              src={src}
+              alt={`${alt || "Product"} ${i + 1}`}
+              loading={i === 0 ? "eager" : "lazy"}
+              draggable={false}
+              className="w-full h-full object-contain p-2.5 sm:p-3 group-hover:scale-105 transition duration-500 select-none"
+              onError={(e) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = "https://placehold.co/400x400?text=No+Image";
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* Dots */}
+      {count > 1 && (
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-1.5 py-1 rounded-full bg-black/10">
+          {images.map((_, i) => (
+            <span
+              key={i}
+              className="rounded-full transition-all duration-300"
+              style={{
+                width: i === index ? 12 : 5,
+                height: 5,
+                background: i === index ? STEEL : "rgba(43,74,94,0.35)",
+              }}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -895,7 +1018,7 @@ const Card = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-3.5">
-                  {filteredProducts.slice(0, visibleProducts).map((product) => {
+                  {filteredProducts.slice(0, visibleProducts).map((product, productIndex) => {
                     const basePrice = getLowestPrice(product);
                     const discountPercentage = Number(
                       product.discountPercent || product.offer || 0
@@ -905,6 +1028,7 @@ const Card = () => {
                     const discountTagNote = product.discountNote || "";
                     const inStock = product.stock > 0;
                     const rating = getRating(product);
+                    const productImages = getProductImages(product);
 
                     // Stock limit logic
                     const inCartQty = getCartQty(product._id);
@@ -920,25 +1044,21 @@ const Card = () => {
                           border: `1px solid ${BORDER}`,
                         }}
                       >
-                        {/* Image */}
+                        {/* Image (auto slider) */}
                         <div
                           className="relative h-28 sm:h-32 md:h-36 overflow-hidden"
                           style={{ background: "#F1F2EF" }}
                         >
-                          <img
-                            src={getProductImage(product)}
+                          <ImageSlider
+                            images={productImages}
                             alt={product.name}
-                            className="w-full h-full object-contain p-2.5 sm:p-3 group-hover:scale-105 transition duration-500"
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src =
-                                "https://placehold.co/400x400?text=No+Image";
-                            }}
+                            // Har card ka timing thoda alag, taaki sab ek saath na badlein
+                            interval={2800 + (productIndex % 4) * 400}
                           />
 
                           {hasDiscount && (
                             <span
-                              className="absolute top-1.5 left-0 animated-discount-badge text-[9px] sm:text-[10px] font-bold text-white px-2 py-0.5 flex items-center gap-0.5 shadow-md z-10"
+                              className="absolute top-1.5 left-0 animated-discount-badge text-[9px] sm:text-[10px] font-bold text-white px-2 py-0.5 flex items-center gap-0.5 shadow-md z-10 pointer-events-none"
                               style={{
                                 background: `linear-gradient(135deg, ${AMBER_DARK} 0%, #D9381E 100%)`,
                                 clipPath: "polygon(0 0, 100% 0, 92% 100%, 0% 100%)",
@@ -952,14 +1072,14 @@ const Card = () => {
                           )}
 
                           {product.isNewProduct && (
-                            <span className="absolute bottom-1.5 left-1.5 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-extrabold uppercase text-white bg-emerald-600 shadow">
+                            <span className="absolute bottom-1.5 left-1.5 z-10 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8px] font-extrabold uppercase text-white bg-emerald-600 shadow pointer-events-none">
                               <span className="w-1 h-1 rounded-full bg-white animate-ping" />
                               New
                             </span>
                           )}
 
                           <span
-                            className="absolute top-1.5 right-1.5 text-[9px] font-semibold px-2 py-0.5 rounded-full z-10"
+                            className="absolute top-1.5 right-1.5 text-[9px] font-semibold px-2 py-0.5 rounded-full z-10 pointer-events-none"
                             style={
                               inStock
                                 ? { background: "#E4F3E9", color: "#1D7A43" }
