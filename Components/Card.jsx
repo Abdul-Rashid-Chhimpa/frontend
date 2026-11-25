@@ -124,7 +124,7 @@ const StarRating = ({ rating = 0, size = 12 }) => {
 };
 
 // ======================================================
-// IMAGE SLIDER (Blinkit style auto slide, left -> right)
+// IMAGE SLIDER (Blinkit style auto slide)
 // ======================================================
 const ImageSlider = ({ images, alt, interval = 3000 }) => {
   const [index, setIndex] = useState(0);
@@ -346,7 +346,7 @@ const Card = () => {
       setTimeout(() => {
         setPlaceholderIndex((prev) => (prev + 1) % suggestions.length);
         setIsSliding(false);
-      }, 320); // match CSS duration
+      }, 320);
     }, 2600);
 
     return () => clearInterval(interval);
@@ -931,19 +931,21 @@ const Card = () => {
           <div className={`lg:col-span-3 flex flex-col ${PANEL_HEIGHT}`}>
             {/* Toolbar */}
             <div className="shrink-0 flex flex-col sm:flex-row gap-2.5 mb-3">
-              {/* ========== ANIMATED SEARCH BAR ========== */}
+              {/* ========== ANIMATED SEARCH BAR (FIXED) ========== */}
               <div className="relative flex-1">
+                {/* Search Icon */}
                 <Search
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-20"
                   style={{ color: MUTED }}
                 />
 
+                {/* Real Input */}
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="" // we handle placeholder ourselves
+                  placeholder=""
                   className="w-full rounded-xl pl-10 pr-9 py-2.5 text-sm outline-none transition relative z-10"
                   style={{
                     background: SURFACE,
@@ -955,7 +957,7 @@ const Card = () => {
                 {/* Animated Placeholder (only when empty) */}
                 {!search && (
                   <div
-                    className="absolute left-10 right-9 top-1/2 -translate-y-1/2 overflow-hidden h-5 pointer-events-none z-0"
+                    className="absolute left-10 right-9 top-1/2 -translate-y-1/2 overflow-hidden h-5 pointer-events-none z-20"
                     style={{ color: MUTED }}
                   >
                     <div
@@ -966,21 +968,23 @@ const Card = () => {
                     >
                       {/* Current text */}
                       <div className="h-5 flex items-center text-sm truncate leading-none">
-                        {suggestions[placeholderIndex]}
+                        {suggestions[placeholderIndex] || "Search product, brand ya material..."}
                       </div>
                       {/* Next text (comes from bottom) */}
                       <div className="h-5 flex items-center text-sm truncate leading-none">
-                        {suggestions[(placeholderIndex + 1) % suggestions.length]}
+                        {suggestions[(placeholderIndex + 1) % suggestions.length] ||
+                          "Search product, brand ya material..."}
                       </div>
                     </div>
                   </div>
                 )}
 
+                {/* Clear button */}
                 {search && (
                   <button
                     onClick={() => setSearch("")}
                     aria-label="Clear search"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 z-20"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 z-30"
                     style={{ color: MUTED }}
                   >
                     <X size={14} />
