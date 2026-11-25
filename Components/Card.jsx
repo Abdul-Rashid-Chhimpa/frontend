@@ -961,7 +961,7 @@ const Card = () => {
                     style={{ color: MUTED }}
                   >
                     <div
-                      className="transition-transform duration-300 ease-in-out"
+                      className="transition-transform duration-500 ease-in-out"
                       style={{
                         transform: isSliding ? "translateY(-100%)" : "translateY(0)",
                       }}
