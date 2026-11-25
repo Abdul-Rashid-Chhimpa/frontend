@@ -125,10 +125,6 @@ const StarRating = ({ rating = 0, size = 12 }) => {
 
 // ======================================================
 // IMAGE SLIDER (Blinkit style auto slide, left -> right)
-// - 1 se zyada image ho to apne aap ek-ek karke slide hoti hai
-// - Desktop: mouse upar aaye to ruk jaati hai
-// - Mobile/Tablet: swipe kar sakte ho, touch par ruk jaati hai
-// - Neeche dots dikhte hain
 // ======================================================
 const ImageSlider = ({ images, alt, interval = 3000 }) => {
   const [index, setIndex] = useState(0);
@@ -137,12 +133,10 @@ const ImageSlider = ({ images, alt, interval = 3000 }) => {
   const swiped = useRef(false);
   const count = images.length;
 
-  // Images badlein to pehli image se start
   useEffect(() => {
     setIndex(0);
   }, [count]);
 
-  // Auto slide
   useEffect(() => {
     if (count <= 1 || paused) return undefined;
 
@@ -177,7 +171,6 @@ const ImageSlider = ({ images, alt, interval = 3000 }) => {
     setPaused(false);
   };
 
-  // Swipe ke baad card ka click (product page open) rok do
   const handleClickCapture = (e) => {
     if (swiped.current) {
       e.stopPropagation();
@@ -194,7 +187,6 @@ const ImageSlider = ({ images, alt, interval = 3000 }) => {
       onTouchEnd={handleTouchEnd}
       onClickCapture={handleClickCapture}
     >
-      {/* Track */}
       <div
         className="flex h-full transition-transform duration-700 ease-in-out"
         style={{ transform: `translateX(-${index * 100}%)` }}
@@ -216,7 +208,6 @@ const ImageSlider = ({ images, alt, interval = 3000 }) => {
         ))}
       </div>
 
-      {/* Dots */}
       {count > 1 && (
         <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 px-1.5 py-1 rounded-full bg-black/10">
           {images.map((_, i) => (
@@ -244,7 +235,6 @@ const Card = () => {
   const cartCtx = useContext(CartContext);
   const { addToCart } = cartCtx;
 
-  // Cart items context se (naam alag ho to dono try kiye hain)
   const contextCart = cartCtx.cartItems || cartCtx.cart;
   const hasCartData = Array.isArray(contextCart);
 
@@ -264,12 +254,13 @@ const Card = () => {
   const [visibleProducts, setVisibleProducts] = useState(12);
   const [showMobileFilter, setShowMobileFilter] = useState(false);
 
-  // Agar context cart expose nahi karta to local counter fallback
   const [localAdded, setLocalAdded] = useState({});
-  // Kis product par "max stock" message dikhana hai
   const [limitMsgId, setLimitMsgId] = useState(null);
-  // Fast clicks ke liye ref counter (state update se pehle bhi sahi count rahe)
   const pendingAddsRef = useRef({});
+
+  // ========== ANIMATED PLACEHOLDER STATES ==========
+  const [placeholderIndex, setPlaceholderIndex] = useState(0);
+  const [isSliding, setIsSliding] = useState(false);
 
   // --- FETCH PRODUCTS ---
   const fetchProducts = async () => {
@@ -314,10 +305,52 @@ const Card = () => {
     fetchProducts();
   }, []);
 
-  // Context cart badalne par fast-click counter reset (cart ab sach batata hai)
   useEffect(() => {
     pendingAddsRef.current = {};
   }, [contextCart]);
+
+  // ========== ANIMATED PLACEHOLDER LOGIC ==========
+  const suggestions = useMemo(() => {
+    if (!products.length) return ["Search product, brand ya material..."];
+
+    const names = products
+      .map((p) => p.name)
+      .filter(Boolean)
+      .map((n) => String(n).trim())
+      .filter((n) => n.length > 2);
+
+    const unique = [...new Set(names)];
+
+    // Random shuffle
+    for (let i = unique.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [unique[i], unique[j]] = [unique[j], unique[i]];
+    }
+
+    return unique.length > 0 ? unique : ["Search product, brand ya material..."];
+  }, [products]);
+
+  // Reset index when suggestions change
+  useEffect(() => {
+    setPlaceholderIndex(0);
+    setIsSliding(false);
+  }, [suggestions]);
+
+  // Auto cycle with bottom → top slide
+  useEffect(() => {
+    if (search || suggestions.length <= 1) return;
+
+    const interval = setInterval(() => {
+      setIsSliding(true);
+
+      setTimeout(() => {
+        setPlaceholderIndex((prev) => (prev + 1) % suggestions.length);
+        setIsSliding(false);
+      }, 320); // match CSS duration
+    }, 2600);
+
+    return () => clearInterval(interval);
+  }, [suggestions, search]);
 
   const categories = [
     ...new Set(
@@ -471,21 +504,17 @@ const Card = () => {
   // ======================================================
   // CART HELPERS (STOCK LIMIT)
   // ======================================================
-
-  // Is product ki kitni quantity cart me hai
   const getCartQty = (productId) => {
     if (hasCartData) {
       const item = contextCart.find(
         (i) => (i._id || i.id || i.productId) === productId
       );
       const fromCart = Number(item?.quantity || item?.qty || 0);
-      // Fast clicks ke liye pending adds bhi jodo
       return fromCart + (pendingAddsRef.current[productId] || 0);
     }
     return localAdded[productId] || 0;
   };
 
-  // Safe add to cart (stock se zyada nahi jayega)
   const handleAddToCart = (product, finalPrice) => {
     const stock = Number(product.stock) || 0;
     const inCart = getCartQty(product._id);
@@ -515,7 +544,6 @@ const Card = () => {
     }
   };
 
-  // Go to product details
   const goToProduct = (product) => {
     navigate(`/product/${product._id}`, {
       state: { product },
@@ -903,29 +931,56 @@ const Card = () => {
           <div className={`lg:col-span-3 flex flex-col ${PANEL_HEIGHT}`}>
             {/* Toolbar */}
             <div className="shrink-0 flex flex-col sm:flex-row gap-2.5 mb-3">
+              {/* ========== ANIMATED SEARCH BAR ========== */}
               <div className="relative flex-1">
                 <Search
                   size={16}
-                  className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10"
                   style={{ color: MUTED }}
                 />
+
                 <input
                   type="text"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search product, brand ya material..."
-                  className="w-full rounded-xl pl-10 pr-9 py-2.5 text-sm outline-none transition"
+                  placeholder="" // we handle placeholder ourselves
+                  className="w-full rounded-xl pl-10 pr-9 py-2.5 text-sm outline-none transition relative z-10"
                   style={{
                     background: SURFACE,
                     border: `1px solid ${BORDER}`,
                     color: INK,
                   }}
                 />
+
+                {/* Animated Placeholder (only when empty) */}
+                {!search && (
+                  <div
+                    className="absolute left-10 right-9 top-1/2 -translate-y-1/2 overflow-hidden h-5 pointer-events-none z-0"
+                    style={{ color: MUTED }}
+                  >
+                    <div
+                      className="transition-transform duration-300 ease-in-out"
+                      style={{
+                        transform: isSliding ? "translateY(-100%)" : "translateY(0)",
+                      }}
+                    >
+                      {/* Current text */}
+                      <div className="h-5 flex items-center text-sm truncate leading-none">
+                        {suggestions[placeholderIndex]}
+                      </div>
+                      {/* Next text (comes from bottom) */}
+                      <div className="h-5 flex items-center text-sm truncate leading-none">
+                        {suggestions[(placeholderIndex + 1) % suggestions.length]}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {search && (
                   <button
                     onClick={() => setSearch("")}
                     aria-label="Clear search"
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full flex items-center justify-center hover:bg-gray-100 z-20"
                     style={{ color: MUTED }}
                   >
                     <X size={14} />
@@ -1030,7 +1085,6 @@ const Card = () => {
                     const rating = getRating(product);
                     const productImages = getProductImages(product);
 
-                    // Stock limit logic
                     const inCartQty = getCartQty(product._id);
                     const limitReached = inStock && inCartQty >= Number(product.stock);
 
@@ -1052,7 +1106,6 @@ const Card = () => {
                           <ImageSlider
                             images={productImages}
                             alt={product.name}
-                            // Har card ka timing thoda alag, taaki sab ek saath na badlein
                             interval={2800 + (productIndex % 4) * 400}
                           />
 
