@@ -23,6 +23,8 @@ import {
   ShoppingCart,
   ClipboardList,
   UserRound,
+  Sun,
+  Moon,
 } from "lucide-react";
 
 const API_BASE = "https://backend-3-axez.onrender.com";
@@ -100,6 +102,62 @@ const companyHighlights = [
     desc: "Every batch undergoes hardness and load testing before dispatch.",
   },
 ];
+
+// ======================================================
+// THEME (LIGHT / DARK)
+// - Choice localStorage me save hoti hai ("theme")
+// - Pehli baar device ki setting (prefers-color-scheme) follow karta hai
+// ======================================================
+const THEME_KEY = "theme";
+
+const getInitialTheme = () => {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "dark" || saved === "light") return saved;
+  } catch {
+    /* ignore */
+  }
+  if (
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  ) {
+    return "dark";
+  }
+  return "light";
+};
+
+const ThemeToggle = ({ theme, onToggle }) => {
+  const isDark = theme === "dark";
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? "Light mode" : "Dark mode"}
+      className="theme-toggle-btn relative w-10 h-10 rounded-full flex items-center justify-center border transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer"
+    >
+      <Sun
+        size={18}
+        className="absolute transition-all duration-300"
+        style={{
+          color: COLOR.AMBER,
+          opacity: isDark ? 1 : 0,
+          transform: isDark ? "rotate(0deg) scale(1)" : "rotate(-90deg) scale(0.4)",
+        }}
+      />
+      <Moon
+        size={18}
+        className="absolute transition-all duration-300"
+        style={{
+          color: COLOR.STEEL,
+          opacity: isDark ? 0 : 1,
+          transform: isDark ? "rotate(90deg) scale(0.4)" : "rotate(0deg) scale(1)",
+        }}
+      />
+    </button>
+  );
+};
 
 const getCartSnapshotFromStorage = () => {
   try {
@@ -219,6 +277,7 @@ const Home = () => {
   const [paused, setPaused] = useState(false);
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [activeBottomTab, setActiveBottomTab] = useState("home");
+  const [theme, setTheme] = useState(getInitialTheme);
 
   const initialSnapshot = getCartSnapshotFromStorage();
   const [cartCount, setCartCount] = useState(initialSnapshot.count);
@@ -227,6 +286,24 @@ const Home = () => {
   const cartBtnRef = useRef(null);
   const lastAnimTimestampRef = useRef(0);
   const [cartHit, setCartHit] = useState(false);
+
+  // --- THEME: save + page par apply ---
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      /* ignore */
+    }
+    const root = document.documentElement;
+    root.setAttribute("data-theme", theme);
+    root.classList.toggle("dark", theme === "dark");
+    root.style.colorScheme = theme;
+    // Dusre components (Nav/Footer) sunna chahein to
+    window.dispatchEvent(new CustomEvent("themeChange", { detail: { theme } }));
+  }, [theme]);
+
+  const toggleTheme = () =>
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
 
   const launchProductFlipAnimation = (customImage, sourceEl) => {
     const now = performance.now();
@@ -452,13 +529,23 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFC] text-[#15181C] font-sans overflow-x-hidden">
+    <div
+      data-theme={theme}
+      className="theme-root min-h-screen font-sans overflow-x-hidden"
+    >
       {/* ========== FIRST TIME USER GUIDE ========== */}
       <OnboardingGuide />
 
-      {/* ========== FIXED NAVBAR ========== */}
-      <header className="fixed top-0 inset-x-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#E6E8EB] shadow-sm hide-mobile-nav-cart">
-        <Nav />
+      {/* ========== FIXED NAVBAR (Nav + Theme toggle) ========== */}
+      <header
+        className="theme-header fixed top-0 inset-x-0 z-50 backdrop-blur-md border-b shadow-sm hide-mobile-nav-cart flex items-center"
+      >
+        <div className="flex-1 min-w-0">
+          <Nav />
+        </div>
+        <div className="shrink-0 pr-3 sm:pr-5">
+          <ThemeToggle theme={theme} onToggle={toggleTheme} />
+        </div>
       </header>
 
       {/* ========== SCROLLABLE CONTENT BELOW FIXED NAVBAR ========== */}
@@ -742,7 +829,7 @@ const Home = () => {
       {/* ========== MOBILE BOTTOM NAVIGATION ========== */}
       <nav
         aria-label="Mobile navigation"
-        className="md:hidden fixed bottom-0 inset-x-0 z-[100] rounded-t-[26px] bg-white border-t-2 border-[#F0A420]/60 shadow-[0_-8px_24px_rgba(15,23,42,0.09)]"
+        className="theme-surface theme-bottom-nav md:hidden fixed bottom-0 inset-x-0 z-[100] rounded-t-[26px] border-t-2 border-[#F0A420]/60 shadow-[0_-8px_24px_rgba(15,23,42,0.09)]"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="max-w-xl mx-auto h-[68px] px-2 grid grid-cols-5 items-center">
@@ -754,17 +841,13 @@ const Home = () => {
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
             className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
-              activeBottomTab === "home"
-                ? "text-[#15181C] font-bold"
-                : "text-[#6B7280] font-medium"
+              activeBottomTab === "home" ? "t-text font-bold" : "t-muted font-medium"
             }`}
             aria-label="Home"
           >
             <span
               className={`px-4 py-1 rounded-full flex items-center justify-center transition-colors ${
-                activeBottomTab === "home"
-                  ? "bg-[#F0A420]/20 text-[#15181C]"
-                  : "bg-transparent"
+                activeBottomTab === "home" ? "bg-[#F0A420]/20" : "bg-transparent"
               }`}
             >
               <HomeIcon
@@ -785,17 +868,13 @@ const Home = () => {
                 ?.scrollIntoView({ behavior: "smooth" });
             }}
             className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
-              activeBottomTab === "explore"
-                ? "text-[#15181C] font-bold"
-                : "text-[#6B7280] font-medium"
+              activeBottomTab === "explore" ? "t-text font-bold" : "t-muted font-medium"
             }`}
             aria-label="Explore products"
           >
             <span
               className={`px-4 py-1 rounded-full flex items-center justify-center transition-colors ${
-                activeBottomTab === "explore"
-                  ? "bg-[#F0A420]/20 text-[#15181C]"
-                  : "bg-transparent"
+                activeBottomTab === "explore" ? "bg-[#F0A420]/20" : "bg-transparent"
               }`}
             >
               <Search
@@ -842,17 +921,13 @@ const Home = () => {
               navigate("/orders");
             }}
             className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
-              activeBottomTab === "orders"
-                ? "text-[#15181C] font-bold"
-                : "text-[#6B7280] font-medium"
+              activeBottomTab === "orders" ? "t-text font-bold" : "t-muted font-medium"
             }`}
             aria-label="My orders"
           >
             <span
               className={`px-4 py-1 rounded-full flex items-center justify-center transition-colors ${
-                activeBottomTab === "orders"
-                  ? "bg-[#F0A420]/20 text-[#15181C]"
-                  : "bg-transparent"
+                activeBottomTab === "orders" ? "bg-[#F0A420]/20" : "bg-transparent"
               }`}
             >
               <ClipboardList
@@ -871,17 +946,13 @@ const Home = () => {
               navigate("/profile");
             }}
             className={`flex flex-col items-center justify-center gap-1 h-full active:scale-95 transition ${
-              activeBottomTab === "profile"
-                ? "text-[#15181C] font-bold"
-                : "text-[#6B7280] font-medium"
+              activeBottomTab === "profile" ? "t-text font-bold" : "t-muted font-medium"
             }`}
             aria-label="Profile"
           >
             <span
               className={`px-4 py-1 rounded-full flex items-center justify-center transition-colors ${
-                activeBottomTab === "profile"
-                  ? "bg-[#F0A420]/20 text-[#15181C]"
-                  : "bg-transparent"
+                activeBottomTab === "profile" ? "bg-[#F0A420]/20" : "bg-transparent"
               }`}
             >
               <UserRound
@@ -901,7 +972,7 @@ const Home = () => {
           onClick={() => setCompanyModalOpen(false)}
         >
           <div
-            className="relative w-full max-w-2xl rounded-3xl bg-white text-[#15181C] border border-[#E6E8EB] shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            className="theme-surface t-text theme-line relative w-full max-w-2xl rounded-3xl border shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -938,64 +1009,47 @@ const Home = () => {
 
             {/* Modal Body */}
             <div className="p-6 overflow-y-auto space-y-5">
-              <p className="text-sm text-[#6B7280] leading-relaxed">
+              <p className="text-sm t-muted leading-relaxed">
                 From precision drop-forged pliers to high-torque industrial
                 wrenches, Pedwal Life Creation delivers certified hand tools
                 designed for workshops, technicians, and builders across India.
               </p>
 
               <div className="grid grid-cols-3 gap-3">
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
+                {[
+                  { value: "100%", label: "Drop Forged Steel" },
+                  { value: "DIN", label: "Torque Certified" },
+                  { value: "PAN", label: "India Dispatch" },
+                ].map((stat) => (
+                  <div
+                    key={stat.value}
+                    className="theme-surface2 theme-line p-3.5 rounded-2xl border text-center"
                   >
-                    100%
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    Drop Forged Steel
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
-                  >
-                    DIN
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    Torque Certified
-                  </p>
-                </div>
-                <div className="p-3.5 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB] text-center">
-                  <p
-                    className="text-xl sm:text-2xl font-black"
-                    style={{ color: COLOR.AMBER_DARK }}
-                  >
-                    PAN
-                  </p>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    India Dispatch
-                  </p>
-                </div>
+                    <p
+                      className="text-xl sm:text-2xl font-black"
+                      style={{ color: COLOR.AMBER_DARK }}
+                    >
+                      {stat.value}
+                    </p>
+                    <p className="text-xs t-muted mt-0.5">{stat.label}</p>
+                  </div>
+                ))}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {companyHighlights.map((box, idx) => (
                   <div
                     key={idx}
-                    className="p-4 rounded-2xl bg-[#F8FAFC] border border-[#E6E8EB]"
+                    className="theme-surface2 theme-line p-4 rounded-2xl border"
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <CheckCircle2
                         size={16}
                         style={{ color: COLOR.AMBER_DARK }}
                       />
-                      <h4 className="font-bold text-sm text-[#15181C]">
-                        {box.title}
-                      </h4>
+                      <h4 className="font-bold text-sm t-text">{box.title}</h4>
                     </div>
-                    <p className="text-xs text-[#6B7280] leading-relaxed">
+                    <p className="text-xs t-muted leading-relaxed">
                       {box.desc}
                     </p>
                   </div>
@@ -1004,7 +1058,7 @@ const Home = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-[#F8FAFC] border-t border-[#E6E8EB] flex justify-end">
+            <div className="theme-surface2 theme-line px-6 py-4 border-t flex justify-end">
               <button
                 type="button"
                 onClick={() => setCompanyModalOpen(false)}
@@ -1019,6 +1073,99 @@ const Home = () => {
       )}
 
       <style>{`
+        /* ================= THEME VARIABLES ================= */
+        .theme-root {
+          --page-bg: #FAFAFC;
+          --page-text: #15181C;
+          --surface: #FFFFFF;
+          --surface-2: #F8FAFC;
+          --line: #E6E8EB;
+          --muted: #6B7280;
+          --nav-bg: rgba(255, 255, 255, 0.95);
+          background: var(--page-bg);
+          color: var(--page-text);
+          transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        .theme-root[data-theme="dark"] {
+          --page-bg: #0E1216;
+          --page-text: #E8ECEF;
+          --surface: #1B2026;
+          --surface-2: #232A31;
+          --line: #2E363D;
+          --muted: #9AA7B1;
+          --nav-bg: rgba(21, 24, 28, 0.95);
+        }
+
+        .theme-root .t-text { color: var(--page-text); }
+        .theme-root .t-muted { color: var(--muted); }
+        .theme-root .theme-surface { background: var(--surface); }
+        .theme-root .theme-surface2 { background: var(--surface-2); }
+        .theme-root .theme-line { border-color: var(--line); }
+
+        .theme-root .theme-header {
+          background: var(--nav-bg);
+          border-color: var(--line);
+          transition: background-color 0.3s ease;
+        }
+
+        .theme-root .theme-toggle-btn {
+          background: var(--surface);
+          border-color: var(--line);
+          box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        }
+
+        .theme-root .cart-orbit-wrap { background: var(--surface); }
+
+        /* ---- Dark mode: Nav (header) ke andar ke white/gray classes ---- */
+        .theme-root[data-theme="dark"] .theme-header [class*="bg-white"],
+        .theme-root[data-theme="dark"] .theme-header [class*="bg-gray-50"],
+        .theme-root[data-theme="dark"] .theme-header [class*="bg-slate-50"] {
+          background-color: var(--surface) !important;
+        }
+        .theme-root[data-theme="dark"] .theme-header [class*="text-gray-"],
+        .theme-root[data-theme="dark"] .theme-header [class*="text-slate-"],
+        .theme-root[data-theme="dark"] .theme-header [class*="text-black"],
+        .theme-root[data-theme="dark"] .theme-header [class*="text-neutral-"],
+        .theme-root[data-theme="dark"] .theme-header [class*="text-zinc-"] {
+          color: var(--page-text) !important;
+        }
+        .theme-root[data-theme="dark"] .theme-header [class*="border-gray-"],
+        .theme-root[data-theme="dark"] .theme-header [class*="border-slate-"] {
+          border-color: var(--line) !important;
+        }
+        .theme-root[data-theme="dark"] .theme-header input {
+          background: var(--surface-2) !important;
+          color: var(--page-text) !important;
+        }
+
+        /* ---- Dark mode: Products section (Card.jsx ke inline colors override) ---- */
+        .theme-root[data-theme="dark"] #products-section [style*="background: rgb(255, 255, 255)"]:not(.aspect-square) {
+          background: var(--surface) !important;
+        }
+        .theme-root[data-theme="dark"] #products-section [style*="background: rgb(245, 246, 244)"] {
+          background: var(--page-bg) !important;
+        }
+        .theme-root[data-theme="dark"] #products-section [style*="background: rgb(241, 242, 239)"] {
+          background: var(--surface-2) !important;
+        }
+        .theme-root[data-theme="dark"] #products-section [style*="color: rgb(21, 24, 28)"] {
+          color: var(--page-text) !important;
+        }
+        .theme-root[data-theme="dark"] #products-section [style*="rgb(230, 232, 235)"] {
+          border-color: var(--line) !important;
+        }
+        .theme-root[data-theme="dark"] #products-section [style*="color: rgb(107, 114, 128)"] {
+          color: var(--muted) !important;
+        }
+        .theme-root[data-theme="dark"] #products-section input,
+        .theme-root[data-theme="dark"] #products-section select {
+          color-scheme: dark;
+        }
+        .theme-root[data-theme="dark"] #products-section [class*="hover:bg-gray-"]:hover {
+          background: var(--surface-2) !important;
+        }
+
+        /* ================= EXISTING ANIMATIONS ================= */
         @keyframes ticker {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
@@ -1041,9 +1188,6 @@ const Home = () => {
         @keyframes cartOrbitSpin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
-        }
-        .cart-orbit-wrap {
-          background: #FFFFFF;
         }
         .cart-orbit-ring {
           position: absolute;
