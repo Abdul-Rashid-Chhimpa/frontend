@@ -351,8 +351,8 @@ const Card = () => {
       slideTimeout = setTimeout(() => {
         setPlaceholderIndex((prev) => (prev + 1) % suggestions.length);
         setIsSliding(false);
-      }, 420);
-    }, 2400);
+      }, 850);
+    }, 5200);
 
     return () => {
       clearInterval(interval);
@@ -969,7 +969,7 @@ const Card = () => {
                     style={{ color: MUTED }}
                   >
                     <div
-                      className="transition-transform duration-[420ms] ease-[cubic-bezier(0.22,1,0.36,1)]"
+                      className="transition-transform duration-[850ms] ease-[cubic-bezier(0.25,0.1,0.25,1)]"
                       style={{
                         transform: isSliding ? "translateY(-100%)" : "translateY(0)",
                       }}
